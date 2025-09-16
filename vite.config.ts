@@ -16,7 +16,8 @@ export default defineConfig({
     cors: true,
     proxy: {
       '/socket.io': {
-        target: 'ws://localhost:3000',
+        // 使用 http 协议作为代理目标，兼容 Engine.IO 轮询与 WebSocket，ws: true 以开启 WS
+        target: 'http://localhost:3000',
         ws: true,
         changeOrigin: true
       }

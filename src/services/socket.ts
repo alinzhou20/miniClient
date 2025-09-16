@@ -28,7 +28,6 @@ export class SocketService {
     return new Promise((resolve, reject) => {
       try {
         const config = getSocketConfig()
-        const fullUrl = `${config.url}${config.namespace}`
         
         // 准备请求头参数
         const extraHeaders: Record<string, string> = {
@@ -46,8 +45,9 @@ export class SocketService {
           extraHeaders.password = authInfo.password
         }
         
-        // 创建socket连接 - 使用默认配置
-        this.socket = io(fullUrl, {
+        // 创建socket连接 - 同源自动推断（不手写URL），仅指定命名空间
+        // 学生端在浏览器访问教师机IP:端口时，将自动连接到相同来源（教师机IP:端口）
+        this.socket = io(config.namespace, {
           extraHeaders
         })
 

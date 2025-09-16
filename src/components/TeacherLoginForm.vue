@@ -1,73 +1,57 @@
 <template>
-  <div class="login-container">
-    <el-card class="login-card">
+  <div class="teacher-login-container">
+    <el-card class="teacher-login-card">
       <template #header>
         <div class="card-header">
-          <h2>信息科技课堂</h2>
+          <h2>教师登录</h2>
+          <p class="subtitle">信息科技课堂</p>
         </div>
       </template>
 
-
-      <!-- 学生登录表单 -->
       <el-form
-        ref="studentFormRef"
-        :model="studentForm"
-        :rules="studentRules"
-        label-width="0"
-        @submit.prevent="handleStudentLogin"
-        class="student-form"
+        ref="teacherFormRef"
+        :model="teacherForm"
+        :rules="teacherRules"
+        label-width="80px"
+        @submit.prevent="handleTeacherLogin"
+        class="teacher-form"
       >
-        <el-row :gutter="16">
-          <el-col :span="8" :offset="1">
-            <el-form-item prop="studentNo">
-              <div class="input-with-label">
-                <el-input
-                  v-model="studentForm.studentNo"
-                  placeholder="输入学号"
-                  :disabled="isLogging"
-                  size="large"
-                  class="modern-input"
-                  inputmode="numeric"
-                  maxlength="3"
-                  clearable
-                />
-                <span class="input-suffix">号</span>
-              </div>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12" :offset="2">
-            <el-form-item prop="groupNo">
-              <div class="input-with-label">
-                <span class="input-prefix">第</span>
-                <el-input
-                  v-model="studentForm.groupNo"
-                  placeholder="输入组号"
-                  :disabled="isLogging"
-                  size="large"
-                  class="modern-input"
-                  inputmode="numeric"
-                  maxlength="2"
-                  clearable
-                />
-                <span class="input-suffix">小组</span>
-              </div>
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <el-form-item label="用户名" prop="username">
+          <el-input
+            v-model="teacherForm.username"
+            placeholder="请输入用户名"
+            :disabled="isLogging"
+            size="large"
+            prefix-icon="User"
+            class="modern-input"
+          />
+        </el-form-item>
+        
+        <el-form-item label="密码" prop="password">
+          <el-input
+            v-model="teacherForm.password"
+            type="password"
+            placeholder="请输入密码"
+            show-password
+            :disabled="isLogging"
+            size="large"
+            prefix-icon="Lock"
+            class="modern-input"
+          />
+        </el-form-item>
         
         <el-form-item class="login-button-item">
           <el-button
             type="primary"
             :loading="isLogging"
-            @click="handleStudentLogin"
+            @click="handleTeacherLogin"
             size="large"
             class="login-button"
           >
-            {{ isLogging ? '登录中...' : '进入课堂' }}
+            {{ isLogging ? '登录中...' : '教师登录' }}
           </el-button>
         </el-form-item>
       </el-form>
-
 
       <!-- 错误提示 -->
       <el-alert
@@ -84,6 +68,14 @@
           {{ connectionStatusText }}
         </el-tag>
       </div>
+
+      <!-- 返回学生登录 -->
+      <div class="switch-login">
+        <el-button @click="goToStudentLogin" type="info" text>
+          <el-icon><ArrowLeft /></el-icon>
+          返回学生登录
+        </el-button>
+      </div>
     </el-card>
   </div>
 </template>
@@ -91,42 +83,35 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
+import { ArrowLeft } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSocketStore } from '@/stores/socket'
-import type { StudentAuth } from '@/types'
+import type { TeacherAuth } from '@/types'
 
 // Router
 const router = useRouter()
-const route = useRoute()
 
 // Store
 const authStore = useAuthStore()
 const socketStore = useSocketStore()
 
 // 响应式数据
-const studentFormRef = ref<FormInstance>()
+const teacherFormRef = ref<FormInstance>()
 
-// 学生表单
-const studentForm = ref({
-  studentNo: '',
-  groupNo: ''
-})
-
-// 直接键盘输入，不再使用下拉选项
-
-// 当前班级
-const currentClass = computed(() => {
-  return route.params.classNo || '502'
+// 教师表单
+const teacherForm = ref({
+  username: 'admin',
+  password: 'bgxx2025'
 })
 
 // 表单验证规则
-const studentRules: FormRules = {
-  studentNo: [
-    { required: true, message: '请输入学号', trigger: 'blur' }
+const teacherRules: FormRules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' }
   ],
-  groupNo: [
-    { required: true, message: '请输入小组', trigger: 'blur' }
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' }
   ]
 }
 
@@ -149,34 +134,31 @@ const connectionStatusText = computed(() => {
 })
 
 // 方法
-const handleStudentLogin = async () => {
-  if (!studentFormRef.value) return
+const handleTeacherLogin = async () => {
+  if (!teacherFormRef.value) return
   
   try {
-    await studentFormRef.value.validate()
+    await teacherFormRef.value.validate()
     
-    const sNo = parseInt(String(studentForm.value.studentNo).trim(), 10)
-    const gNo = parseInt(String(studentForm.value.groupNo).trim(), 10)
-    if (!Number.isFinite(sNo) || sNo <= 0) throw new Error('学号必须为正整数')
-    if (!Number.isFinite(gNo) || gNo <= 0) throw new Error('小组号必须为正整数')
-
-    const authInfo: StudentAuth = {
-      role: 'student',
-      classNo: String(currentClass.value),
-      studentNo: sNo,
-      groupNo: gNo,
-      pin4: '1234' // 默认PIN码
+    const authInfo: TeacherAuth = {
+      role: 'teacher',
+      username: teacherForm.value.username,
+      password: teacherForm.value.password
     }
     
     await authStore.login(authInfo)
-    ElMessage.success('进入课堂成功')
+    ElMessage.success('教师登录成功')
     
     // 登录成功后跳转
-    router.push('/student')
+    router.push('/teacher')
     
   } catch (error: any) {
     ElMessage.error(error.message || '登录失败')
   }
+}
+
+const goToStudentLogin = () => {
+  router.push('/login')
 }
 
 // 生命周期
@@ -192,7 +174,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.login-container {
+.teacher-login-container {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -201,7 +183,7 @@ onMounted(() => {
   padding: 20px;
 }
 
-.login-card {
+.teacher-login-card {
   width: 100%;
   max-width: 480px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
@@ -234,18 +216,8 @@ onMounted(() => {
   font-weight: 500;
 }
 
-.class-info {
-  text-align: center;
-  margin-bottom: 30px;
-}
-
-.student-form {
+.teacher-form {
   padding: 0 20px 30px;
-}
-
-.modern-select {
-  width: 100%;
-  margin-bottom: 24px;
 }
 
 .login-button {
@@ -270,6 +242,18 @@ onMounted(() => {
   text-align: center;
 }
 
+.switch-login {
+  margin-top: 20px;
+  text-align: center;
+  padding-top: 16px;
+  border-top: 1px solid #ebeef5;
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #606266;
+}
+
 :deep(.el-input__wrapper) {
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -279,10 +263,12 @@ onMounted(() => {
   height: 56px;
   font-size: 16px;
 }
+
 :deep(.el-input__wrapper:hover) {
   border-color: #667eea;
   background: #fff;
 }
+
 :deep(.el-input__wrapper.is-focus) {
   border-color: #667eea;
   background: #fff;
@@ -295,47 +281,13 @@ onMounted(() => {
   color: #333;
 }
 
-:deep(.el-select__placeholder) {
-  color: #999;
-  font-weight: 400;
-}
-
 :deep(.el-card__header) {
   background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%);
   border-bottom: none;
 }
 
 :deep(.el-form-item) {
-  margin-bottom: 0;
-}
-
-:deep(.el-tag--large) {
-  padding: 12px 20px;
-  font-size: 16px;
-  font-weight: 600;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  color: white;
-}
-
-.input-with-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.input-prefix,
-.input-suffix {
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-  white-space: nowrap;
-}
-
-.input-with-label .modern-select {
-  flex: 1;
-  margin-bottom: 0;
+  margin-bottom: 20px;
 }
 
 .login-button-item {
