@@ -1,6 +1,11 @@
 <template>
   <div class="page">
     <h1 class="title">课堂看板</h1>
+    <div style="margin: 6px 0 8px;">
+      <router-link to="/teacher/activity1">
+        <el-button type="primary" size="small">前往活动一</el-button>
+      </router-link>
+    </div>
 
     <div class="layout">
       <div class="main">
@@ -26,20 +31,8 @@
             </div>
           </div>
         </div>
-
-        <!-- 提交查看：显示已提交的圈画缩略图 -->
-        <div class="review" v-if="drawings.length">
-          <div class="review-title">提交查看</div>
-          <div class="thumb-list">
-            <div class="thumb-item" v-for="(d, idx) in drawings" :key="d.at" @click="openPreview(idx)">
-              <div class="thumb-wrap">
-                <img :src="questionImg" class="thumb-img" :ref="el => setThumbImgRef(el as HTMLImageElement, idx)" @load="onThumbImgLoad(idx)" />
-                <canvas class="thumb-canvas" :ref="el => setThumbCanvasRef(el as HTMLCanvasElement, idx)"></canvas>
-              </div>
-              <div class="thumb-meta">第{{ d.groupNo }}组 / 学号 {{ d.studentNo }} · {{ new Date(d.at).toLocaleTimeString() }}</div>
-            </div>
-          </div>
-        </div>
+        <!-- 子路由渲染区（如：/teacher/question1 显示提交查看） -->
+        <router-view />
       </div>
       <aside class="aside">
         <div class="overview-card">
@@ -73,20 +66,12 @@
       </aside>
     </div>
 
-    <!-- 预览大图弹窗：点击缩略图打开 -->
-    <el-dialog v-model="previewVisible" title="圈画预览" width="60%" :close-on-click-modal="true" @closed="closePreview">
-      <div class="big-wrap">
-        <img :src="questionImg" ref="bigImgRef" class="big-img" @load="onBigImgLoad" />
-        <canvas ref="bigCanvasRef" class="big-canvas"></canvas>
-      </div>
-    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, onMounted, onBeforeUnmount, ref, nextTick } from 'vue'
+import { reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { socketService } from '@/services/socket'
-import questionImg from '@/public/question.png'
 
 // 18个小组，每组2个位置：left/right；值为学号字符串，空为 ''
 const groups = reactive(Array.from({ length: 18 }, () => ({ left: '', right: '' })))
@@ -99,42 +84,6 @@ const activities: Array<{ key: ActivityKey; title: string }> = [
   { key: 'a3', title: '算法有输出' }
 ];
 
-// 预览大图弹窗
-const previewVisible = ref(false)
-const previewIdx = ref<number | null>(null)
-const bigImgRef = ref<HTMLImageElement | null>(null)
-const bigCanvasRef = ref<HTMLCanvasElement | null>(null)
-function openPreview(idx: number) { previewIdx.value = idx; previewVisible.value = true; nextTick(() => tryDrawBig()) }
-function closePreview() { previewVisible.value = false; previewIdx.value = null }
-function onBigImgLoad() { tryDrawBig() }
-function tryDrawBig() {
-  if (previewIdx.value == null) return
-  const entry = drawings[previewIdx.value]
-  const img = bigImgRef.value
-  const canvas = bigCanvasRef.value
-  if (!entry || !img || !canvas) return
-  // 大图按容器显示尺寸绘制，保持与图片像素对齐
-  const rect = img.getBoundingClientRect()
-  const srcW = entry.width || img.naturalWidth || rect.width
-  const srcH = entry.height || img.naturalHeight || rect.height
-  canvas.width = Math.round(rect.width)
-  canvas.height = Math.round(rect.height)
-  const ctx = canvas.getContext('2d')!
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-  ctx.strokeStyle = '#e53935'
-  ctx.lineWidth = 3
-  ctx.lineJoin = 'round'
-  ctx.lineCap = 'round'
-  const scaleX = canvas.width / (srcW || canvas.width)
-  const scaleY = canvas.height / (srcH || canvas.height)
-  for (const s of entry.strokes || []) {
-    if (!Array.isArray(s) || s.length < 2) continue
-    ctx.beginPath()
-    ctx.moveTo(s[0].x * scaleX, s[0].y * scaleY)
-    for (let i = 1; i < s.length; i++) ctx.lineTo(s[i].x * scaleX, s[i].y * scaleY)
-    ctx.stroke()
-  }
-}
 const doneSets = reactive<Record<ActivityKey, Set<string>>>(
   {
     a1: new Set<string>(),
@@ -161,63 +110,6 @@ function drawCount(groupNo: string, studentNo: string): number {
   return drawStore.has(key) ? 1 : 0
 }
 
-// 提交查看区：保留最近 N 条圈画提交（含源尺寸，便于缩放绘制）
-type DrawingEntry = { groupNo: string; studentNo: string; strokes: any[]; width: number; height: number; at: number }
-const drawings = reactive<DrawingEntry[]>([])
-const thumbImgRefs = ref<HTMLImageElement[]>([])
-const thumbCanvasRefs = ref<HTMLCanvasElement[]>([])
-function setThumbImgRef(el: HTMLImageElement | null, idx: number) { if (el) thumbImgRefs.value[idx] = el }
-function setThumbCanvasRef(el: HTMLCanvasElement | null, idx: number) { if (el) thumbCanvasRefs.value[idx] = el }
-
-function pushDrawing(groupNo: string, studentNo: string, strokes: any[], width = 0, height = 0) {
-  const at = Date.now()
-  // 若已存在同一组同一学号，替换为最新并移至顶部
-  const idx = drawings.findIndex(d => d.groupNo === groupNo && d.studentNo === studentNo)
-  if (idx >= 0) drawings.splice(idx, 1)
-  drawings.unshift({ groupNo, studentNo, strokes, width, height, at })
-  // 仅保留最近50条
-  if (drawings.length > 50) drawings.splice(50)
-  // 等待DOM后尝试绘制（onload也会触发）
-  nextTick(() => {
-    drawings.forEach((_, i) => tryDrawThumb(i))
-  })
-}
-
-function onThumbImgLoad(idx: number) { tryDrawThumb(idx) }
-function tryDrawThumb(idx: number) {
-  const img = thumbImgRefs.value[idx]
-  const canvas = thumbCanvasRefs.value[idx]
-  const entry = drawings[idx]
-  if (!img || !canvas || !entry) return
-  // 目标缩放：统一缩小为原始尺寸的 1/4
-  const srcW = entry.width || img.naturalWidth || 0
-  const srcH = entry.height || img.naturalHeight || 0
-  // 按 1/4 等比缩放
-  const targetW = Math.max(1, Math.round(srcW / 4))
-  const targetH = Math.max(1, Math.round(srcH / 4))
-  // 设置缩略图显示尺寸（图片与画布一致）
-  img.style.width = `${targetW}px`
-  img.style.height = `${targetH}px`
-  canvas.width = targetW
-  canvas.height = targetH
-  const ctx = canvas.getContext('2d')!
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-  ctx.strokeStyle = '#e53935'
-  ctx.lineWidth = 2
-  ctx.lineJoin = 'round'
-  ctx.lineCap = 'round'
-  const scaleX = targetW / (srcW || targetW)
-  const scaleY = targetH / (srcH || targetH)
-  for (const s of entry.strokes || []) {
-    if (!Array.isArray(s) || s.length < 2) continue
-    ctx.beginPath()
-    ctx.moveTo(s[0].x * scaleX, s[0].y * scaleY)
-    for (let i = 1; i < s.length; i++) {
-      ctx.lineTo(s[i].x * scaleX, s[i].y * scaleY)
-    }
-    ctx.stroke()
-  }
-}
 
 function placeStudent(groupNo: string, studentNo: string) {
   let g = parseInt(groupNo, 10)
@@ -283,7 +175,6 @@ function handleMessage(message: any) {
     const g = String(from.groupNo)
     const s = String(from.studentNo)
     recordDrawing(g, s, { strokes, width: w, height: h })
-    pushDrawing(g, s, strokes, w, h)
   }
   // 记录活动完成：根据 data.title 匹配三项活动
   const title = String(data.title || '')

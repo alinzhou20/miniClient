@@ -3,13 +3,15 @@ import { useAuthStore } from '@/stores/auth'
 import LoginForm from '@/components/LoginForm.vue'
 import TeacherLoginForm from '@/components/TeacherLoginForm.vue'
 
-// 学生端组件
+// 学生端组件（布局 + 子页面）
 import StudentHome from '@/views/student/StudentHome.vue'
+import StudentQuestion1 from '@/views/student/Question1.vue'
 import StudentActivity1 from '@/views/student/Activity1.vue'
 import StudentChat from '@/views/student/ChatView.vue'
 
-// 教师端组件
+// 教师端组件（布局 + 子页面）
 import TeacherHome from '@/views/teacher/TeacherHome.vue'
+import TeacherQuestion1 from '@/views/teacher/Question1.vue'
 import TeacherActivity1 from '@/views/teacher/Activity1.vue'
 
 const routes = [
@@ -29,37 +31,30 @@ const routes = [
     component: TeacherLoginForm,
     meta: { requiresAuth: false }
   },
-  // 学生端路由
+  // 学生端路由（嵌套路由：固定头部 + 可切换内容）
   {
     path: '/student',
     name: 'Student',
     component: StudentHome,
-    meta: { requiresAuth: true, role: 'student' }
+    meta: { requiresAuth: true, role: 'student' },
+    children: [
+      { path: '', redirect: { name: 'StudentQuestion1' } },
+      { path: 'question1', name: 'StudentQuestion1', component: StudentQuestion1, meta: { requiresAuth: true, role: 'student' } },
+      { path: 'activity1', name: 'StudentActivity1', component: StudentActivity1, meta: { requiresAuth: true, role: 'student' } },
+      { path: 'chat', name: 'StudentChat', component: StudentChat, meta: { requiresAuth: true, role: 'student' } },
+    ]
   },
-  {
-    path: '/student/activity1',
-    name: 'StudentActivity1',
-    component: StudentActivity1,
-    meta: { requiresAuth: true, role: 'student' }
-  },
-  {
-    path: '/student/chat',
-    name: 'StudentChat',
-    component: StudentChat,
-    meta: { requiresAuth: true, role: 'student' }
-  },
-  // 教师端路由
+  // 教师端路由（嵌套路由：固定主页框架 + 可切换内容）
   {
     path: '/teacher',
     name: 'Teacher',
     component: TeacherHome,
-    meta: { requiresAuth: true, role: 'teacher' }
-  },
-  {
-    path: '/teacher/activity1',
-    name: 'TeacherActivity1',
-    component: TeacherActivity1,
-    meta: { requiresAuth: true, role: 'teacher' }
+    meta: { requiresAuth: true, role: 'teacher' },
+    children: [
+      { path: '', redirect: { name: 'TeacherQuestion1' } },
+      { path: 'question1', name: 'TeacherQuestion1', component: TeacherQuestion1, meta: { requiresAuth: true, role: 'teacher' } },
+      { path: 'activity1', name: 'TeacherActivity1', component: TeacherActivity1, meta: { requiresAuth: true, role: 'teacher' } },
+    ]
   },
   
 ]
