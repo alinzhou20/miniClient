@@ -30,28 +30,27 @@ export interface User {
   realName?: string
 }
 
-// 消息发送者/接收者
-export interface MessageTarget {
-  classNo?: string
-  groupNo?: number
-  studentNo?: number
-  broadcast?: boolean
-}
-
-// 消息数据
-export interface MessageData {
+// 与文档一致的统一消息载荷
+export interface MessagePayload {
   type: string
-  content: string
-  timestamp?: number
+  from?: {
+    groupNo?: string
+    studentNo?: string
+  }
+  to?: {
+    groupNo?: string[]
+    studentNo?: string[]
+  }
+  data: any
+  at: number
 }
 
-// 完整消息结构
-export interface Message {
-  code?: number
-  from: MessageTarget
-  to: MessageTarget
-  data: MessageData
-  at?: number
+// ACK 返回结构
+export interface AckResult {
+  code: number
+  message: string
+  data?: any
+  at: number
 }
 
 // Socket连接状态
@@ -62,9 +61,9 @@ export interface ConnectionStatus {
   error?: string
 }
 
-// 在线用户状态
-export interface OnlineUser {
-  user: User
-  status: 'online' | 'offline'
-  timestamp: number
+// 在线/离线事件载荷（与文档一致）
+export interface OnlineEvent {
+  studentNo: number
+  groupNo: number
+  at: number
 }

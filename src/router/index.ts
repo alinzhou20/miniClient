@@ -8,11 +8,13 @@ import StudentHome from '@/views/student/StudentHome.vue'
 import StudentQuestion1 from '@/views/student/Question1.vue'
 import StudentActivity1 from '@/views/student/Activity1.vue'
 import StudentChat from '@/views/student/ChatView.vue'
+import StudentSurvey from '@/views/student/SurveyDesigner.vue'
 
 // 教师端组件（布局 + 子页面）
 import TeacherHome from '@/views/teacher/TeacherHome.vue'
 import TeacherQuestion1 from '@/views/teacher/Question1.vue'
 import TeacherActivity1 from '@/views/teacher/Activity1.vue'
+import TeacherSurvey from '@/views/teacher/SurveyMonitor.vue'
 
 const routes = [
   {
@@ -42,6 +44,7 @@ const routes = [
       { path: 'question1', name: 'StudentQuestion1', component: StudentQuestion1, meta: { requiresAuth: true, role: 'student' } },
       { path: 'activity1', name: 'StudentActivity1', component: StudentActivity1, meta: { requiresAuth: true, role: 'student' } },
       { path: 'chat', name: 'StudentChat', component: StudentChat, meta: { requiresAuth: true, role: 'student' } },
+      { path: 'survey', name: 'StudentSurvey', component: StudentSurvey, meta: { requiresAuth: true, role: 'student' } },
     ]
   },
   // 教师端路由（嵌套路由：固定主页框架 + 可切换内容）
@@ -54,6 +57,7 @@ const routes = [
       { path: '', redirect: { name: 'TeacherQuestion1' } },
       { path: 'question1', name: 'TeacherQuestion1', component: TeacherQuestion1, meta: { requiresAuth: true, role: 'teacher' } },
       { path: 'activity1', name: 'TeacherActivity1', component: TeacherActivity1, meta: { requiresAuth: true, role: 'teacher' } },
+      { path: 'survey', name: 'TeacherSurvey', component: TeacherSurvey, meta: { requiresAuth: true, role: 'teacher' } },
     ]
   },
   

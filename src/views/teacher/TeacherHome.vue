@@ -1,9 +1,12 @@
 <template>
   <div class="page">
     <h1 class="title">课堂看板</h1>
-    <div style="margin: 6px 0 8px;">
+    <div style="margin: 6px 0 8px; display: flex; gap: 8px;">
       <router-link to="/teacher/activity1">
         <el-button type="primary" size="small">前往活动一</el-button>
+      </router-link>
+      <router-link to="/teacher/survey">
+        <el-button size="small">问卷监控</el-button>
       </router-link>
     </div>
 
@@ -159,16 +162,13 @@ function placeStudent(groupNo: string, studentNo: string) {
   }
 }
 
-function handleMessage(message: any) {
-  if (!message || message.type !== 'submit') return
-  const from = message.from || {}
-  const data = message.data || {}
+function handleSubmit(payload: any) {
+  if (!payload) return
+  const from = payload.from || {}
+  const data = payload.data || {}
   if (!from.groupNo || !from.studentNo) return
-  if (data.title === '登录') {
-    placeStudent(String(from.groupNo), String(from.studentNo))
-  }
-  // 圈画题：记录学生提交的圈画数据
-  if (String(data.title || '') === 'question' && Array.isArray((data as any).strokes)) {
+  // 圈画题：业务子类型通过 payload.type 指示为 'question'
+  if (String(payload.type || '') === 'question' && Array.isArray((data as any).strokes)) {
     const strokes = (data as any).strokes
     const w = Number((data as any).width) || 0
     const h = Number((data as any).height) || 0
@@ -176,7 +176,7 @@ function handleMessage(message: any) {
     const s = String(from.studentNo)
     recordDrawing(g, s, { strokes, width: w, height: h })
   }
-  // 记录活动完成：根据 data.title 匹配三项活动
+  // 记录活动完成：根据 data.title 保持原有三项判定
   const title = String(data.title || '')
   const key: ActivityKey | '' = title === '数据我看看' ? 'a1' : title === '维数据我用用' ? 'a2' : title === '维数据我编编' ? 'a3' : ''
   if (key !== '') {
@@ -185,12 +185,60 @@ function handleMessage(message: any) {
   }
 }
 
-onMounted(() => {
-  socketService.on('message', handleMessage)
+function removeStudentByIds(groupNo: string, studentNo: string) {
+  let g = parseInt(groupNo, 10)
+  if (!Number.isFinite(g) || g < 1) g = 1
+  if (g > 18) g = 18
+  const s = String(studentNo)
+  const grp = groups[g - 1]
+  if (grp.left === s) grp.left = ''
+  if (grp.right === s) grp.right = ''
+}
+
+function handleOnline(evt: any) {
+  // evt 可能是单条 { studentNo, groupNo }，也可能是列表或对象映射
+  const pushOne = (item: any) => {
+    if (!item) return
+    const g = String((item as any).groupNo ?? '')
+    const s = String((item as any).studentNo ?? '')
+    if (g && s) placeStudent(g, s)
+  }
+  if (Array.isArray(evt)) {
+    evt.forEach(pushOne)
+  } else if (evt && typeof evt === 'object') {
+    const values = Object.values(evt)
+    if (values.length && typeof values[0] === 'object') {
+      values.forEach(pushOne)
+    } else {
+      pushOne(evt)
+    }
+  }
+}
+
+function handleOffline(evt: any) {
+  if (!evt) return
+  const g = String((evt as any).groupNo ?? '')
+  const s = String((evt as any).studentNo ?? '')
+  if (g && s) removeStudentByIds(g, s)
+}
+
+onMounted(async () => {
+  // 监听新协议事件
+  socketService.on('submit', handleSubmit)
+  socketService.on('online', handleOnline)
+  socketService.on('offline', handleOffline)
+
+  // 首次获取在线学生快照
+  try {
+    await socketService.request({ type: 'get_stu_status', data: {}, at: Date.now() } as any)
+    // 服务端会点对点回推一个 'online' 列表，我们在 handleOnline 中统一处理
+  } catch {}
 })
 
 onBeforeUnmount(() => {
-  socketService.off('message', handleMessage)
+  socketService.off('submit', handleSubmit)
+  socketService.off('online', handleOnline)
+  socketService.off('offline', handleOffline)
 })
 
 // 统计：已登录人数与百分比

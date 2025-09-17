@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, nextTick } from 'vue'
+import { ref, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import questionImg from '@/public/question.png'
 import { useAuthStore } from '@/stores/auth'
@@ -41,7 +41,6 @@ import { useRouter } from 'vue-router'
 const auth = useAuthStore()
 const answer = ref('')
 const sending = ref(false)
-let hasSentLogin = false
 const router = useRouter()
 
 // 圈画数据结构：每个笔画由一组点组成，每点为 {x, y}
@@ -140,66 +139,44 @@ function submitDrawing() {
   if (!auth.currentUser) { ElMessage.error('未登录'); return }
   if (!strokes.value.length) { ElMessage.warning('请先圈画'); return }
   try {
-    const msg = {
-      type: 'submit',
+    const payload = {
+      type: 'question',
       from: {
         groupNo: toStr(auth.currentUser.groupNo),
         studentNo: toStr(auth.currentUser.studentNo)
       },
-      to: teacherTarget,
       data: {
         title: 'question',
         strokes: strokes.value,
         width: canvasRef.value?.width || 0,
         height: canvasRef.value?.height || 0
-      }
-    }
-    socketService.sendMessage(msg as any)
+      },
+      at: Date.now()
+    } as any
+    socketService.submit(payload)
     ElMessage.success('圈画已提交')
   } catch (e: any) {
     ElMessage.error(e?.message || '提交失败')
   }
 }
 
-// 构建教师目标（字符串数组）
-const teacherTarget = { groupNo: ['0'], studentNo: ['0'] }
 const toStr = (v: any) => (v != null ? String(v) : '')
-
-const sendLoginMessage = () => {
-  if (!auth.currentUser || hasSentLogin) return
-  if (auth.currentUser.role !== 'student') return
-  try {
-    const msg = {
-      type: 'submit',
-      from: {
-        groupNo: toStr(auth.currentUser.groupNo),
-        studentNo: toStr(auth.currentUser.studentNo)
-      },
-      to: teacherTarget,
-      data: { title: '登录' }
-    }
-    socketService.sendMessage(msg as any)
-    hasSentLogin = true
-  } catch (e: any) {
-    ElMessage.error(e?.message || '发送登录消息失败')
-  }
-}
 
 const submitAnswer = async () => {
   if (!auth.currentUser) { ElMessage.error('未登录，无法提交'); return }
   if (!answer.value.trim()) { ElMessage.warning('请先填写答案'); return }
   sending.value = true
   try {
-    const msg = {
-      type: 'submit',
+    const payload = {
+      type: 'answer',
       from: {
         groupNo: toStr(auth.currentUser.groupNo),
         studentNo: toStr(auth.currentUser.studentNo)
       },
-      to: teacherTarget,
-      data: { title: '前测', content: answer.value.trim() }
-    }
-    socketService.sendMessage(msg as any)
+      data: { title: '前测', content: answer.value.trim() },
+      at: Date.now()
+    } as any
+    await socketService.submit(payload)
     ElMessage.success('已提交')
   } catch (e: any) {
     ElMessage.error(e?.message || '提交失败')
@@ -207,8 +184,6 @@ const submitAnswer = async () => {
     sending.value = false
   }
 }
-
-onMounted(() => { sendLoginMessage() })
 
 function goChat() { router.push('/student/chat') }
 </script>

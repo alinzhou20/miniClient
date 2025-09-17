@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ConnectionStatus, OnlineUser } from '@/types'
+import type { ConnectionStatus, OnlineEvent } from '@/types'
 import { socketService } from '@/services/socket'
 
 export const useSocketStore = defineStore('socket', () => {
@@ -10,9 +10,9 @@ export const useSocketStore = defineStore('socket', () => {
     authenticated: false,
     reconnecting: false
   })
-  const onlineUsers = ref<OnlineUser[]>([])
+  const onlineUsers = ref<OnlineEvent[]>([])
   const lastPingTime = ref<number>(0)
-  const pingInterval = ref<number | null>(null)
+  const pingInterval = ref<ReturnType<typeof setInterval> | null>(null)
 
   // 计算属性
   const isConnected = computed(() => connectionStatus.value.connected)
@@ -21,13 +21,9 @@ export const useSocketStore = defineStore('socket', () => {
   const connectionError = computed(() => connectionStatus.value.error)
   const isReady = computed(() => isConnected.value && isAuthenticated.value)
 
-  const onlineStudents = computed(() => 
-    onlineUsers.value.filter(user => user.user.role === 'student')
-  )
-  
-  const onlineTeachers = computed(() => 
-    onlineUsers.value.filter(user => user.user.role === 'teacher')
-  )
+  // 严格对齐后端：仅维护学生上线/下线事件载荷
+  const onlineStudents = computed(() => onlineUsers.value)
+  const onlineTeachers = computed(() => [])
 
   // 初始化Socket事件监听
   const initSocketListeners = () => {
@@ -50,12 +46,12 @@ export const useSocketStore = defineStore('socket', () => {
       updateConnectionStatus({ error: error.message })
     })
 
-    // 用户上线/下线监听
-    socketService.on('user_online', (data: OnlineUser) => {
+    // 学生上线/下线监听（与文档一致）
+    socketService.on('online', (data: OnlineEvent) => {
       addOrUpdateUser(data)
     })
 
-    socketService.on('user_offline', (data: OnlineUser) => {
+    socketService.on('offline', (data: OnlineEvent) => {
       removeUser(data)
     })
 
@@ -71,29 +67,23 @@ export const useSocketStore = defineStore('socket', () => {
   }
 
   // 添加或更新在线用户
-  const addOrUpdateUser = (userData: OnlineUser) => {
+  const addOrUpdateUser = (evt: OnlineEvent) => {
     const existingIndex = onlineUsers.value.findIndex(
-      user => user.user.studentNo === userData.user.studentNo && 
-               user.user.classNo === userData.user.classNo
+      u => u.studentNo === evt.studentNo
     )
-    
     if (existingIndex >= 0) {
-      onlineUsers.value[existingIndex] = userData
+      onlineUsers.value[existingIndex] = evt
     } else {
-      onlineUsers.value.push(userData)
+      onlineUsers.value.push(evt)
     }
   }
 
   // 移除用户
-  const removeUser = (userData: OnlineUser) => {
+  const removeUser = (evt: OnlineEvent) => {
     const index = onlineUsers.value.findIndex(
-      user => user.user.studentNo === userData.user.studentNo && 
-               user.user.classNo === userData.user.classNo
+      u => u.studentNo === evt.studentNo
     )
-    
-    if (index >= 0) {
-      onlineUsers.value.splice(index, 1)
-    }
+    if (index >= 0) onlineUsers.value.splice(index, 1)
   }
 
   // 开始心跳检测

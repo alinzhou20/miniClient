@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client'
-import type { AuthInfo, Message, ConnectionStatus } from '@/types'
+import type { AuthInfo, MessagePayload, AckResult, ConnectionStatus } from '@/types'
 import { getSocketConfig } from '@/config/socket'
 
 export class SocketService {
@@ -16,8 +16,13 @@ export class SocketService {
   }
 
   private initEventCallbacks() {
-    // 初始化事件回调映射
-    const events = ['connect', 'disconnect', 'authenticated', 'connect_error', 'user_online', 'user_offline', 'message', 'pong']
+    // 初始化事件回调映射（严格对齐文档事件）
+    const events = [
+      'connect', 'disconnect', 'authenticated', 'connect_error',
+      'online', 'offline',
+      'submit', 'distribute', 'discuss',
+      'pong'
+    ]
     events.forEach(event => {
       this.eventCallbacks.set(event, [])
     })
@@ -45,9 +50,8 @@ export class SocketService {
           extraHeaders.password = authInfo.password
         }
         
-        // 创建socket连接 - 同源自动推断（不手写URL），仅指定命名空间
-        // 学生端在浏览器访问教师机IP:端口时，将自动连接到相同来源（教师机IP:端口）
-        this.socket = io(config.namespace, {
+        // 使用完整 URL + 命名空间建立连接
+        this.socket = io(`${config.url}${config.namespace}`, {
           extraHeaders
         })
 
@@ -92,21 +96,27 @@ export class SocketService {
           this.connectionStatus.reconnecting = true
         })
 
-        // 用户上线/下线
-        this.socket.on('user_online', (data) => {
-          this.triggerCallbacks('user_online', data)
+        // 学生上线/下线（与文档一致）
+        this.socket.on('online', (data) => {
+          this.triggerCallbacks('online', data)
         })
 
-        this.socket.on('user_offline', (data) => {
-          this.triggerCallbacks('user_offline', data)
+        this.socket.on('offline', (data) => {
+          this.triggerCallbacks('offline', data)
         })
 
-        // 接收消息
-        this.socket.on('message', (message: Message) => {
-          this.triggerCallbacks('message', message)
+        // 业务消息转发（可用于全局监听日志或调试）
+        this.socket.on('submit', (payload: MessagePayload) => {
+          this.triggerCallbacks('submit', payload)
+        })
+        this.socket.on('distribute', (payload: MessagePayload) => {
+          this.triggerCallbacks('distribute', payload)
+        })
+        this.socket.on('discuss', (payload: MessagePayload) => {
+          this.triggerCallbacks('discuss', payload)
         })
 
-        // 心跳响应
+        // 心跳响应（兼容保留）
         this.socket.on('pong', (data) => {
           this.triggerCallbacks('pong', data)
         })
@@ -130,13 +140,46 @@ export class SocketService {
     }
   }
 
-  // 发送消息
-  sendMessage(message: Message) {
-    if (this.socket && this.connectionStatus.authenticated) {
-      this.socket.emit('message', message)
-    } else {
-      throw new Error('Socket未连接或未认证')
-    }
+  // 通用带 ACK 的发送
+  emitWithAck<T extends AckResult = AckResult>(event: 'submit' | 'distribute' | 'discuss' | 'request', payload: MessagePayload, timeout = 8000): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      if (!this.socket || !this.connectionStatus.connected) {
+        reject(new Error('Socket未连接'))
+        return
+      }
+
+      let timer: any = null
+      const ackHandler = (ack: T) => {
+        if (timer) clearTimeout(timer)
+        resolve(ack)
+      }
+
+      try {
+        // 发送并等待 ACK
+        ;(this.socket as Socket).emit(event, payload, ackHandler)
+        // 超时处理
+        timer = setTimeout(() => {
+          reject(new Error(`ACK 超时: ${event}`))
+        }, timeout)
+      } catch (e) {
+        if (timer) clearTimeout(timer)
+        reject(e)
+      }
+    })
+  }
+
+  // 业务封装方法（均基于 ACK）
+  submit(payload: MessagePayload, timeout?: number) {
+    return this.emitWithAck('submit', payload, timeout)
+  }
+  distribute(payload: MessagePayload, timeout?: number) {
+    return this.emitWithAck('distribute', payload, timeout)
+  }
+  discuss(payload: MessagePayload, timeout?: number) {
+    return this.emitWithAck('discuss', payload, timeout)
+  }
+  request(payload: MessagePayload, timeout?: number) {
+    return this.emitWithAck('request', payload, timeout)
   }
 
   // 发送心跳

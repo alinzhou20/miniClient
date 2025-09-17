@@ -117,11 +117,12 @@ function tryDrawBig() {
 }
 
 function handleMessage(message: any) {
-  if (!message || message.type !== 'submit') return
+  if (!message) return
+  // 新协议：教师端收到学生提交事件为 submit，业务子类型通过 payload.type 区分
   const from = message.from || {}
   const data = message.data || {}
   if (!from.groupNo || !from.studentNo) return
-  if (String(data.title || '') === 'question' && Array.isArray((data as any).strokes)) {
+  if (String(message.type || '') === 'question' && Array.isArray((data as any).strokes)) {
     const strokes = (data as any).strokes
     const w = Number((data as any).width) || 0
     const h = Number((data as any).height) || 0
@@ -132,10 +133,10 @@ function handleMessage(message: any) {
 }
 
 onMounted(() => {
-  socketService.on('message', handleMessage)
+  socketService.on('submit', handleMessage)
 })
 onBeforeUnmount(() => {
-  socketService.off('message', handleMessage)
+  socketService.off('submit', handleMessage)
 })
 </script>
 

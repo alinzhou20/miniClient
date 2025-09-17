@@ -20,6 +20,11 @@
 
     <div class="section-title">讨论</div>
     <!-- 学生内容区：通过子路由切换（question1/activity1/chat） -->
+    <div style="margin-bottom: 8px;">
+      <router-link to="/student/survey">
+        <el-button type="primary" size="small">问卷设计</el-button>
+      </router-link>
+    </div>
     <router-view />
   </div>
 </template>
