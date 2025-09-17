@@ -1,5 +1,11 @@
 <template>
     <div class="survey-monitor">
+      <!-- 操作要求模块 -->
+      <div class="task-block">
+        <div class="op-title">2.组问卷</div>
+        <div class="op-text"><span style="font-weight: bold;">选择</span>下方合适的问题，在右侧组成完整的问卷，并交流讨论选择理由</div>
+      </div>
+      
       <!-- 两栏布局：左侧筛选+网格；右侧选中预览侧栏 -->
       <div class="layout">
         <div class="main">
@@ -51,8 +57,8 @@
         <aside class="side">
           <!-- 选中题目渲染卡片（右侧侧栏） -->
           <el-card class="selected-card" shadow="never">
-             <el-button size="small" type="success" :disabled="!selectedList.length" @click="sendSelectedToTeacher">发送</el-button>
-            <el-button size="small" :disabled="!selectedList.length" @click="clearSelected">清空</el-button>
+             <el-button size="default" type="success" :disabled="!selectedList.length" @click="sendSelectedToTeacher">发送</el-button>
+            <el-button size="default" :disabled="!selectedList.length" @click="clearSelected">清空</el-button>
             <template #header>
               <div class="sel-head">
                 <div class="pv-title">全校学生数字设备使用情况调查</div>
@@ -80,9 +86,10 @@
   </template>
   
   <script setup lang="ts">
-  import { reactive, computed, onMounted } from 'vue'
+  import { reactive, computed, onMounted, watch } from 'vue'
   import { socketService } from '@/services/socket'
   import { useAuthStore } from '@/stores/auth'
+  import { ElMessage } from 'element-plus'
   
   type QSingle = { id: string; type: 'single'; text: string; options: string[]; index?: number; createdAt?: number }
   type QMulti = { id: string; type: 'multi'; text: string; options: string[]; index?: number; createdAt?: number }
@@ -210,6 +217,7 @@
     } else {
       selectedGlobal.push({ key, qid })
     }
+    saveToLocalStorage() // 选择变化时保存状态
   }
   
   // 计算已选题目（全局，按选择顺序）
@@ -232,10 +240,78 @@
   function clearSelected() {
     selectedGlobal.splice(0, selectedGlobal.length)
     ui.forEach(state => state.selected.splice(0, state.selected.length))
+    saveToLocalStorage() // 清空选择后保存状态
   }
 
   // ---------- 静态题库初始化与发送 ----------
   const authStore = useAuthStore()
+
+  // 本地存储相关
+  const getStorageKey = () => {
+    const user = authStore.currentUser
+    if (!user || !user.groupNo || !user.studentNo) return null
+    return `activity2_${user.groupNo}_${user.studentNo}`
+  }
+
+  // 保存到本地存储
+  const saveToLocalStorage = () => {
+    const key = getStorageKey()
+    if (!key) return
+    
+    const data = {
+      selectedGlobal: selectedGlobal,
+      ui: Object.fromEntries(ui.entries()),
+      store: Object.fromEntries(store.entries()),
+      timestamp: Date.now()
+    }
+    localStorage.setItem(key, JSON.stringify(data))
+  }
+
+  // 从本地存储恢复
+  const loadFromLocalStorage = () => {
+    const key = getStorageKey()
+    if (!key) return
+    
+    try {
+      const stored = localStorage.getItem(key)
+      if (stored) {
+        const data = JSON.parse(stored)
+        
+        // 恢复选择状态
+        if (data.selectedGlobal) {
+          selectedGlobal.splice(0, selectedGlobal.length, ...data.selectedGlobal)
+        }
+        
+        // 恢复UI状态
+        if (data.ui) {
+          ui.clear()
+          Object.entries(data.ui).forEach(([key, value]) => {
+            ui.set(key, value as UIState)
+          })
+        }
+        
+        // 恢复问卷数据
+        if (data.store) {
+          store.clear()
+          Object.entries(data.store).forEach(([key, value]) => {
+            store.set(key, value as SurveyPayload)
+          })
+        }
+        
+        console.log('Activity2 数据已从本地存储恢复')
+      }
+    } catch (error) {
+      console.warn('恢复Activity2本地数据失败:', error)
+    }
+  }
+
+  // 清除本地存储
+  const clearLocalStorage = () => {
+    const key = getStorageKey()
+    if (key) {
+      localStorage.removeItem(key)
+    }
+  }
 
   function rid(prefix = 'q'): string {
     return `${prefix}_${Math.random().toString(36).slice(2, 8)}`
@@ -297,10 +373,16 @@
     }
 
     try {
-      await socketService.submit(payload as any)
+      const ack = await socketService.submit(payload as any)
+      if (ack.code !== 200) {
+        throw new Error(ack.message || '发送失败')
+      }
+      ElMessage.success('问卷发送成功！')
+      saveToLocalStorage() // 发送成功后保存状态
       // 保留右侧选中列表，不清空，便于继续查看与修改
-    } catch (e) {
-      console.error('发送失败', e)
+    } catch (error: any) {
+      console.error('发送失败', error)
+      ElMessage.error(error.message || '发送失败，请重试')
     }
   }
 
@@ -335,21 +417,34 @@
 
   onMounted(() => {
     seedStaticSurveys()
+    // 在静态数据加载后恢复用户数据
+    setTimeout(() => {
+      loadFromLocalStorage()
+    }, 100)
   })
+
+  // 监听数据变化，自动保存
+  watch([selectedGlobal, ui, store], () => {
+    saveToLocalStorage()
+  }, { deep: true })
 </script>
   
   <style scoped>
   .survey-monitor { padding: 8px; max-width: 1268px; margin: 0 0; }
+  .task-block { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+  .op-title { font-weight: 700; margin-bottom: 6px; color: #111827; }
+  .op-text { text-indent: 2em; color: #374151; font-size: 14px; margin-bottom: 6px; }
+  .op-link { color: #1d4ed8; text-decoration: underline; word-break: break-all; }
   .header { margin-bottom: 8px; }
   .header h3 { margin: 0 0 4px; }
   .header .sub { color: #666; font-size: 12px; }
-  .layout { display: grid; grid-template-columns: 1fr 400px; column-gap: 24px; align-items: start; }
+  .layout { display: grid; grid-template-columns: 1fr 440px; column-gap: 24px; align-items: start; }
   .main { min-width: 0; }
   .side { min-width: 0; position: sticky; top: 8px; align-self: start; }
   .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 12px; }
   .tb-item { margin-right: 4px; }
-  .card-grid { display: grid; grid-template-columns: repeat(2, 400px); gap: 8px 8px; justify-content: start; }
-  .survey-card { border-radius: 10px; width: 400px; height: 130px; }
+  .card-grid { display: grid; grid-template-columns: repeat(2, 380px); gap: 8px 8px; justify-content: start; }
+  .survey-card { border-radius: 10px; width: 380px; height: 160px; }
   .survey-card :deep(.el-card__body) { height: 100%; display: flex; flex-direction: column; min-height: 0; padding: 8px 10px; }
   .pv-item { height: 100%; display: flex; }
   .pv-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px; }
@@ -367,7 +462,7 @@
   .fmt-title { font-weight: 700; color: #333; }
   
   /* 选中预览卡片固定高度并内部滚动 */
-  .selected-card { width: 100%; height: 400px; display: flex; flex-direction: column; }
+  .selected-card { width: 100%; height: 500px; display: flex; flex-direction: column; }
   .sel-head { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 4px; }
   .sel-actions { display: flex; gap: 6px; }
   .selected-card :deep(.el-card__body) { flex: 1 1 auto; overflow: auto; padding-right: 6px; }
@@ -385,7 +480,7 @@
   .q-index { margin-right: 6px; color: #2b6aa6; }
   .q-text { font-weight: 600; color: #222; flex: 1 1 auto; }
   .q-type { font-size: 12px; color: #999; margin-left: 0; }
-  .q-opts { display: grid; grid-template-columns: 1fr; gap: 4px; margin-left: 0; color: #444; }
+  .q-opts { display: grid; grid-template-columns: 1fr; gap: 4px; margin-left: 0; color: #333; }
   .q-opt { padding-left: 2px; }
   </style>
   

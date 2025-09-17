@@ -1,11 +1,18 @@
 <template>
   <div class="page">
-    <h1 class="title">课堂看板</h1>
+    <!-- 顶部标题横幅（参考学生端风格） -->
+    <div class="banner">
+      <div class="banner-inner">
+        <div class="banner-badge">第 5 课</div>
+        <h1 class="title">课堂看板</h1>
+      </div>
+    </div>
+    
     <div style="margin: 6px 0 8px; display: flex; gap: 8px;">
       <router-link to="/teacher/activity1">
-        <el-button type="primary" size="small">前往活动一</el-button>
+        <el-button type="primary" size="large">前往活动一</el-button>
       </router-link>
-      <el-button size="small" @click="goActivity2">前往活动二</el-button>
+      <el-button size="large" @click="goActivity2">前往活动二</el-button>
     </div>
 
     <div class="layout">
@@ -33,7 +40,7 @@
           </div>
         </div>
         <aside class="aside">
-          <div class="overview-card">
+          <div style="display: none;" class="overview-card">
             <div class="ov-title">总览</div>
             <div class="ov-grid">
               <!-- 左：已登录 -->
@@ -318,10 +325,35 @@ async function goActivity2() {
   margin: 0 auto;
   padding: 8px 6px;
 }
+
+/* 横幅样式（参考学生端） */
+.banner {
+  background: linear-gradient(180deg, #4ea3f9 0%, #6cc2ff 60%, #e9f6ff 100%);
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  margin-bottom: 16px;
+  color: #0b3a6d;
+}
+.banner-inner { 
+  display: flex; 
+  align-items: center; 
+  gap: 14px; 
+}
+.banner-badge {
+  background: #fff;
+  color: #2d6cb3;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
 .title {
-  font-size: 20px;
+  font-size: 30px;
   font-weight: 800;
-  margin-bottom: 6px;
+  letter-spacing: 1px;
+  margin: 0;
+  color: #F5F7FA;
 }
 .layout {
   display: grid;

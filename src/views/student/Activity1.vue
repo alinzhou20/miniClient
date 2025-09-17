@@ -6,7 +6,7 @@
       <div class="left">
         <div class="task-block">
       <div class="op-title">1.了解数据获取方式及场景</div>
-      <div class="op-text">打开“近视率”网页，找一找2024年全国儿童青少年总体近视率是</div>
+      <div class="op-text">打开<span style="font-weight: bold;">“近视率”</span>网页，<span style="font-weight: bold;">找一找</span>2024年全国儿童青少年总体近视率是多少？</div>
       <a
         class="op-link"
         href="https://mp.weixin.qq.com/s/wy7cgUqfgRBDsUoCXyAcGw?click_id=2"
@@ -18,7 +18,7 @@
       <div class="right">
         <div class="task-block">
       <div class="op-title">2.试一试</div>
-      <div class="op-text">选一选，不同场景下可以采取哪种数据获取方式</div>
+      <div class="op-text"><span style="font-weight: bold;">拖动</span>不同场景，放入不同的数据获取方式中</div>
 
       <div class="elements">
           <div
@@ -68,9 +68,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { socketService } from '@/services/socket'
+import { ElMessage } from 'element-plus'
 
 const boxes = ['A','B','C','D'] as const
 type BoxId = typeof boxes[number]
@@ -130,6 +131,52 @@ const auth = useAuthStore()
 const groupNo = computed(() => String(auth.currentUser?.groupNo ?? ''))
 const studentNo = computed(() => String(auth.currentUser?.studentNo ?? ''))
 
+// 本地存储相关
+const getStorageKey = () => {
+  const g = groupNo.value
+  const s = studentNo.value
+  return g && s ? `activity1_${g}_${s}` : null
+}
+
+// 保存到本地存储
+const saveToLocalStorage = () => {
+  const key = getStorageKey()
+  if (!key) return
+  
+  const data = {
+    selections: selections.value,
+    hasSubmittedAll: hasSubmittedAll.value,
+    timestamp: Date.now()
+  }
+  localStorage.setItem(key, JSON.stringify(data))
+}
+
+// 从本地存储恢复
+const loadFromLocalStorage = () => {
+  const key = getStorageKey()
+  if (!key) return
+  
+  try {
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      const data = JSON.parse(stored)
+      selections.value = { ...selections.value, ...data.selections }
+      hasSubmittedAll.value = data.hasSubmittedAll || false
+      console.log('Activity1 数据已从本地存储恢复')
+    }
+  } catch (error) {
+    console.warn('恢复Activity1本地数据失败:', error)
+  }
+}
+
+// 清除本地存储
+const clearLocalStorage = () => {
+  const key = getStorageKey()
+  if (key) {
+    localStorage.removeItem(key)
+  }
+}
+
 function onMouseDown(e: ElementId, ev: MouseEvent) {
   ev.preventDefault()
   draggingElement.value = e
@@ -180,10 +227,17 @@ async function onMouseUp(ev: MouseEvent) {
             data: { elementId: it.id, boxId: box, action: 'select' },
             at: Date.now()
           }
-          await socketService.submit(payload as any)
+          const ack = await socketService.submit(payload as any)
+          if (ack.code !== 200) {
+            throw new Error(ack.message || '提交失败')
+          }
         }
         hasSubmittedAll.value = true
-      } catch {}
+        saveToLocalStorage() // 保存成功状态
+        ElMessage.success('所有元素分类提交成功！')
+      } catch (error: any) {
+        ElMessage.error(error.message || '提交失败，请重试')
+      }
     }
     draggingElement.value = ''
     snapping.value = false
@@ -232,17 +286,36 @@ async function onResetAll() {
   hasSubmittedAll.value = false
   if (!g || !s) return
   // 分别通知服务端
-  for (const { id } of elements) {
-    if (!had(id)) continue
-    const payload = {
-      type: 'activity1_drag',
-      from: { groupNo: g, studentNo: s },
-      data: { elementId: id, action: 'reset' },
-      at: Date.now()
+  try {
+    for (const { id } of elements) {
+      if (!had(id)) continue
+      const payload = {
+        type: 'activity1_drag',
+        from: { groupNo: g, studentNo: s },
+        data: { elementId: id, action: 'reset' },
+        at: Date.now()
+      }
+      const ack = await socketService.submit(payload as any)
+      if (ack.code !== 200) {
+        throw new Error(ack.message || '重置失败')
+      }
     }
-    try { await socketService.submit(payload as any) } catch {}
+    clearLocalStorage() // 清除本地存储
+    ElMessage.success('重置成功！')
+  } catch (error: any) {
+    ElMessage.error(error.message || '重置失败，请重试')
   }
 }
+
+// 监听selections变化，自动保存到本地存储
+watch(selections, () => {
+  saveToLocalStorage()
+}, { deep: true })
+
+// 组件挂载时恢复数据
+onMounted(() => {
+  loadFromLocalStorage()
+})
 </script>
 
 <style scoped>

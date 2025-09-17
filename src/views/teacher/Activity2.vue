@@ -1,16 +1,24 @@
 <template>
   <div class="survey-monitor">
+    <!-- 小组完成进度 -->
+    <div class="progress-section">
+      <div class="progress-header">
+        <span class="progress-label">小组完成进度</span>
+        <span class="progress-count">{{ completedGroups.size }}/25</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" :style="{ width: progressPercentage + '%' }"></div>
+      </div>
+    </div>
 
     <div class="grid">
       <el-empty v-if="!cards.length" description="等待学生提交问卷…" />
       <el-card v-for="card in cards" :key="card.key" class="t-card" shadow="hover">
         <div class="sel-head">
-          <div class="t-actions">
-            <el-text>第{{ card.from.groupNo }}小组</el-text>
-            <el-button text size="default" @click="exportCard(card)">文本导出</el-button>
-          </div>
+
+
           <div class="pv-title">第{{ card.from.groupNo }}小组 - 全校学生数字…</div>
-          <div class="pv-desc">为全面了解全校学生的近视情况……</div>
+          <div class="pv-desc">为全面了解全校学生的近视情况，以及大家日常使用……</div>
         </div>
 
         <div class="t-body">
@@ -27,6 +35,8 @@
             <div v-else class="q-blank" />
           </div>
         </div>
+        <el-button size="default" type="primary" @click="exportCard(card)">文本导出</el-button>
+
       </el-card>
     </div>
   </div>
@@ -35,6 +45,7 @@
 <script setup lang="ts">
 import { reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { socketService } from '@/services/socket'
+import { saveActivity2Data, loadActivity2Data } from '@/utils/localStorage'
 
 type QSingle = { id: string; type: 'single'; text: string; options: string[]; index?: number; createdAt?: number }
 type QMulti = { id: string; type: 'multi'; text: string; options: string[]; index?: number; createdAt?: number }
@@ -65,6 +76,12 @@ const cards = computed(() => {
   return Array.from(latest.values())
     .sort((a,b) => (b.at || 0) - (a.at || 0))
     .map(p => ({ ...p, key: `${p.from.groupNo}-${p.from.studentNo}` }))
+})
+
+// 小组完成统计
+const completedGroups = reactive(new Set<string>())
+const progressPercentage = computed(() => {
+  return Math.round((completedGroups.size / 25) * 100)
 })
 
 function letter(i: number): string { const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'; return letters[i] || '?' }
@@ -107,16 +124,46 @@ function onSubmit(payload: any) {
   const from = payload.from || {}
   const data = payload.data || {}
   if (!from.groupNo || !from.studentNo) return
-  const key = `${from.groupNo}-${from.studentNo}`
+  const groupNo = String(from.groupNo)
+  const key = groupNo
+  
+  // 检查小组是否首次提交
+  const wasGroupCompleted = completedGroups.has(groupNo)
+  
   store.set(key, {
     type: 'survey',
     from: { groupNo: String(from.groupNo), studentNo: String(from.studentNo) },
     data,
     at: payload.at || Date.now()
   })
+  
+  // 首次提交时添加到完成统计
+  if (!wasGroupCompleted) {
+    completedGroups.add(groupNo)
+  }
+  
+  // 保存到本地存储
+  saveActivity2Data(store)
 }
 
 onMounted(() => {
+  // 恢复本地存储的数据
+  const savedData = loadActivity2Data()
+  if (savedData) {
+    const groupsSet = new Set<string>()
+    savedData.forEach((payload, key) => {
+      store.set(key, payload)
+      // 提取组号用于统计
+      const groupNo = String(payload.from?.groupNo || '')
+      if (groupNo) {
+        groupsSet.add(groupNo)
+      }
+    })
+    // 恢复小组完成统计
+    groupsSet.forEach(groupNo => completedGroups.add(groupNo))
+    console.log('[Activity2] 已恢复本地存储数据，共', savedData.size, '条记录，完成小组数:', completedGroups.size)
+  }
+  
   console.log('[Teacher] onMounted, listen submit, status=', socketService.getConnectionStatus?.())
   socketService.on('submit', (payload: any) => {
     console.log('[Teacher] submit event received:', payload)
@@ -131,6 +178,44 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .survey-monitor { padding: 12px; max-width: 1280px; margin: 0 0; }
+
+/* 进度条样式 */
+.progress-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.progress-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+.progress-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: #059669;
+}
+.progress-bar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
 .header { margin-bottom: 10px; }
 .header h3 { margin: 0 0 4px; }
 .header .sub { color: #666; font-size: 12px; }
