@@ -51,10 +51,12 @@
         <aside class="side">
           <!-- 选中题目渲染卡片（右侧侧栏） -->
           <el-card class="selected-card" shadow="never">
+             <el-button size="small" type="success" :disabled="!selectedList.length" @click="sendSelectedToTeacher">发送</el-button>
+            <el-button size="small" :disabled="!selectedList.length" @click="clearSelected">清空</el-button>
             <template #header>
               <div class="sel-head">
-                <div class="pv-title">调查问卷</div>
-                <div class="pv-desc">请勾选左侧卡片以构成本次问卷，预览实时更新。</div>
+                <div class="pv-title">全校学生数字设备使用情况调查</div>
+                <div class="pv-desc">为全面了解全校学生的近视情况，以及大家日常使用电脑、平板、手机等数字设备的时长、频率等实际情况，特开展本次调查。后续我们会结合调查数据，分析数字设备使用与近视之间是否存在关联，请大家根据自身真实情况填写问卷，感谢您的配合！</div>
               </div>
             </template>
             <div class="sel-body">
@@ -69,10 +71,6 @@
                     <div class="q-opt" v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi">{{ letter(oi) }}. {{ opt }}</div>
                   </div>
                 </div>
-              </div>
-              <div class="sel-footer">
-                <el-button size="small" type="success" :disabled="!selectedList.length" @click="sendSelectedToTeacher">发送</el-button>
-                <el-button size="small" :disabled="!selectedList.length" @click="clearSelected">清空</el-button>
               </div>
             </div>
           </el-card>
@@ -290,7 +288,7 @@
         studentNo: String(user.studentNo!)
       },
       data: {
-        title: '学生自选问卷',
+        title: '全校学生数字设备使用情况调查\n为全面了解全校学生的近视情况，以及大家日常使用电脑、平板、手机等数字设备的时长、频率等实际情况，特开展本次调查。后续我们会结合调查数据，分析数字设备使用与近视之间是否存在关联，请大家根据自身真实情况填写问卷，感谢您的配合！',
         topic: '课堂练习',
         formattedText: buildFormattedFromSelected(),
         questions
@@ -363,7 +361,7 @@
   .title { font-weight: 700; color: #333; }
   .pv-q { margin-bottom: 6px; font-weight: 600; white-space: normal; overflow: visible; text-overflow: clip; }
   .pv-index { margin-right: 6px; color: #2b6aa6; }
-  .pv-blank { height: 18px; border-bottom: 2px solid #666; width: 60%; margin-top: 8px; }
+  .pv-blank { height: 18px; border-bottom: 2px solid #bbb; width: 60%; margin-top: 8px; }
   .fmt-wrap { margin-top: 10px; }
   .fmt-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .fmt-title { font-weight: 700; color: #333; }

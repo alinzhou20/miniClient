@@ -6,18 +6,21 @@
       <el-card v-for="card in cards" :key="card.key" class="t-card" shadow="hover">
         <div class="sel-head">
           <div class="t-actions">
-            <el-button text size="small" @click="exportCard(card)">导出</el-button>
+            <el-text>第{{ card.from.groupNo }}小组</el-text>
+            <el-button text size="default" @click="exportCard(card)">文本导出</el-button>
           </div>
-          <div class="pv-title">调查问卷 - 第{{ card.from.groupNo }}小组</div>
-          <div class="pv-desc">请勾选左侧卡片以构成本次问卷，预览实时更新。</div>
+          <div class="pv-title">全校学生数字设备使用情况调查</div>
+          <div class="pv-desc">为全面了解全校学生的近视情况，以及大家日常使用电脑、平板、手机等数字设备的时长、频率等实际情况，特开展本次调查。后续我们会结合调查数据，分析数字设备使用与近视之间是否存在关联，请大家根据自身真实情况填写问卷，感谢您的配合！</div>
         </div>
 
         <div class="t-body">
           <div class="q-item" v-for="(q, qi) in card.data.questions" :key="(q as any).id || qi">
             <div class="q-head">
+              <span class="q-index">{{ qi + 1 }}.</span>
               <span class="q-text">{{ (q as any).text || '（未命名题目）' }}</span>
               <span class="q-type">{{ typeTag((q as any).type) }}</span>
             </div>
+
             <div v-if="Array.isArray((q as any).options)" class="q-opts">
               <div class="q-opt" v-for="(opt, oi) in ((q as any).options || [])" :key="oi">{{ letter(oi) }}. {{ opt }}</div>
             </div>
@@ -147,6 +150,7 @@ onBeforeUnmount(() => {
 .t-body { display: flex; flex-direction: column; gap: 8px; overflow: auto; }
 .q-item { padding: 6px 8px; background: #fafafa; border: 1px dashed #eee; border-radius: 6px; }
 .q-head { display: flex; align-items: baseline; gap: 0; }
+.q-index { margin-right: 6px; color: #2b6aa6; }
 .q-text { font-weight: 600; color: #222; flex: 1 1 auto; }
 .q-type { font-size: 12px; color: #999; margin-left: 0; }
 .q-opts { display: grid; grid-template-columns: 1fr; gap: 4px; margin-left: 0; color: #444; }

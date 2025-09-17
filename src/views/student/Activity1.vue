@@ -17,8 +17,8 @@
       </div>
       <div class="right">
         <div class="task-block">
-      <div class="op-title">2.选择数据获取方式及场景</div>
-      <div class="op-text">拖一拖选一选，将</div>
+      <div class="op-title">2.试一试</div>
+      <div class="op-text">选一选，不同场景下可以采取哪种数据获取方式</div>
 
       <div class="elements">
           <div
@@ -85,38 +85,30 @@ const boxLabels: Record<BoxId, string> = {
 // 元素定义（七个）
 type ElementId =
   | 'check_vision'
-  | 'know_device_usage'
   | 'register_vision'
   | 'bad_habits'
-  | 'protect_eyes'
   | 'usage_duration'
   | 'common_devices'
-  | 'check_vision_alt'
   | 'survey_all_devices'
 type ElementItem = { id: ElementId; title: string }
 const elements: Readonly<ElementItem[]> = [
-  { id: 'check_vision', title: '检测学生视力' },
-  { id: 'know_device_usage', title: '了解学生数字设备使用情况' },
-  { id: 'register_vision', title: '登记视力' },
-  { id: 'bad_habits', title: '使用电子设备的不良习惯' },
-  { id: 'protect_eyes', title: '保护视力的方法' },
-  { id: 'usage_duration', title: '了解数字设备使用时长' },
-  { id: 'common_devices', title: '常用的数字设备有哪些' },
-  { id: 'check_vision_alt', title: '检查学生视力' },
-  { id: 'survey_all_devices', title: '调查全校学生数字设备使用情况' }
+  { id: 'check_vision', title: '测量新生身高数据' },
+  { id: 'register_vision', title: '获取保护视力的方法' },
+  { id: 'survey_all_devices', title: '调查全校学生数字设备使用情况' },
+  { id: 'bad_habits', title: '记录课堂重点知识' },
+  { id: 'usage_duration', title: '了解当天天气数据' },
+  { id: 'common_devices', title: '2024年全国出生人口' },
 ] as const
 
 const isDragging = ref(false)
 const draggingElement = ref<ElementId | ''>('')
+const hasSubmittedAll = ref(false)
 const selections = ref<Record<ElementId, BoxId | ''>>({
   check_vision: '',
-  know_device_usage: '',
   register_vision: '',
   bad_habits: '',
-  protect_eyes: '',
   usage_duration: '',
   common_devices: '',
-  check_vision_alt: '',
   survey_all_devices: ''
 })
 
@@ -174,16 +166,24 @@ async function onMouseUp(ev: MouseEvent) {
   // 动画结束后提交
   setTimeout(async () => {
     selections.value[e] = hit
+    // 如果全部元素都已放置，则一次性批量发送所有映射
+    const allPlaced = elements.every(it => selections.value[it.id] !== '')
     const g = groupNo.value
     const s = studentNo.value
-    if (g && s) {
-      const payload = {
-        type: 'activity1_drag',
-        from: { groupNo: g, studentNo: s },
-        data: { elementId: e, boxId: hit, action: 'select' },
-        at: Date.now()
-      }
-      try { await socketService.submit(payload as any) } catch {}
+    if (allPlaced && g && s && !hasSubmittedAll.value) {
+      try {
+        for (const it of elements) {
+          const box = selections.value[it.id] as BoxId
+          const payload = {
+            type: 'activity1_drag',
+            from: { groupNo: g, studentNo: s },
+            data: { elementId: it.id, boxId: box, action: 'select' },
+            at: Date.now()
+          }
+          await socketService.submit(payload as any)
+        }
+        hasSubmittedAll.value = true
+      } catch {}
     }
     draggingElement.value = ''
     snapping.value = false
@@ -229,6 +229,7 @@ async function onResetAll() {
   const had = (id: ElementId) => selections.value[id] !== ''
   // 先本地清空
   for (const it of elements) selections.value[it.id] = ''
+  hasSubmittedAll.value = false
   if (!g || !s) return
   // 分别通知服务端
   for (const { id } of elements) {
@@ -270,9 +271,7 @@ async function onResetAll() {
 .draggable.dragging { opacity: .85; transform: scale(0.98); }
 .tip { font-size: 12px; color: #555; }
 .sel { margin-left: 6px; }
-.btn { margin-top: 4px; padding: 6px 10px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; border-radius: 8px; cursor: pointer; }
-.btn:hover { background: #dbeafe; }
-
+.btn { margin-top: 4px; padding: 6px 10px; background: #91e89a; border: 1px solid #bfdbfe; color: #1d4ed8; border-radius: 8px; cursor: pointer; }
 .op-drag-tip { font-size: 14px; color: #334155; margin-bottom: 8px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 6px 10px; }
 
 .grid { display: grid; grid-template-columns: repeat(2, minmax(160px, 1fr)); gap: 10px; }

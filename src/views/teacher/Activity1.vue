@@ -28,15 +28,12 @@ import { socketService } from '@/services/socket'
 type BoxId = 'A' | 'B' | 'C' | 'D'
 const boxLabels: Record<BoxId, string> = { A: '现场记录', B: '问卷调查', C: '网络获取', D: '设备采集' }
 const elements = [
-  { id: 'check_vision', title: '检测学生视力' },
-  { id: 'know_device_usage', title: '了解学生数字设备使用情况' },
-  { id: 'register_vision', title: '登记视力' },
-  { id: 'bad_habits', title: '使用电子设备的不良习惯' },
-  { id: 'protect_eyes', title: '保护视力的方法' },
-  { id: 'usage_duration', title: '了解数字设备使用时长' },
-  { id: 'common_devices', title: '常用的数字设备有哪些' },
-  { id: 'check_vision_alt', title: '检查学生视力' },
-  { id: 'survey_all_devices', title: '调查全校学生数字设备使用情况' }
+  { id: 'check_vision', title: '测量新生身高数据' },
+  { id: 'register_vision', title: '获取保护视力的方法' },
+  { id: 'survey_all_devices', title: '调查全校学生数字设备使用情况' },
+  { id: 'bad_habits', title: '记录课堂重点知识' },
+  { id: 'usage_duration', title: '了解当天天气数据' },
+  { id: 'common_devices', title: '2024年全国出生人口' },
 ] as const
 type ElementId = typeof elements[number]['id']
 
