@@ -4,7 +4,7 @@
     <div class="banner">
       <div class="banner-inner">
         <div class="banner-badge">第 5 课</div>
-        <h1 class="title">算法中的数据</h1>
+        <h1 class="title">数据获取</h1>
       </div>
     </div>
 
@@ -12,9 +12,8 @@
     <section class="learn-box">
       <div class="learn-title">你将学习</div>
       <ol class="learn-list">
-        <li>算法的有穷性。</li>
-        <li>算法的确定性。</li>
-        <li>算法要有输出。</li>
+        <li>数据获取的方法</li>
+        <li>问卷调查的基本步骤</li>
       </ol>
     </section>
 

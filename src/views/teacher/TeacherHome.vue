@@ -35,7 +35,6 @@
           </div>
         </div>
         <!-- 子路由渲染区（如：/teacher/question1 显示提交查看） -->
-        <router-view />
       </div>
       <aside class="aside">
         <div class="overview-card">
@@ -67,6 +66,7 @@
           </div>
         </div>
       </aside>
+      <router-view />
     </div>
 
   </div>

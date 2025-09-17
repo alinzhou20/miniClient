@@ -18,23 +18,6 @@
         class="student-form"
       >
         <el-row :gutter="16">
-          <el-col :span="8" :offset="1">
-            <el-form-item prop="studentNo">
-              <div class="input-with-label">
-                <el-input
-                  v-model="studentForm.studentNo"
-                  placeholder="输入学号"
-                  :disabled="isLogging"
-                  size="large"
-                  class="modern-input"
-                  inputmode="numeric"
-                  maxlength="3"
-                  clearable
-                />
-                <span class="input-suffix">号</span>
-              </div>
-            </el-form-item>
-          </el-col>
           <el-col :span="12" :offset="2">
             <el-form-item prop="groupNo">
               <div class="input-with-label">
@@ -53,6 +36,24 @@
               </div>
             </el-form-item>
           </el-col>
+          <el-col :span="8" :offset="1">
+            <el-form-item prop="studentNo">
+              <div class="input-with-label">
+                <el-input
+                  v-model="studentForm.studentNo"
+                  placeholder="输入学号"
+                  :disabled="isLogging"
+                  size="large"
+                  class="modern-input"
+                  inputmode="numeric"
+                  maxlength="3"
+                  clearable
+                />
+                <span class="input-suffix">号</span>
+              </div>
+            </el-form-item>
+          </el-col>
+
         </el-row>
         
         <el-form-item class="login-button-item">
