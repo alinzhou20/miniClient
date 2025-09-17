@@ -9,8 +9,8 @@
             <el-text>第{{ card.from.groupNo }}小组</el-text>
             <el-button text size="default" @click="exportCard(card)">文本导出</el-button>
           </div>
-          <div class="pv-title">全校学生数字设备使用情况调查</div>
-          <div class="pv-desc">为全面了解全校学生的近视情况，以及大家日常使用电脑、平板、手机等数字设备的时长、频率等实际情况，特开展本次调查。后续我们会结合调查数据，分析数字设备使用与近视之间是否存在关联，请大家根据自身真实情况填写问卷，感谢您的配合！</div>
+          <div class="pv-title">第{{ card.from.groupNo }}小组 - 全校学生数字…</div>
+          <div class="pv-desc">为全面了解全校学生的近视情况……</div>
         </div>
 
         <div class="t-body">
@@ -130,13 +130,13 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.survey-monitor { padding: 12px; max-width: 1280px; margin: 0 auto; }
+.survey-monitor { padding: 12px; max-width: 1280px; margin: 0 0; }
 .header { margin-bottom: 10px; }
 .header h3 { margin: 0 0 4px; }
 .header .sub { color: #666; font-size: 12px; }
 
 .grid { display: grid; grid-template-columns: repeat(3, 400px); gap: 12px; align-items: start; justify-content: start; }
-.t-card { display: flex; flex-direction: column; min-height: 0; width: 400px; height: 400px; }
+.t-card { display: flex; flex-direction: column; min-height: 0; width: 400px; height: 600px; }
 .t-card :deep(.el-card__body) { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; overflow: auto; }
 .sel-head { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
 .t-actions { display: flex; justify-content: flex-end; }
@@ -147,7 +147,7 @@ onBeforeUnmount(() => {
 .pv-title { font-size: 24px; font-weight: 900; color: #1677ff; margin-bottom: 6px; text-align: center; letter-spacing: 0.5px; }
 .pv-desc { font-size: 14px; color: #444; text-align: left; }
 
-.t-body { display: flex; flex-direction: column; gap: 8px; overflow: auto; }
+.t-body { display: flex; flex-direction: column; gap: 8px; overflow: visible; }
 .q-item { padding: 6px 8px; background: #fafafa; border: 1px dashed #eee; border-radius: 6px; }
 .q-head { display: flex; align-items: baseline; gap: 0; }
 .q-index { margin-right: 6px; color: #2b6aa6; }

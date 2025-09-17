@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <h2 class="title">活动一：数据获取方法多（统计看板）</h2>
+    <h2 class="title">活动一：数据获取方法多</h2>
     <div class="rows">
       <div v-for="e in elements" :key="e.id" class="row">
         <div class="row-left">

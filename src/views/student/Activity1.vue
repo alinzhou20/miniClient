@@ -249,7 +249,7 @@ async function onResetAll() {
 .page { padding: 16px; }
 .task-block { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
 .op-title { font-weight: 700; margin-bottom: 6px; color: #111827; }
-.op-text { color: #374151; font-size: 14px; margin-bottom: 6px; }
+.op-text { text-indent: 2em;color: #374151; font-size: 14px; margin-bottom: 6px; }
 .op-link { color: #1d4ed8; text-decoration: underline; word-break: break-all; }
 
 .title { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
@@ -313,4 +313,8 @@ async function onResetAll() {
   box-shadow: 0 4px 10px rgba(0,0,0,0.08);
 }
 .floating.snapping { transition: left .18s ease, top .18s ease; }
+
+/* 仅将右侧第一个卡片设为纵向flex，使“重置全部”按钮靠右 */
+.right > .task-block { display: flex; flex-direction: column; }
+.right > .task-block .btn { align-self: flex-end; margin-top: 8px; }
 </style>

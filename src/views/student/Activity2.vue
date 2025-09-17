@@ -374,7 +374,7 @@
   .sel-body { padding-right: 2px; }
   .preview-head { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0; }
   .pv-title { font-size: 24px; font-weight: 900; color: #1677ff; margin-bottom: 6px; text-align: center; letter-spacing: 0.5px; }
-  .pv-desc { font-size: 14px; color: #444; text-align: left; }
+  .pv-desc { text-indent: 2em;font-size: 14px; color: #444; text-align: left; }
   .sel-footer { display: flex; gap: 8px; justify-content: center; padding-top: 8px; }
   /* 放大复选框，增强可见性 */
   :deep(.pv-check .el-checkbox .el-checkbox__inner) { transform: scale(1.4); }

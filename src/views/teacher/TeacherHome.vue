@@ -12,7 +12,7 @@
       <div class="main">
         <div class="groups">
           <div
-            v-for="g in 26"
+            v-for="g in 25"
             :key="g"
             class="group-card"
           >
@@ -39,8 +39,8 @@
               <!-- 左：已登录 -->
               <div class="ov-col">
                 <div class="ov-item">
-                  <span class="ov-label">已登录</span>
-                  <span class="ov-value">{{ loggedInCount }} / 52</span>
+                  <span class="ov-label">已登录（按组）</span>
+                  <span class="ov-value">{{ loggedInCount }} / 25</span>
                 </div>
                 <div class="ov-progress">
                   <div class="bar">
@@ -55,7 +55,7 @@
                 <div class="ov-act" v-for="act in activitiesView" :key="act.key" :class="{ active: act.active }">
                   <div class="ov-item">
                     <span class="ov-label">{{ act.title }}</span>
-                    <span class="ov-value">{{ activityCount[act.key] }} / 52</span>
+                    <span class="ov-value">{{ activityCount[act.key] }} / 25</span>
                   </div>
                   <div class="ov-progress">
                     <div class="bar blue">
@@ -81,15 +81,15 @@ import { reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { socketService } from '@/services/socket'
 
-// 26个小组，每组2个位置：left/right；值为学号字符串，空为 ''
-const groups = reactive(Array.from({ length: 26 }, () => ({ left: '', right: '' })))
+// 25个小组，每组2个位置：left/right；值为学号字符串，空为 ''
+const GROUP_COUNT = 25
+const groups = reactive(Array.from({ length: GROUP_COUNT }, () => ({ left: '', right: '' })))
 
 // 活动定义与完成集（以 学生唯一键 group-student 记录）
-type ActivityKey = 'a1' | 'a2' | 'a3'
+type ActivityKey = 'a1' | 'a2'
 const activities: Array<{ key: ActivityKey; title: string }> = [
   { key: 'a1', title: '活动一：数据获取方法多' },
-  { key: 'a2', title: '活动二：问卷调查巧设计' },
-  { key: 'a3', title: '活动三：问卷调查我参与' }
+  { key: 'a2', title: '活动二：问卷调查巧设计' }
 ]
 
 // 调查问卷完成集（以 学生唯一键 group-student 记录）
@@ -99,11 +99,11 @@ function isSurveyed(groupNo: string, studentNo: string): boolean {
   return surveyDone.has(sk)
 }
 
-const doneSets = reactive<Record<ActivityKey, Set<string>>>(
+// 组完成集（按组统计是否有任一学生完成）
+const groupDoneSets = reactive<Record<ActivityKey, Set<string>>>(
   {
     a1: new Set<string>(),
-    a2: new Set<string>(),
-    a3: new Set<string>()
+    a2: new Set<string>()
   }
 )
 const studentKey = (groupNo: string, studentNo: string) => `${groupNo}-${studentNo}`
@@ -129,7 +129,7 @@ function drawCount(groupNo: string, studentNo: string): number {
 function placeStudent(groupNo: string, studentNo: string) {
   let g = parseInt(groupNo, 10)
   if (!Number.isFinite(g) || g < 1) g = 1
-  if (g > 26) g = 26
+  if (g > GROUP_COUNT) g = GROUP_COUNT
   const s = String(studentNo)
 
   const grp = groups[g - 1]
@@ -195,19 +195,19 @@ function handleSubmit(payload: any) {
     const sk = studentKey(g, s)
     surveyDone.add(sk)
   }
-  // 记录活动完成：根据 data.title 保持原有三项判定
+  // 记录活动完成：根据 data.title 判定（仅A1/A2，按组统计任一学生完成即记组完成）
   const title = String(data.title || '')
-  const key: ActivityKey | '' = title === '数据我看看' ? 'a1' : title === '维数据我用用' ? 'a2' : title === '维数据我编编' ? 'a3' : ''
+  const key: ActivityKey | '' = title === '数据我看看' ? 'a1' : title === '维数据我用用' ? 'a2' : ''
   if (key !== '') {
-    const sk = studentKey(String(from.groupNo), String(from.studentNo))
-    doneSets[key].add(sk)
+    const g = String(from.groupNo)
+    groupDoneSets[key].add(g)
   }
 }
 
 function removeStudentByIds(groupNo: string, studentNo: string) {
   let g = parseInt(groupNo, 10)
   if (!Number.isFinite(g) || g < 1) g = 1
-  if (g > 26) g = 26
+  if (g > GROUP_COUNT) g = GROUP_COUNT
   const s = String(studentNo)
   const grp = groups[g - 1]
   if (grp.left === s) grp.left = ''
@@ -260,26 +260,24 @@ onBeforeUnmount(() => {
   socketService.off('offline', handleOffline)
 })
 
-// 统计：已登录人数与百分比
+// 统计：已登录组数与百分比（组内任意一人在线即计入）
 const loggedInCount = computed(() =>
-  groups.reduce((acc, g) => acc + (g.left ? 1 : 0) + (g.right ? 1 : 0), 0)
+  groups.reduce((acc, g) => acc + ((g.left || g.right) ? 1 : 0), 0)
 )
-const percent = computed(() => Math.round((loggedInCount.value / 52) * 100))
+const percent = computed(() => Math.round((loggedInCount.value / GROUP_COUNT) * 100))
 
-// 活动完成统计与百分比
+// 活动完成统计与百分比（按组）
 const activityCount = computed<Record<ActivityKey, number>>(() => ({
-  a1: doneSets.a1.size,
-  a2: doneSets.a2.size,
-  a3: doneSets.a3.size
+  a1: groupDoneSets.a1.size,
+  a2: groupDoneSets.a2.size
 }))
 const activityPercent = computed<Record<ActivityKey, number>>(() => ({
-  a1: Math.round((doneSets.a1.size / 52) * 100),
-  a2: Math.round((doneSets.a2.size / 52) * 100),
-  a3: Math.round((doneSets.a3.size / 52) * 100)
+  a1: Math.round((groupDoneSets.a1.size / GROUP_COUNT) * 100),
+  a2: Math.round((groupDoneSets.a2.size / GROUP_COUNT) * 100)
 }))
 
-// 问卷完成百分比
-const surveyedPercent = computed(() => Math.round((surveyDone.size / 52) * 100))
+// 问卷完成百分比（保留字段，若后续需要展示，可改为按组）
+// const surveyedPercent = computed(() => Math.round((surveyDone.size / (GROUP_COUNT * 2)) * 100))
 
 // 根据路由高亮/排序活动
 const route = useRoute()
@@ -287,7 +285,6 @@ const currentActKey = computed<ActivityKey | ''>(() => {
   const p = String(route.path || '')
   if (p.includes('activity1')) return 'a1'
   if (p.includes('activity2')) return 'a2'
-  if (p.includes('activity3')) return 'a3'
   return ''
 })
 const activitiesView = computed(() => {
@@ -322,8 +319,8 @@ async function goActivity2() {
   padding: 8px 6px;
 }
 .title {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 800;
   margin-bottom: 6px;
 }
 .layout {
