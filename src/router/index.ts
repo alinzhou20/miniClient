@@ -40,7 +40,7 @@ const routes = [
     component: StudentHome,
     meta: { requiresAuth: true, role: 'student' },
     children: [
-      { path: '', redirect: { name: 'StudentQuestion1' } },
+      { path: '', redirect: { name: 'StudentSurvey' } },
       { path: 'question1', name: 'StudentQuestion1', component: StudentQuestion1, meta: { requiresAuth: true, role: 'student' } },
       { path: 'activity1', name: 'StudentActivity1', component: StudentActivity1, meta: { requiresAuth: true, role: 'student' } },
       { path: 'chat', name: 'StudentChat', component: StudentChat, meta: { requiresAuth: true, role: 'student' } },
@@ -54,7 +54,7 @@ const routes = [
     component: TeacherHome,
     meta: { requiresAuth: true, role: 'teacher' },
     children: [
-      { path: '', redirect: { name: 'TeacherQuestion1' } },
+      { path: '', redirect: { name: 'TeacherSurvey' } },
       { path: 'question1', name: 'TeacherQuestion1', component: TeacherQuestion1, meta: { requiresAuth: true, role: 'teacher' } },
       { path: 'activity1', name: 'TeacherActivity1', component: TeacherActivity1, meta: { requiresAuth: true, role: 'teacher' } },
       { path: 'survey', name: 'TeacherSurvey', component: TeacherSurvey, meta: { requiresAuth: true, role: 'teacher' } },

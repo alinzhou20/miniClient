@@ -5,95 +5,103 @@
       <div class="sub">学生端发布/更新的问卷会在此实时出现（按学生维度保留最新一份）</div>
     </div>
 
-    <!-- 工具栏：筛选与搜索 -->
-    <div class="toolbar">
-      <el-select v-model="filter.group" placeholder="按小组筛选" clearable class="tb-item" style="width: 140px">
-        <el-option v-for="g in groups" :key="g" :label="`第${g}组`" :value="g" />
-      </el-select>
-      <el-select v-model="filter.student" placeholder="按学号筛选" clearable class="tb-item" style="width: 140px">
-        <el-option v-for="s in students" :key="s" :label="`${s}号`" :value="s" />
-      </el-select>
-      <el-input v-model="filter.keyword" placeholder="搜索标题/题干" clearable class="tb-item" style="max-width: 240px" />
-      <el-switch v-model="showFormatted" active-text="显示文本格式" inactive-text="隐藏文本格式" class="tb-item" />
-      <!-- 选中题目渲染卡片 -->
-      <el-card class="selected-card" shadow="never">
-        <template #header>
-          <div class="sel-head">
-            <span>已选题目预览（共 {{ selectedList.length }} 题）</span>
-            <div class="sel-actions">
-              <el-button size="small" type="primary" :disabled="!selectedList.length" @click="exportSelectedGlobal">复制导出</el-button>
-              <el-button size="small" :disabled="!selectedList.length" @click="clearSelected">清空</el-button>
-            </div>
-          </div>
-        </template>
-        <div class="sel-body">
-          <div class="sel-item" v-for="(item, idx) in selectedList" :key="item.key + '-' + item.qid">
-            <div class="sel-q">
-              <span class="sel-index">{{ idx + 1 }}.</span>
-              <span class="sel-text">{{ item.q.text || '（未命名题目）' }}</span>
-              <span class="sel-tag">{{ typeTag(item.q.type) }}</span>
-              <el-tag size="small" class="sel-meta">第{{ item.key }}组</el-tag>
-            </div>
-            <div v-if="Array.isArray((item.q as any).options)" class="sel-opts">
-              <div class="sel-opt" v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi">{{ letter(oi) }}. {{ opt }}</div>
-            </div>
-          </div>
-        </div>
-      </el-card>
-    </div>
-
-    <!-- 卡片网格（响应式） -->
-    <div class="card-grid">
-      <el-card v-for="row in filtered" :key="row.key" class="survey-card" shadow="hover">
-        <div class="card-head">
-          <div class="meta">
-            <el-tag type="info" size="small">第{{ row.groupNo }}组</el-tag>
-            <el-tag type="success" size="small">{{ row.studentNo }}号</el-tag>
-            <span class="time">{{ new Date(row.at).toLocaleString() }}</span>
-          </div>
-          <div class="title" v-if="row.title">{{ row.title }}</div>
-        </div>
-        <div class="pv-list">
-          <div class="pv-item" v-for="(q, i) in (getByKey(row.key)?.data?.questions || [])" :key="(q as any).id || i">
-            <div class="pv-q">
-              <span class="pv-index">{{ (((q as any).index) || i+1) + '.' }}</span>
-              {{ (q as any).text || '（未命名题目）' }}
-            </div>
-            <div class="pv-controls">
-              <el-checkbox :model-value="isSelected(row.key, (q as any).id)" @change="() => toggleSelect(row.key, (q as any).id)">选中</el-checkbox>
-            </div>
-            <template v-if="(q as any).type === 'single'">
-              <el-radio-group>
-                <el-radio v-for="(opt, oi) in ((q as any).options || [])" :key="oi" :label="oi" disabled>
-                  {{ opt || `${letter(oi)}. 选项` }}
-                </el-radio>
-              </el-radio-group>
-            </template>
-            <template v-else-if="(q as any).type === 'multi'">
-              <el-checkbox-group>
-                <el-checkbox v-for="(opt, oi) in ((q as any).options || [])" :key="oi" :label="oi" disabled>
-                  {{ opt || `${letter(oi)}. 选项` }}
-                </el-checkbox>
-              </el-checkbox-group>
-            </template>
-            <template v-else>
-              <div class="pv-blank" aria-hidden="true"></div>
-            </template>
-          </div>
+    <!-- 两栏布局：左侧筛选+网格；右侧选中预览侧栏 -->
+    <div class="layout">
+      <div class="main">
+        <!-- 工具栏：筛选与搜索 -->
+        <div class="toolbar">
+          <el-select v-model="filter.group" placeholder="按小组筛选" clearable class="tb-item" style="width: 140px">
+            <el-option v-for="g in groups" :key="g" :label="`第${g}组`" :value="g" />
+          </el-select>
+          <el-select v-model="filter.student" placeholder="按学号筛选" clearable class="tb-item" style="width: 140px">
+            <el-option v-for="s in students" :key="s" :label="`${s}号`" :value="s" />
+          </el-select>
+          <el-input v-model="filter.keyword" placeholder="搜索标题/题干" clearable class="tb-item" style="max-width: 240px" />
+          <el-switch v-model="showFormatted" active-text="显示文本格式" inactive-text="隐藏文本格式" class="tb-item" />
         </div>
 
-        <div v-if="showFormatted && getByKey(row.key)?.data?.formattedText" class="fmt-wrap">
-          <div class="fmt-head">
-            <div class="fmt-title">文本格式（可复制）</div>
-            <el-button size="small" @click="copyFormatted(getByKey(row.key)!.data!.formattedText!)">复制</el-button>
-          </div>
-          <el-input type="textarea" :rows="6" :model-value="getByKey(row.key)!.data!.formattedText!" readonly />
-        </div>
+        <!-- 卡片网格（响应式） -->
+        <div class="card-grid">
+          <el-card v-for="row in filtered" :key="row.key" class="survey-card" shadow="hover">
+            <div class="card-head">
+              <div class="meta">
+                <el-tag type="info" size="small">第{{ row.groupNo }}组</el-tag>
+                <el-tag type="success" size="small">{{ row.studentNo }}号</el-tag>
+                <span class="time">{{ new Date(row.at).toLocaleString() }}</span>
+              </div>
+              <div class="title" v-if="row.title">{{ row.title }}</div>
+            </div>
+            <div class="pv-list">
+              <div class="pv-item" v-for="(q, i) in (getByKey(row.key)?.data?.questions || [])" :key="(q as any).id || i">
+                <div class="pv-q">
+                  <span class="pv-index">{{ (((q as any).index) || i+1) + '.' }}</span>
+                  {{ (q as any).text || '（未命名题目）' }}
+                </div>
+                <div class="pv-controls">
+                  <el-checkbox :model-value="isSelected(row.key, (q as any).id)" @change="() => toggleSelect(row.key, (q as any).id)">选中</el-checkbox>
+                </div>
+                <template v-if="(q as any).type === 'single'">
+                  <el-radio-group>
+                    <el-radio v-for="(opt, oi) in ((q as any).options || [])" :key="oi" :label="oi" disabled>
+                      {{ opt || `${letter(oi)}. 选项` }}
+                    </el-radio>
+                  </el-radio-group>
+                </template>
+                <template v-else-if="(q as any).type === 'multi'">
+                  <el-checkbox-group>
+                    <el-checkbox v-for="(opt, oi) in ((q as any).options || [])" :key="oi" :label="oi" disabled>
+                      {{ opt || `${letter(oi)}. 选项` }}
+                    </el-checkbox>
+                  </el-checkbox-group>
+                </template>
+                <template v-else>
+                  <div class="pv-blank" aria-hidden="true"></div>
+                </template>
+              </div>
+            </div>
 
-        <div class="card-actions">
-          <span class="sel-hint" v-if="uiGet(row.key).selected.length">该组已选 {{ uiGet(row.key).selected.length }} 题</span>
+            <div v-if="showFormatted && getByKey(row.key)?.data?.formattedText" class="fmt-wrap">
+              <div class="fmt-head">
+                <div class="fmt-title">文本格式（可复制）</div>
+                <el-button type="primary" size="small" @click="copyFormatted(getByKey(row.key)!.data!.formattedText!)">复制</el-button>
+              </div>
+              <el-input type="textarea" :rows="6" :model-value="getByKey(row.key)!.data!.formattedText!" readonly />
+            </div>
+
+            <div class="card-actions">
+              <span class="sel-hint" v-if="uiGet(row.key).selected.length">该组已选 {{ uiGet(row.key).selected.length }} 题</span>
+            </div>
+          </el-card>
         </div>
-      </el-card>
+      </div>
+
+      <aside class="side">
+        <!-- 选中题目渲染卡片（右侧侧栏） -->
+        <el-card class="selected-card" shadow="never">
+          <template #header>
+            <div class="sel-head">
+              <span>已选题目预览（共 {{ selectedList.length }} 题）</span>
+              <div class="sel-actions">
+                <el-button size="small" type="primary" :disabled="!selectedList.length" @click="exportSelectedGlobal">复制导出</el-button>
+                <el-button size="small" :disabled="!selectedList.length" @click="clearSelected">清空</el-button>
+              </div>
+            </div>
+          </template>
+          <div class="sel-body">
+            <div class="sel-item" v-for="(item, idx) in selectedList" :key="item.key + '-' + item.qid">
+              <div class="sel-q">
+                <span class="sel-index">{{ idx + 1 }}.</span>
+                <span class="sel-text">{{ item.q.text || '（未命名题目）' }}</span>
+                <span class="sel-tag">{{ typeTag(item.q.type) }}</span>
+                <el-tag size="small" class="sel-meta">第{{ item.key }}组</el-tag>
+              </div>
+              <div v-if="Array.isArray((item.q as any).options)" class="sel-opts">
+                <div class="sel-opt" v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi">{{ letter(oi) }}. {{ opt }}</div>
+              </div>
+            </div>
+          </div>
+        </el-card>
+      </aside>
     </div>
   </div>
 </template>
@@ -276,22 +284,24 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.survey-monitor { padding: 8px; }
+.survey-monitor { padding: 8px; max-width: 1268px; margin: 0 0; }
 .header { margin-bottom: 8px; }
 .header h3 { margin: 0 0 4px; }
 .header .sub { color: #666; font-size: 12px; }
+.layout { display: grid; grid-template-columns: 800px 400px; column-gap: 68px; align-items: start; }
+.main { min-width: 0; }
+.side { min-width: 0; position: sticky; top: 8px; align-self: start; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 12px; }
 .tb-item { margin-right: 4px; }
-.card-grid { display: grid; grid-template-columns: repeat(1, 1fr); gap: 12px; }
-@media (min-width: 768px) { .card-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 1200px) { .card-grid { grid-template-columns: repeat(3, 1fr); } }
+.card-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .survey-card { border-radius: 10px; }
 .survey-card { height: 380px; display: flex; flex-direction: column; }
+.survey-card :deep(.el-card__body) { height: 100%; display: flex; flex-direction: column; min-height: 0; }
 .card-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 .meta { display: flex; gap: 6px; align-items: center; }
 .meta .time { color: #888; font-size: 12px; margin-left: auto; }
 .title { font-weight: 700; color: #333; }
-.pv-list { display: flex; flex-direction: column; gap: 8px; overflow: auto; padding-right: 6px; }
+.pv-list { display: flex; flex-direction: column; gap: 8px; overflow: auto; padding-right: 6px; flex: 1 1 auto; min-height: 0; }
 .pv-item { padding: 10px; background: #fff; border: 1px solid #eee; border-radius: 8px; }
 .pv-q { margin-bottom: 6px; font-weight: 600; }
 .pv-index { margin-right: 6px; color: #2b6aa6; }
@@ -301,7 +311,7 @@ onBeforeUnmount(() => {
 .fmt-title { font-weight: 700; color: #333; }
 
 /* 选中预览卡片滚动 */
-.selected-card { max-width: 560px; }
+.selected-card { width: 100%; }
 .sel-head { display: flex; align-items: center; justify-content: space-between; }
 .sel-actions { display: flex; gap: 6px; }
 .sel-body { max-height: 180px; overflow: auto; padding-right: 6px; }

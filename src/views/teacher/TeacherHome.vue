@@ -34,39 +34,39 @@
             </div>
           </div>
         </div>
-        <!-- 子路由渲染区（如：/teacher/question1 显示提交查看） -->
-      </div>
-      <aside class="aside">
-        <div class="overview-card">
-          <div class="ov-title">总览</div>
-          <div class="ov-item">
-            <span class="ov-label">已登录</span>
-            <span class="ov-value">{{ loggedInCount }} / 36</span>
-          </div>
-          <div class="ov-progress">
-            <div class="bar">
-              <div class="bar-inner" :style="{ width: percent + '%' }"></div>
+        <aside class="aside">
+          <div class="overview-card">
+            <div class="ov-title">总览</div>
+            <div class="ov-item">
+              <span class="ov-label">已登录</span>
+              <span class="ov-value">{{ loggedInCount }} / 36</span>
             </div>
-            <div class="ov-percent">{{ percent }}%</div>
+            <div class="ov-progress">
+              <div class="bar">
+                <div class="bar-inner" :style="{ width: percent + '%' }"></div>
+              </div>
+              <div class="ov-percent">{{ percent }}%</div>
+            </div>
           </div>
-        </div>
 
-        <!-- 完成情况表 -->
-        <div class="overview-card activity-card">
-          <div class="ov-title">完成情况</div>
-          <div class="ov-item" v-for="a in activities" :key="a.key">
-            <span class="ov-label">{{ a.title }}</span>
-            <span class="ov-value">{{ activityCount[a.key] }} / 36</span>
-          </div>
-          <div class="ov-progress" v-for="a in activities" :key="a.key + '-bar'">
-            <div class="bar">
-              <div class="bar-inner" :style="{ width: activityPercent[a.key] + '%' }"></div>
+          <!-- 完成情况表 -->
+          <div class="overview-card activity-card">
+            <div class="ov-title">完成情况</div>
+            <div class="ov-item" v-for="a in activities" :key="a.key">
+              <span class="ov-label">{{ a.title }}</span>
+              <span class="ov-value">{{ activityCount[a.key] }} / 36</span>
             </div>
-            <div class="ov-percent">{{ activityPercent[a.key] }}%</div>
+            <div class="ov-progress" v-for="a in activities" :key="a.key + '-bar'">
+              <div class="bar">
+                <div class="bar-inner" :style="{ width: activityPercent[a.key] + '%' }"></div>
+              </div>
+              <div class="ov-percent">{{ activityPercent[a.key] }}%</div>
+            </div>
           </div>
-        </div>
-      </aside>
-      <router-view />
+        </aside>
+        <!-- 子路由渲染区（如：/teacher/question1 显示提交查看） -->
+        <router-view style="width: 1024px;" />
+      </div>
     </div>
 
   </div>
@@ -262,7 +262,7 @@ const activityPercent = computed<Record<ActivityKey, number>>(() => ({
 
 <style scoped>
 .page {
-  max-width: 840px; /* 收窄但留出侧栏空间 */
+  max-width: 1280px; /* 扩展整体页面宽度 */
   margin: 0 auto;
   padding: 8px 6px;
 }
@@ -273,13 +273,13 @@ const activityPercent = computed<Record<ActivityKey, number>>(() => ({
 }
 .layout {
   display: grid;
-  grid-template-columns: 1fr 200px; /* 主区 + 右侧总览 */
+  grid-template-columns: 1fr; /* 侧栏已移至主列下方 */
   gap: 8px;
 }
 .main { min-width: 0; }
 .groups {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* 每行3组，共6行=18组 */
+  grid-template-columns: repeat(10, 1fr); /* 每行10组 */
   gap: 6px; /* 更紧凑 */
 }
 .group-card {
@@ -328,8 +328,8 @@ const activityPercent = computed<Record<ActivityKey, number>>(() => ({
   display: inline-block;
 }
 
-/* 右侧总览样式 */
-.aside { min-width: 0; }
+/* 总览卡片（已移至 groups 下方） */
+.aside { min-width: 0; margin-top: 8px; }
 .overview-card {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
