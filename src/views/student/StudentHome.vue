@@ -10,31 +10,60 @@
 
     <!-- 你将学习（参考书本风格的浅色框） -->
     <section class="learn-box">
-      <div class="learn-title">你将学习</div>
+      <div class="learn-title">{{ learnTitle }}</div>
       <ol class="learn-list">
-        <li>数据获取的方法</li>
-        <li>问卷调查的基本步骤</li>
+        <li v-for="(it, i) in learnItems" :key="i">{{ it }}</li>
       </ol>
     </section>
 
-    <div class="section-title">讨论</div>
     <!-- 学生内容区：通过子路由切换（question1/activity1/chat） -->
-    <div style="margin-bottom: 8px;">
-      <router-link to="/student/survey">
-        <el-button type="primary" size="small">问卷设计</el-button>
-      </router-link>
-    </div>
     <router-view />
   </div>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { onMounted, onBeforeUnmount, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { socketService } from '@/services/socket'
+
+const router = useRouter()
+const route = useRoute()
+
+const currentActivity = computed<'activity1' | 'activity2'>(() => {
+  const p = String(route.path || '')
+  return p.includes('activity2') ? 'activity2' : 'activity1'
+})
+
+const learnTitle = computed(() => currentActivity.value === 'activity2' ? '活动二' : '活动一')
+const learnItems = computed<string[]>(() =>
+  currentActivity.value === 'activity2'
+    ? ['问卷调查巧设计']
+    : ['认识数据获取的多种方法', '将元素拖入对应方法区域完成分类']
+)
+
+function onDistribute(payload: any) {
+  if (!payload) return
+  const type = String(payload.type || '')
+  const data = payload.data || {}
+  if (type === 'navigate' && String((data as any).route || '') === 'activity2') {
+    router.push('/student/activity2')
+  }
+}
+
+onMounted(() => {
+  socketService.on('distribute', onDistribute)
+})
+
+onBeforeUnmount(() => {
+  socketService.off('distribute', onDistribute)
+})
+</script>
 
 <style scoped>
 .page {
-  max-width: 960px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 8px 6px;
 }
 .banner {
   background: linear-gradient(180deg, #4ea3f9 0%, #6cc2ff 60%, #e9f6ff 100%);
@@ -58,13 +87,17 @@
   font-weight: 800;
   letter-spacing: 1px;
   margin: 0;
+  color: #F5F7FA;
 }
 .learn-box {
   background: #f7fbff;
   border: 1px dashed #cfe8ff;
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: 10px 12px;
   margin: 16px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 .learn-title {
   display: inline-block;
@@ -73,10 +106,23 @@
   padding: 4px 10px;
   color: #2b6aa6;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin: 0; /* 横向布局去掉底部外边距 */
+  white-space: nowrap;
 }
-.learn-list { margin: 8px 0 0 18px; color: #2b2b2b; }
-.learn-list li { margin: 4px 0; }
+.learn-list {
+  margin: 0; /* 横向布局，取消默认缩进 */
+  padding: 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #2b2b2b;
+}
+.learn-list li { margin: 0; }
+@media (max-width: 640px) {
+  .learn-box { flex-direction: column; align-items: flex-start; }
+  .learn-list { flex-direction: column; align-items: flex-start; gap: 6px; }
+}
 .section-title {
   margin: 10px 0 8px;
   color: #2b6aa6;

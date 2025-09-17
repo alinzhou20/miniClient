@@ -5,29 +5,27 @@
       <router-link to="/teacher/activity1">
         <el-button type="primary" size="small">前往活动一</el-button>
       </router-link>
-      <router-link to="/teacher/survey">
-        <el-button size="small">问卷监控</el-button>
-      </router-link>
+      <el-button size="small" @click="goActivity2">前往活动二</el-button>
     </div>
 
     <div class="layout">
       <div class="main">
         <div class="groups">
           <div
-            v-for="g in 18"
+            v-for="g in 26"
             :key="g"
             class="group-card"
           >
             <div class="group-head">第{{ g }}组</div>
             <div class="group-body">
               <div class="student-slot">
-                <span class="dot" :class="{ on: !!groups[g-1].left }"></span>
+                <span class="dot" :class="{ on: !!groups[g-1].left, survey: !!groups[g-1].left && isSurveyed(String(g), groups[g-1].left) }"></span>
                 <span class="stu-no">{{ groups[g-1].left || '空' }}</span>
                 <span v-if="groups[g-1].left && drawCount(String(g), groups[g-1].left) > 0" class="badge">{{ drawCount(String(g), groups[g-1].left) }}</span>
               </div>
               <span class="v-sep"></span>
               <div class="student-slot">
-                <span class="dot" :class="{ on: !!groups[g-1].right }"></span>
+                <span class="dot" :class="{ on: !!groups[g-1].right, survey: !!groups[g-1].right && isSurveyed(String(g), groups[g-1].right) }"></span>
                 <span class="stu-no">{{ groups[g-1].right || '空' }}</span>
                 <span v-if="groups[g-1].right && drawCount(String(g), groups[g-1].right) > 0" class="badge">{{ drawCount(String(g), groups[g-1].right) }}</span>
               </div>
@@ -37,30 +35,36 @@
         <aside class="aside">
           <div class="overview-card">
             <div class="ov-title">总览</div>
-            <div class="ov-item">
-              <span class="ov-label">已登录</span>
-              <span class="ov-value">{{ loggedInCount }} / 36</span>
-            </div>
-            <div class="ov-progress">
-              <div class="bar">
-                <div class="bar-inner" :style="{ width: percent + '%' }"></div>
+            <div class="ov-grid">
+              <!-- 左：已登录 -->
+              <div class="ov-col">
+                <div class="ov-item">
+                  <span class="ov-label">已登录</span>
+                  <span class="ov-value">{{ loggedInCount }} / 52</span>
+                </div>
+                <div class="ov-progress">
+                  <div class="bar">
+                    <div class="bar-inner" :style="{ width: percent + '%' }"></div>
+                  </div>
+                  <div class="ov-percent">{{ percent }}%</div>
+                </div>
               </div>
-              <div class="ov-percent">{{ percent }}%</div>
-            </div>
-          </div>
 
-          <!-- 完成情况表 -->
-          <div class="overview-card activity-card">
-            <div class="ov-title">完成情况</div>
-            <div class="ov-item" v-for="a in activities" :key="a.key">
-              <span class="ov-label">{{ a.title }}</span>
-              <span class="ov-value">{{ activityCount[a.key] }} / 36</span>
-            </div>
-            <div class="ov-progress" v-for="a in activities" :key="a.key + '-bar'">
-              <div class="bar">
-                <div class="bar-inner" :style="{ width: activityPercent[a.key] + '%' }"></div>
+              <!-- 右：活动完成（更宽，横向排列） -->
+              <div class="ov-col activities">
+                <div class="ov-act" v-for="act in activitiesView" :key="act.key" :class="{ active: act.active }">
+                  <div class="ov-item">
+                    <span class="ov-label">{{ act.title }}</span>
+                    <span class="ov-value">{{ activityCount[act.key] }} / 52</span>
+                  </div>
+                  <div class="ov-progress">
+                    <div class="bar blue">
+                      <div class="bar-inner" :style="{ width: activityPercent[act.key] + '%' }"></div>
+                    </div>
+                    <div class="ov-percent">{{ activityPercent[act.key] }}%</div>
+                  </div>
+                </div>
               </div>
-              <div class="ov-percent">{{ activityPercent[a.key] }}%</div>
             </div>
           </div>
         </aside>
@@ -74,18 +78,26 @@
 
 <script setup lang="ts">
 import { reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { socketService } from '@/services/socket'
 
-// 18个小组，每组2个位置：left/right；值为学号字符串，空为 ''
-const groups = reactive(Array.from({ length: 18 }, () => ({ left: '', right: '' })))
+// 26个小组，每组2个位置：left/right；值为学号字符串，空为 ''
+const groups = reactive(Array.from({ length: 26 }, () => ({ left: '', right: '' })))
 
 // 活动定义与完成集（以 学生唯一键 group-student 记录）
 type ActivityKey = 'a1' | 'a2' | 'a3'
 const activities: Array<{ key: ActivityKey; title: string }> = [
-  { key: 'a1', title: '算法有穷性' },
-  { key: 'a2', title: '算法确定性' },
-  { key: 'a3', title: '算法有输出' }
-];
+  { key: 'a1', title: '活动一：数据获取方法多' },
+  { key: 'a2', title: '活动二：问卷调查巧设计' },
+  { key: 'a3', title: '活动三：问卷调查我参与' }
+]
+
+// 调查问卷完成集（以 学生唯一键 group-student 记录）
+const surveyDone = reactive(new Set<string>())
+function isSurveyed(groupNo: string, studentNo: string): boolean {
+  const sk = studentKey(String(groupNo), String(studentNo))
+  return surveyDone.has(sk)
+}
 
 const doneSets = reactive<Record<ActivityKey, Set<string>>>(
   {
@@ -117,7 +129,7 @@ function drawCount(groupNo: string, studentNo: string): number {
 function placeStudent(groupNo: string, studentNo: string) {
   let g = parseInt(groupNo, 10)
   if (!Number.isFinite(g) || g < 1) g = 1
-  if (g > 18) g = 18
+  if (g > 26) g = 26
   const s = String(studentNo)
 
   const grp = groups[g - 1]
@@ -176,6 +188,13 @@ function handleSubmit(payload: any) {
     const s = String(from.studentNo)
     recordDrawing(g, s, { strokes, width: w, height: h })
   }
+  // 问卷提交：总览统计与看板点亮红色
+  if (String(payload.type || '') === 'survey') {
+    const g = String(from.groupNo)
+    const s = String(from.studentNo)
+    const sk = studentKey(g, s)
+    surveyDone.add(sk)
+  }
   // 记录活动完成：根据 data.title 保持原有三项判定
   const title = String(data.title || '')
   const key: ActivityKey | '' = title === '数据我看看' ? 'a1' : title === '维数据我用用' ? 'a2' : title === '维数据我编编' ? 'a3' : ''
@@ -188,7 +207,7 @@ function handleSubmit(payload: any) {
 function removeStudentByIds(groupNo: string, studentNo: string) {
   let g = parseInt(groupNo, 10)
   if (!Number.isFinite(g) || g < 1) g = 1
-  if (g > 18) g = 18
+  if (g > 26) g = 26
   const s = String(studentNo)
   const grp = groups[g - 1]
   if (grp.left === s) grp.left = ''
@@ -245,7 +264,7 @@ onBeforeUnmount(() => {
 const loggedInCount = computed(() =>
   groups.reduce((acc, g) => acc + (g.left ? 1 : 0) + (g.right ? 1 : 0), 0)
 )
-const percent = computed(() => Math.round((loggedInCount.value / 36) * 100))
+const percent = computed(() => Math.round((loggedInCount.value / 52) * 100))
 
 // 活动完成统计与百分比
 const activityCount = computed<Record<ActivityKey, number>>(() => ({
@@ -254,10 +273,46 @@ const activityCount = computed<Record<ActivityKey, number>>(() => ({
   a3: doneSets.a3.size
 }))
 const activityPercent = computed<Record<ActivityKey, number>>(() => ({
-  a1: Math.round((doneSets.a1.size / 36) * 100),
-  a2: Math.round((doneSets.a2.size / 36) * 100),
-  a3: Math.round((doneSets.a3.size / 36) * 100)
+  a1: Math.round((doneSets.a1.size / 52) * 100),
+  a2: Math.round((doneSets.a2.size / 52) * 100),
+  a3: Math.round((doneSets.a3.size / 52) * 100)
 }))
+
+// 问卷完成百分比
+const surveyedPercent = computed(() => Math.round((surveyDone.size / 52) * 100))
+
+// 根据路由高亮/排序活动
+const route = useRoute()
+const currentActKey = computed<ActivityKey | ''>(() => {
+  const p = String(route.path || '')
+  if (p.includes('activity1')) return 'a1'
+  if (p.includes('activity2')) return 'a2'
+  if (p.includes('activity3')) return 'a3'
+  return ''
+})
+const activitiesView = computed(() => {
+  const cur = currentActKey.value
+  const enhanced = activities.map(a => ({ ...a, active: a.key === cur })) as Array<{ key: ActivityKey; title: string; active: boolean }>
+  if (!cur) return enhanced
+  // 当前活动置顶，其余保持原有顺序
+  return enhanced.sort((x, y) => Number(y.active) - Number(x.active))
+})
+
+// 教师端点击“前往活动二”：广播分发并自跳转
+const router = useRouter()
+async function goActivity2() {
+  try {
+    const payload: any = {
+      type: 'navigate',
+      from: { role: 'teacher' },
+      to: ['0'], // 广播到全体
+      data: { target: 'student', route: 'activity2' },
+      at: Date.now()
+    }
+    await socketService.distribute(payload)
+  } catch { /* ignore network/ack error for local navigation */ }
+  router.push('/teacher/activity2')
+}
 </script>
 
 <style scoped>
@@ -278,9 +333,10 @@ const activityPercent = computed<Record<ActivityKey, number>>(() => ({
 }
 .main { min-width: 0; }
 .groups {
-  display: grid;
-  grid-template-columns: repeat(10, 1fr); /* 每行10组 */
+  display: none;
+  grid-template-columns: repeat(13, 1fr); /* 每行13组 */
   gap: 6px; /* 更紧凑 */
+  
 }
 .group-card {
   border: 1px solid #e5e7eb;
@@ -316,6 +372,11 @@ const activityPercent = computed<Record<ActivityKey, number>>(() => ({
   background: #67c23a;
   border-color: #67c23a;
 }
+/* 问卷已提交：红色优先级更高 */
+.dot.survey {
+  background: #f56c6c;
+  border-color: #f56c6c;
+}
 .stu-no {
   font-size: 11px;
   color: #333;
@@ -335,6 +396,29 @@ const activityPercent = computed<Record<ActivityKey, number>>(() => ({
   border-radius: 8px;
   background: #fff;
   padding: 8px;
+}
+.ov-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr; /* 左窄右宽 */
+  gap: 12px;
+  align-items: start;
+}
+.ov-col { min-width: 0; }
+/* 活动完成横向排列 */
+.ov-col.activities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.ov-col.activities .ov-act {
+  flex: 1 1 240px; /* 最小宽度240，可自适应换行 */
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fff;
+}
+@media (max-width: 900px) {
+  .ov-grid { grid-template-columns: 1fr; }
 }
 .overview-card + .overview-card { margin-top: 8px; }
 .ov-title {
@@ -370,6 +454,14 @@ const activityPercent = computed<Record<ActivityKey, number>>(() => ({
   border-radius: 999px;
 }
 .ov-percent { font-size: 12px; color: #333; width: 40px; text-align: right; }
+
+/* 红色进度条（问卷完成率） */
+.bar.red { background: #fde2e2; }
+.bar.red .bar-inner { background: #f56c6c; }
+.ov-act.active { border-left: 3px solid #409eff; padding-left: 6px; }
+.ov-act.active .ov-label { font-weight: 700; color: #111; }
+.bar.blue { background: #e0f2fe; }
+.bar.blue .bar-inner { background: #409eff; }
 
 /* 提交查看缩略图样式 */
 .review { margin-top: 10px; }
