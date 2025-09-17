@@ -1,8 +1,26 @@
 <template>
   <div class="page">
+    <!-- 操作要求模块 -->
+
     <div class="content">
       <div class="left">
-        <div class="elements">
+        <div class="task-block">
+      <div class="op-title">1.了解数据获取方式及场景</div>
+      <div class="op-text">打开“近视率”网页，找一找2024年全国儿童青少年总体近视率是</div>
+      <a
+        class="op-link"
+        href="https://mp.weixin.qq.com/s/wy7cgUqfgRBDsUoCXyAcGw?click_id=2"
+        target="_blank"
+        rel="noopener noreferrer"
+      >https://mp.weixin.qq.com/s/wy7cgUqfgRBDsUoCXyAcGw?click_id=2</a>
+    </div>
+      </div>
+      <div class="right">
+        <div class="task-block">
+      <div class="op-title">2.选择数据获取方式及场景</div>
+      <div class="op-text">拖一拖选一选，将</div>
+
+      <div class="elements">
           <div
             v-for="e in availableElements"
             :key="e.id"
@@ -15,8 +33,7 @@
           </div>
         </div>
         <button class="btn" @click="onResetAll">重置全部</button>
-      </div>
-      <div class="right">
+    </div>
         <div class="grid" ref="gridRef">
           <div
             v-for="b in boxes"
@@ -229,6 +246,11 @@ async function onResetAll() {
 
 <style scoped>
 .page { padding: 16px; }
+.task-block { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+.op-title { font-weight: 700; margin-bottom: 6px; color: #111827; }
+.op-text { color: #374151; font-size: 14px; margin-bottom: 6px; }
+.op-link { color: #1d4ed8; text-decoration: underline; word-break: break-all; }
+
 .title { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
 .content { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
 .left { display: grid; gap: 10px; }
@@ -250,6 +272,8 @@ async function onResetAll() {
 .sel { margin-left: 6px; }
 .btn { margin-top: 4px; padding: 6px 10px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; border-radius: 8px; cursor: pointer; }
 .btn:hover { background: #dbeafe; }
+
+.op-drag-tip { font-size: 14px; color: #334155; margin-bottom: 8px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 6px 10px; }
 
 .grid { display: grid; grid-template-columns: repeat(2, minmax(160px, 1fr)); gap: 10px; }
 .box {

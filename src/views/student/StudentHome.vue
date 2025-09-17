@@ -38,7 +38,7 @@ const learnTitle = computed(() => currentActivity.value === 'activity2' ? '活�
 const learnItems = computed<string[]>(() =>
   currentActivity.value === 'activity2'
     ? ['问卷调查巧设计']
-    : ['认识数据获取的多种方法', '将元素拖入对应方法区域完成分类']
+    : ['数据获取方法多']
 )
 
 function onDistribute(payload: any) {

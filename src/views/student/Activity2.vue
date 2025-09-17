@@ -3,100 +3,76 @@
       <!-- 两栏布局：左侧筛选+网格；右侧选中预览侧栏 -->
       <div class="layout">
         <div class="main">
-          <!-- 工具栏：筛选与搜索 -->
-          <div class="toolbar">
-            <el-select v-model="filter.group" placeholder="按小组筛选" clearable class="tb-item" style="width: 140px">
-              <el-option v-for="g in groups" :key="g" :label="`第${g}组`" :value="g" />
-            </el-select>
-            <el-select v-model="filter.student" placeholder="按学号筛选" clearable class="tb-item" style="width: 140px">
-              <el-option v-for="s in students" :key="s" :label="`${s}号`" :value="s" />
-            </el-select>
-            <el-input v-model="filter.keyword" placeholder="搜索标题/题干" clearable class="tb-item" style="max-width: 240px" />
-            <el-select v-model="filter.topic" placeholder="按主题筛选" clearable class="tb-item" style="width: 160px">
-              <el-option v-for="t in topics" :key="t" :label="t" :value="t" />
-            </el-select>
-            <el-switch v-model="showFormatted" active-text="显示文本格式" inactive-text="隐藏文本格式" class="tb-item" />
-          </div>
-  
-          <!-- 卡片网格（响应式） -->
+          <!-- 卡片网格（每卡片仅展示一道题目） -->
           <div class="card-grid">
-            <el-card v-for="row in filtered" :key="row.key" class="survey-card" shadow="hover">
-              <div class="card-head">
-                <div class="meta">
-                  <el-tag type="info" size="small">第{{ row.groupNo }}组</el-tag>
-                  <el-tag type="success" size="small">{{ row.studentNo }}号</el-tag>
-                  <el-tag v-if="getByKey(row.key)?.data?.topic" type="warning" size="small">{{ getByKey(row.key)?.data?.topic }}</el-tag>
-                  <span class="time">{{ new Date(row.at).toLocaleString() }}</span>
-                </div>
-                <div class="title" v-if="row.title">{{ row.title }}</div>
-              </div>
-              <div class="pv-list">
-                <div
-                  class="pv-item"
-                  :class="{ selected: isSelected(row.key, (q as any).id) }"
-                  @click="toggleSelect(row.key, (q as any).id)"
-                  v-for="(q, i) in (getByKey(row.key)?.data?.questions || [])"
-                  :key="(q as any).id || i"
-                >
-                  <div class="pv-q">
-                    <span class="pv-index">{{ (((q as any).index) || i+1) + '.' }}</span>
-                    {{ (q as any).text || '（未命名题目）' }}
+            <el-card
+              v-for="item in filteredQuestions"
+              :key="item.key + '-' + ((item.q as any).id || item.idx)"
+              class="survey-card"
+              shadow="hover"
+            >
+              <div class="pv-item" :class="{ selected: isSelected(item.key, (item.q as any).id) }">
+                <div class="pv-row">
+                  <div class="pv-content">
+                    <div class="pv-q">
+                      {{ (item.q as any).text || '（未命名题目）' }}
+                    </div>
+                    <template v-if="(item.q as any).type === 'single'">
+                      <el-radio-group>
+                        <el-radio v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi" :label="oi" disabled>
+                          {{ opt || `${letter(oi)}. 选项` }}
+                        </el-radio>
+                      </el-radio-group>
+                    </template>
+                    <template v-else-if="(item.q as any).type === 'multi'">
+                      <el-checkbox-group>
+                        <el-checkbox v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi" :label="oi" disabled>
+                          {{ opt || `${letter(oi)}. 选项` }}
+                        </el-checkbox>
+                      </el-checkbox-group>
+                    </template>
+                    <template v-else>
+                      <div class="pv-blank" aria-hidden="true"></div>
+                    </template>
                   </div>
-                  <template v-if="(q as any).type === 'single'">
-                    <el-radio-group>
-                      <el-radio v-for="(opt, oi) in ((q as any).options || [])" :key="oi" :label="oi" disabled>
-                        {{ opt || `${letter(oi)}. 选项` }}
-                      </el-radio>
-                    </el-radio-group>
-                  </template>
-                  <template v-else-if="(q as any).type === 'multi'">
-                    <el-checkbox-group>
-                      <el-checkbox v-for="(opt, oi) in ((q as any).options || [])" :key="oi" :label="oi" disabled>
-                        {{ opt || `${letter(oi)}. 选项` }}
-                      </el-checkbox>
-                    </el-checkbox-group>
-                  </template>
-                  <template v-else>
-                    <div class="pv-blank" aria-hidden="true"></div>
-                  </template>
+                  <div class="pv-check">
+                    <el-checkbox
+                      size="large"
+                      :model-value="isSelected(item.key, (item.q as any).id)"
+                      @change="() => toggleSelect(item.key, (item.q as any).id)"
+                    />
+                  </div>
                 </div>
               </div>
-  
-              <div v-if="showFormatted && getByKey(row.key)?.data?.formattedText" class="fmt-wrap">
-                <div class="fmt-head">
-                  <div class="fmt-title">文本格式（可复制）</div>
-                  <el-button type="primary" size="small" @click="copyFormatted(getByKey(row.key)!.data!.formattedText!)">复制</el-button>
-                </div>
-                <el-input type="textarea" :rows="6" :model-value="getByKey(row.key)!.data!.formattedText!" readonly />
-              </div>
-  
             </el-card>
           </div>
         </div>
-  
+
         <aside class="side">
           <!-- 选中题目渲染卡片（右侧侧栏） -->
           <el-card class="selected-card" shadow="never">
             <template #header>
               <div class="sel-head">
-                <span>已选题目预览（共 {{ selectedList.length }} 题）</span>
-                <div class="sel-actions">
-                  <el-button size="small" type="primary" :disabled="!selectedList.length" @click="exportSelectedGlobal">复制导出</el-button>
-                  <el-button size="small" :disabled="!selectedList.length" @click="clearSelected">清空</el-button>
-                </div>
+                <div class="pv-title">调查问卷</div>
+                <div class="pv-desc">请勾选左侧卡片以构成本次问卷，预览实时更新。</div>
               </div>
             </template>
             <div class="sel-body">
               <div class="sel-item" v-for="(item, idx) in selectedList" :key="item.key + '-' + item.qid">
-                <div class="sel-q">
-                  <span class="sel-index">{{ idx + 1 }}.</span>
-                  <span class="sel-text">{{ item.q.text || '（未命名题目）' }}</span>
-                  <span class="sel-tag">{{ typeTag(item.q.type) }}</span>
-                  <el-tag size="small" class="sel-meta">第{{ item.key }}组</el-tag>
+                <div class="q-block">
+                  <div class="q-head">
+                    <span class="q-index">{{ idx + 1 }}.</span>
+                    <span class="q-text">{{ item.q.text || '（未命名题目）' }}</span>
+                    <span class="q-type">{{ typeTag(item.q.type) }}</span>
+                  </div>
+                  <div v-if="Array.isArray((item.q as any).options)" class="q-opts">
+                    <div class="q-opt" v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi">{{ letter(oi) }}. {{ opt }}</div>
+                  </div>
                 </div>
-                <div v-if="Array.isArray((item.q as any).options)" class="sel-opts">
-                  <div class="sel-opt" v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi">{{ letter(oi) }}. {{ opt }}</div>
-                </div>
+              </div>
+              <div class="sel-footer">
+                <el-button size="small" type="success" :disabled="!selectedList.length" @click="sendSelectedToTeacher">发送</el-button>
+                <el-button size="small" :disabled="!selectedList.length" @click="clearSelected">清空</el-button>
               </div>
             </div>
           </el-card>
@@ -106,8 +82,9 @@
   </template>
   
   <script setup lang="ts">
-  import { reactive, ref, computed, onMounted, onBeforeUnmount } from 'vue'
+  import { reactive, computed, onMounted } from 'vue'
   import { socketService } from '@/services/socket'
+  import { useAuthStore } from '@/stores/auth'
   
   type QSingle = { id: string; type: 'single'; text: string; options: string[]; index?: number; createdAt?: number }
   type QMulti = { id: string; type: 'multi'; text: string; options: string[]; index?: number; createdAt?: number }
@@ -177,6 +154,26 @@
       return matchGroup && matchStu && matchTopic && matchKw
     })
   })
+
+  // 将小组维度的 filtered 行展开为题目维度，且仅保留 填空(text)/单选(single)/多选(multi)，排除量表/矩阵/排序等
+  const filteredQuestions = computed(() => {
+    const out: Array<{ key: string; q: any; idx: number }> = []
+    const banMarkers = ['[量表题]', '[矩阵题]', '[排序题]']
+    filtered.value.forEach(row => {
+      const payload = getByKey(row.key)
+      const qs = payload?.data?.questions || []
+      qs.forEach((q: any, i: number) => {
+        const t = (q?.type || '').toLowerCase()
+        const text = String(q?.text || '')
+        const allowType = t === 'single' || t === 'multi' || t === 'text'
+        const hasBanMarker = banMarkers.some(m => text.includes(m))
+        if (allowType && !hasBanMarker) {
+          out.push({ key: row.key, q, idx: i })
+        }
+      })
+    })
+    return out
+  })
   
   // 卡片内选项字母与访问器
   function getByKey(key: string): SurveyPayload | null {
@@ -189,7 +186,6 @@
     return latest
   }
   function letter(i: number): string { const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'; return letters[i] || '?' }
-  const showFormatted = ref(false)
   
   // 选中（按卡片-小组维度）
   type UIState = { selected: string[] }
@@ -233,14 +229,29 @@
     return t === 'single' ? '[单选题]' : (t === 'multi' ? '[多选题]' : '[填空题]')
   }
   
-  function exportSelectedGlobal() {
-    if (!selectedList.value.length) return
+  // 已移除复制导出按钮：导出函数不再需要
+  
+  function clearSelected() {
+    selectedGlobal.splice(0, selectedGlobal.length)
+    ui.forEach(state => state.selected.splice(0, state.selected.length))
+  }
+
+  // ---------- 静态题库初始化与发送 ----------
+  const authStore = useAuthStore()
+
+  function rid(prefix = 'q'): string {
+    return `${prefix}_${Math.random().toString(36).slice(2, 8)}`
+  }
+
+  // 将所选题目生成文本格式，供复制与发送中的 formattedText 复用
+  function buildFormattedFromSelected(): string {
+    if (!selectedList.value.length) return ''
     const lines: string[] = []
-    selectedList.value.forEach((item, idx) => {
+    selectedList.value.forEach((item) => {
       const q: any = item.q
       const topic = (getByKey(item.key) as any)?.data?.topic || ''
       const topicTag = topic ? ` [主题:${topic}]` : ''
-      lines.push(`${idx + 1}. ${q.text || ''} ${typeTag(q.type)}${topicTag}`.trim())
+      lines.push(`${q.text || ''} ${typeTag(q.type)}${topicTag}`.trim())
       if (Array.isArray(q.options)) {
         (q.options as string[]).forEach((opt: string, oi: number) => {
           lines.push(`${letter(oi)}.${opt || ''}`)
@@ -248,91 +259,135 @@
       }
       lines.push('')
     })
-    copyFormatted(lines.join('\n'))
+    return lines.join('\n')
   }
-  
-  function clearSelected() {
-    selectedGlobal.splice(0, selectedGlobal.length)
-    ui.forEach(state => state.selected.splice(0, state.selected.length))
-  }
-  
-  // 复制文本
-  
-  function copyFormatted(text: string) {
-    if (!text) return
-    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text)
-    } else {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
+
+  async function sendSelectedToTeacher() {
+    if (!selectedList.value.length) return
+    const user = authStore.currentUser
+    if (!user || !user.groupNo || !user.studentNo) {
+      console.warn('未获取到学生身份，无法发送')
+      return
+    }
+
+    // 组合题目（按选择顺序）
+    const questions = selectedList.value.map((item, idx) => {
+      const src: any = item.q
+      return {
+        id: src.id || rid('sel'),
+        type: src.type,
+        text: src.text,
+        options: Array.isArray(src.options) ? [...src.options] : undefined,
+        index: idx + 1,
+        createdAt: Date.now()
+      }
+    })
+
+    const payload = {
+      type: 'survey',
+      from: {
+        groupNo: String(user.groupNo!),
+        studentNo: String(user.studentNo!)
+      },
+      data: {
+        title: '学生自选问卷',
+        topic: '课堂练习',
+        formattedText: buildFormattedFromSelected(),
+        questions
+      },
+      at: Date.now()
+    }
+
+    try {
+      await socketService.submit(payload as any)
+      // 保留右侧选中列表，不清空，便于继续查看与修改
+    } catch (e) {
+      console.error('发送失败', e)
     }
   }
-  
-  function onSubmit(payload: any) {
-    if (!payload || String(payload.type) !== 'survey') return
-    const from = payload.from || {}
-    const data = payload.data || {}
-    if (!from.groupNo || !from.studentNo) return
-    const key = `${from.groupNo}-${from.studentNo}`
-    store.set(key, {
-      type: 'survey',
-      from: { groupNo: String(from.groupNo), studentNo: String(from.studentNo) },
-      data,
-      at: payload.at || Date.now()
+
+  // 预置若干静态问卷模板，供左侧卡片浏览与选择题目
+  function seedStaticSurveys() {
+    const now = Date.now()
+    const samples: SurveyPayload[] = [
+      {
+        type: 'survey',
+        from: { groupNo: '1', studentNo: '0' },
+        at: now,
+        data: {
+          title: '视力与用眼习惯调查',
+          topic: '视力健康',
+          questions: [
+            { id: rid(), type: 'single', text: '你是否近视？', options: ['是','否'] },
+            { id: rid(), type: 'single', text: '你的性别？', options: ['男','女'] },
+            { id: rid(), type: 'text',   text: '你的年级？' },
+            { id: rid(), type: 'text',   text: '你周六周日使用数字设备的时间？（分钟）' },
+            { id: rid(), type: 'single', text: '你周六周日使用数字设备时间的长短？', options: ['长','短','不用'] },
+            { id: rid(), type: 'single', text: '你在使用数字设备时与屏幕的距离是多少？', options: ['非常近（小于20厘米）','比较近（20-40厘米）','适中（40-60厘米）','比较远（60厘米以上）'] }
+          ]
+        }
+      }
+    ]
+
+    samples.forEach(p => {
+      const key = `${p.from.groupNo}-${p.from.studentNo}`
+      store.set(key, p)
     })
   }
-  
+
   onMounted(() => {
-    socketService.on('submit', onSubmit)
+    seedStaticSurveys()
   })
-  
-  onBeforeUnmount(() => {
-    socketService.off('submit', onSubmit)
-  })
-  </script>
+</script>
   
   <style scoped>
   .survey-monitor { padding: 8px; max-width: 1268px; margin: 0 0; }
   .header { margin-bottom: 8px; }
   .header h3 { margin: 0 0 4px; }
   .header .sub { color: #666; font-size: 12px; }
-  .layout { display: grid; grid-template-columns: 800px 400px; column-gap: 68px; align-items: start; }
+  .layout { display: grid; grid-template-columns: 1fr 400px; column-gap: 24px; align-items: start; }
   .main { min-width: 0; }
   .side { min-width: 0; position: sticky; top: 8px; align-self: start; }
   .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 12px; }
   .tb-item { margin-right: 4px; }
-  .card-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-  .survey-card { border-radius: 10px; max-height: 180px;}
-  .survey-card { height: 380px; display: flex; flex-direction: column; }
-  .survey-card :deep(.el-card__body) { height: 100%; display: flex; flex-direction: column; min-height: 0 }
+  .card-grid { display: grid; grid-template-columns: repeat(2, 400px); gap: 8px 8px; justify-content: start; }
+  .survey-card { border-radius: 10px; width: 400px; height: 130px; }
+  .survey-card :deep(.el-card__body) { height: 100%; display: flex; flex-direction: column; min-height: 0; padding: 8px 10px; }
+  .pv-item { height: 100%; display: flex; }
+  .pv-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px; }
+  .pv-content { overflow: hidden; flex: 1 1 auto; min-width: 0; }
+  .pv-check { flex: 0 0 auto; }
   .card-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
   .meta { display: flex; gap: 6px; align-items: center; }
   .meta .time { color: #888; font-size: 12px; margin-left: auto; }
   .title { font-weight: 700; color: #333; }
-  .pv-list { display: flex; flex-direction: column; gap: 8px; overflow: auto; padding-right: 6px; flex: 1 1 auto; min-height: 0; }
-  .pv-item { padding: 10px; background: #fff; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
-  .pv-item.selected { border-color: #409EFF; box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.12) inset; }
-  .pv-q { margin-bottom: 6px; font-weight: 600; }
+  .pv-q { margin-bottom: 6px; font-weight: 600; white-space: normal; overflow: visible; text-overflow: clip; }
   .pv-index { margin-right: 6px; color: #2b6aa6; }
-  .pv-blank { height: 18px; border-bottom: 2px dashed #666; width: 60%; margin-top: 4px; }
+  .pv-blank { height: 18px; border-bottom: 2px solid #666; width: 60%; margin-top: 8px; }
   .fmt-wrap { margin-top: 10px; }
   .fmt-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .fmt-title { font-weight: 700; color: #333; }
   
-  /* 选中预览卡片滚动 */
-  .selected-card { width: 100%; }
-  .sel-head { display: flex; align-items: center; justify-content: space-between; }
+  /* 选中预览卡片固定高度并内部滚动 */
+  .selected-card { width: 100%; height: 400px; display: flex; flex-direction: column; }
+  .sel-head { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 4px; }
   .sel-actions { display: flex; gap: 6px; }
-  .sel-body { max-height: 180px; overflow: auto; padding-right: 6px; }
-  .sel-item { padding: 6px 0; border-bottom: 1px dashed #eee; }
-  .sel-q { display: flex; align-items: center; gap: 8px; }
-  .sel-index { color: #2b6aa6; }
-  .sel-text { font-weight: 600; }
-  .sel-tag { color: #666; font-size: 12px; }
-  .sel-meta { margin-left: auto; }
+  .selected-card :deep(.el-card__body) { flex: 1 1 auto; overflow: auto; padding-right: 6px; }
+  .sel-body { padding-right: 2px; }
+  .preview-head { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0; }
+  .pv-title { font-size: 24px; font-weight: 900; color: #1677ff; margin-bottom: 6px; text-align: center; letter-spacing: 0.5px; }
+  .pv-desc { font-size: 14px; color: #444; text-align: left; }
+  .sel-footer { display: flex; gap: 8px; justify-content: center; padding-top: 8px; }
+  /* 放大复选框，增强可见性 */
+  :deep(.pv-check .el-checkbox .el-checkbox__inner) { transform: scale(1.4); }
+  :deep(.pv-check .el-checkbox.is-checked .el-checkbox__inner) { border-color: #409EFF; background-color: #409EFF; }
+  .sel-item { padding: 10px 0; border-bottom: 1px dashed #eee; }
+  .q-block { display: flex; flex-direction: column; gap: 6px; }
+  .q-head { display: flex; align-items: baseline; gap: 0; }
+  .q-index { margin-right: 6px; color: #2b6aa6; }
+  .q-text { font-weight: 600; color: #222; flex: 1 1 auto; }
+  .q-type { font-size: 12px; color: #999; margin-left: 0; }
+  .q-opts { display: grid; grid-template-columns: 1fr; gap: 4px; margin-left: 0; color: #444; }
+  .q-opt { padding-left: 2px; }
   </style>
   
