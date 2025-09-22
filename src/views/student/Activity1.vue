@@ -1,69 +1,89 @@
 <template>
   <div class="page">
     <!-- 活动说明 -->
-    <div class="activity-header">
-      <div class="activity-icon">📋</div>
-      <div class="activity-title">活动说明</div>
-    </div>
     <div class="activity-description">
-      请根据以下四个场景，为每个场景选择最合适的数据获取方式：
+      <strong>拖拽匹配活动</strong><br>
+      请将上方的情境卡片拖拽到下方对应的数据获取方式框中
     </div>
 
-    <!-- 4个情景题 -->
-    <div class="questions-container">
-      <div v-for="(question, index) in questions" :key="question.id" class="question-card">
-        <div class="question-header">
-          <span class="question-number">情景{{ getQuestionNumber(index) }}：</span>
-          <span class="question-title">{{ question.title }}</span>
-        </div>
-        
-        <div class="question-content">
-          <div class="question-image">
-            <img :src="question.image" :alt="question.title" />
-          </div>
-          
-          <div class="question-options">
-            <label 
-              v-for="option in options" 
-              :key="option.id" 
-              class="option-item"
-              :class="{ selected: answers[question.id] === option.id }"
-            >
-              <input 
-                type="radio" 
-                :name="question.id" 
-                :value="option.id" 
-                v-model="answers[question.id]"
-                @change="onAnswerChange"
-              />
-              <span class="option-label">{{ option.id }}. {{ option.label }}</span>
-            </label>
+    <!-- 主要内容区域：上方情境，下方选项 -->
+    <div class="main-content">
+      <!-- 上方：可拖拽的情境卡片 -->
+      <div class="scenarios-container">
+        <h3 class="section-title">📋 情境卡片</h3>
+        <div class="scenarios-grid">
+          <div 
+            v-for="(question, index) in questions" 
+            :key="question.id"
+            class="scenario-card"
+            :class="{ 
+              'is-dragging': draggingItem === question.id,
+              'is-placed': isQuestionAnswered(question.id)
+            }"
+            draggable="true"
+            @dragstart="onDragStart($event, question.id)"
+            @dragend="onDragEnd"
+          >
+            <div class="scenario-number">情景{{ getQuestionNumber(index) }}</div>
+            <div class="scenario-image">
+              <img :src="question.image" :alt="question.title" />
+            </div>
+            <div class="scenario-title">{{ question.title }}</div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 提交区域 -->
-    <div class="submit-section">
-      <div class="progress-info">
-        <span class="progress-text">已完成：{{ completedCount }}/4 题</span>
-        <div class="progress-bar">
-          <div class="progress-fill" :style="{ width: (completedCount / 4 * 100) + '%' }"></div>
+      <!-- 下方：拖放目标选项框 -->
+      <div class="options-container">
+        <h3 class="section-title">🎯 数据获取方式</h3>
+        <div class="options-grid">
+          <div 
+            v-for="option in options" 
+            :key="option.id"
+            class="option-dropzone"
+            :class="{ 
+              'drag-over': dragOverTarget === option.id,
+              'has-answer': getQuestionsForOption(option.id).length > 0
+            }"
+            @dragover.prevent="onDragOver($event, option.id)"
+            @dragleave="onDragLeave"
+            @drop="onDrop($event, option.id)"
+          >
+            <div class="option-header">
+              <span class="option-label">{{ option.label }}</span>
+            </div>
+            
+            <!-- 显示所有放置的情境 -->
+            <div v-if="getQuestionsForOption(option.id).length > 0" class="placed-scenarios">
+              <div 
+                v-for="questionId in getQuestionsForOption(option.id)" 
+                :key="questionId"
+                class="placed-scenario"
+              >
+                <div class="placed-scenario-number">
+                  情景{{ getQuestionNumber(questions.findIndex(q => q.id === questionId)) }}
+                </div>
+                <div class="placed-scenario-title">
+                  {{ questions.find(q => q.id === questionId)?.title }}
+                </div>
+                <button 
+                  class="remove-btn" 
+                  @click="removeAnswer(option.id, questionId)"
+                  :disabled="hasSubmitted"
+                  title="移除"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            <!-- 空状态提示 -->
+            <div v-else class="drop-hint">
+              拖拽情境至此
+            </div>
+          </div>
         </div>
       </div>
-      
-      <button 
-        class="submit-btn" 
-        :disabled="!canSubmit || hasSubmitted" 
-        :class="{ success: hasSubmitted }"
-        @click="onSubmit"
-      >
-        {{ hasSubmitted ? '✓ 已提交' : (canSubmit ? '提交答案' : `请完成剩余 ${4 - completedCount} 题`) }}
-      </button>
-      
-      <button class="reset-btn" @click="onReset" :disabled="hasSubmitted">
-        重置全部
-      </button>
     </div>
   </div>
 </template>
@@ -109,15 +129,19 @@ const questions = [
   }
 ]
 
-// 学生答案状态
-const answers = ref<Record<QuestionId, AnswerId | ''>>({
-  q1: '',
-  q2: '',
-  q3: '',
-  q4: ''
+// 学生答案状态 - 新数据结构：每个选项包含多个问题ID
+const answers = ref<Record<AnswerId, QuestionId[]>>({
+  A: [],
+  B: [],
+  C: [],
+  D: []
 })
 
 const hasSubmitted = ref(false)
+
+// 拖拽状态
+const draggingItem = ref<QuestionId | null>(null)
+const dragOverTarget = ref<AnswerId | null>(null)
 
 const auth = useAuthStore()
 const groupNo = computed(() => String(auth.currentUser?.groupNo ?? ''))
@@ -125,10 +149,21 @@ const studentNo = computed(() => String(auth.currentUser?.studentNo ?? ''))
 
 // 计算属性
 const completedCount = computed(() => {
-  return Object.values(answers.value).filter(answer => answer !== '').length
+  // 计算已放置的问题总数
+  return Object.values(answers.value).reduce((total, questionIds) => total + questionIds.length, 0)
 })
 
-const canSubmit = computed(() => completedCount.value === 4)
+// canSubmit 已不再需要，因为改为自动提交
+
+// 辅助函数：检查问题是否已回答
+const isQuestionAnswered = (questionId: QuestionId) => {
+  return Object.values(answers.value).some(questionIds => questionIds.includes(questionId))
+}
+
+// 辅助函数：根据选项获取对应的问题ID数组
+const getQuestionsForOption = (optionId: AnswerId) => {
+  return answers.value[optionId] || []
+}
 
 const getQuestionNumber = (index: number) => {
   const numbers = ['一', '二', '三', '四']
@@ -173,21 +208,74 @@ const loadFromLocalStorage = () => {
   }
 }
 
-// 清除本地存储
-const clearLocalStorage = () => {
-  const key = getStorageKey()
-  if (key) {
-    localStorage.removeItem(key)
-  }
+// clearLocalStorage 函数已移除，因为不再需要重置功能
+
+// 拖拽事件处理函数
+const onDragStart = (event: DragEvent, questionId: QuestionId) => {
+  if (hasSubmitted.value) return
+  draggingItem.value = questionId
+  event.dataTransfer!.effectAllowed = 'move'
+  event.dataTransfer!.setData('text/plain', questionId)
 }
 
-// 事件处理函数
-const onAnswerChange = () => {
+const onDragEnd = () => {
+  draggingItem.value = null
+  dragOverTarget.value = null
+}
+
+const onDragOver = (_event: DragEvent, optionId: AnswerId) => {
+  if (hasSubmitted.value) return
+  dragOverTarget.value = optionId
+}
+
+const onDragLeave = () => {
+  dragOverTarget.value = null
+}
+
+const onDrop = (event: DragEvent, optionId: AnswerId) => {
+  if (hasSubmitted.value) return
+  
+  event.preventDefault()
+  const questionId = event.dataTransfer!.getData('text/plain') as QuestionId
+  
+  if (!questionId || !draggingItem.value) return
+  
+  // 先从所有选项中移除该问题（如果存在）
+  Object.keys(answers.value).forEach(key => {
+    const optKey = key as AnswerId
+    const index = answers.value[optKey].indexOf(questionId)
+    if (index > -1) {
+      answers.value[optKey].splice(index, 1)
+    }
+  })
+  
+  // 添加到新选项中
+  if (!answers.value[optionId].includes(questionId)) {
+    answers.value[optionId].push(questionId)
+  }
+  
+  // 重置拖拽状态
+  draggingItem.value = null
+  dragOverTarget.value = null
+  
   saveToLocalStorage()
 }
 
+// 移除答案
+const removeAnswer = (optionId: AnswerId, questionId: QuestionId) => {
+  if (hasSubmitted.value) return
+  
+  const index = answers.value[optionId].indexOf(questionId)
+  if (index > -1) {
+    answers.value[optionId].splice(index, 1)
+    saveToLocalStorage()
+  }
+}
+
+// 注：原有的onAnswerChange已被拖拽逻辑替代
+
 const onSubmit = async () => {
-  if (!canSubmit.value || hasSubmitted.value) return
+  if (hasSubmitted.value || completedCount.value !== 4) return
   
   const g = groupNo.value
   const s = studentNo.value
@@ -197,10 +285,18 @@ const onSubmit = async () => {
   }
   
   try {
+    // 将新的数据结构转换为提交格式
+    const submitAnswers: Record<QuestionId, AnswerId | ''> = { q1: '', q2: '', q3: '', q4: '' }
+    Object.entries(answers.value).forEach(([optionId, questionIds]) => {
+      questionIds.forEach((questionId: QuestionId) => {
+        submitAnswers[questionId] = optionId as AnswerId
+      })
+    })
+    
     const payload = {
       type: 'activity1_question',
       from: { groupNo: g, studentNo: s },
-      data: { answers: answers.value },
+      data: { answers: submitAnswers },
       at: Date.now()
     }
     
@@ -217,45 +313,22 @@ const onSubmit = async () => {
   }
 }
 
-const onReset = async () => {
-  if (hasSubmitted.value) return
-  
-  const g = groupNo.value
-  const s = studentNo.value
-  
-  // 本地重置
-  answers.value = { q1: '', q2: '', q3: '', q4: '' }
-  
-  if (!g || !s) {
-    clearLocalStorage()
-    ElMessage.success('重置成功！')
-    return
-  }
-  
-  try {
-    const payload = {
-      type: 'activity1_question',
-      from: { groupNo: g, studentNo: s },
-      data: { action: 'reset' },
-      at: Date.now()
-    }
-    
-    const ack = await socketService.submit(payload as any)
-    if (ack.code !== 200) {
-      throw new Error(ack.message || '重置失败')
-    }
-    
-    clearLocalStorage()
-    ElMessage.success('重置成功！')
-  } catch (error: any) {
-    ElMessage.error(error.message || '重置失败，请重试')
-  }
-}
+// onReset 函数已移除，因为不再需要重置按钮
 
 // 监听answers变化，自动保存到本地存储
 watch(answers, () => {
   saveToLocalStorage()
 }, { deep: true })
+
+// 监听完成度变化，自动提交
+watch(completedCount, (newCount) => {
+  if (newCount === 4 && !hasSubmitted.value) {
+    // 延时一点点以确保用户看到最后一次拖拽的视觉反馈
+    setTimeout(() => {
+      onSubmit()
+    }, 500)
+  }
+})
 
 // 组件挂载时恢复数据
 onMounted(() => {
@@ -266,7 +339,7 @@ onMounted(() => {
 <style scoped>
 .page {
   padding: 20px;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -290,233 +363,275 @@ onMounted(() => {
   border: 1px solid #0ea5e9;
   border-radius: 12px;
   padding: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   color: #0c4a6e;
   font-size: 14px;
   line-height: 1.6;
 }
 
-/* 问题容器 */
-.questions-container {
-  display: grid;
-  gap: 24px;
-  margin-bottom: 32px;
-}
-
-/* 单个问题卡片 */
-.question-card {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.2s ease;
-}
-.question-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-}
-
-/* 问题标题 */
-.question-header {
-  margin-bottom: 20px;
-}
-.question-number {
-  font-size: 16px;
-  font-weight: 600;
-  color: #3b82f6;
-}
-.question-title {
-  font-size: 15px;
-  color: #1f2937;
-  line-height: 1.5;
-}
-
-/* 问题内容区域 */
-.question-content {
+/* 主要内容区域 */
+.main-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  align-items: center;
+  gap: 32px;
+  margin-bottom: 20px;
 }
 
-/* 问题图片 */
-.question-image {
+/* 情境容器 */
+.scenarios-container {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  max-width: 600px;
-  min-height: 300px;
-}
-.question-image img {
-  max-width: 100%;
-  max-height: 280px;
-  object-fit: contain;
+  padding: 24px;
 }
 
-/* 选项区域 */
-.question-options {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  width: 100%;
-}
-
-/* 单个选项 */
-.option-item {
+.section-title {
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
-  background: #ffffff;
+}
+
+.scenarios-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+/* 情境卡片样式 */
+.scenario-card {
+  background: white;
   border: 2px solid #e5e7eb;
-  border-radius: 25px;
-  cursor: pointer;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: grab;
   transition: all 0.2s ease;
-  position: relative;
-  min-width: 140px;
-  justify-content: center;
-}
-.option-item:hover {
-  border-color: #3b82f6;
-  background: #eff6ff;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
-}
-.option-item.selected {
-  border-color: #3b82f6;
-  background: #dbeafe;
-  box-shadow: 0 0 0 1px #3b82f6;
+  user-select: none;
 }
 
-.option-item input[type="radio"] {
-  width: 16px;
-  height: 16px;
-  accent-color: #3b82f6;
+.scenario-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border-color: #3b82f6;
 }
-.option-label {
+
+.scenario-card.is-dragging {
+  opacity: 0.6;
+  transform: rotate(5deg);
+  cursor: grabbing;
+}
+
+.scenario-card.is-placed {
+  opacity: 0.7;
+  background: #f3f4f6;
+  border-color: #10b981;
+}
+
+.scenario-number {
   font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-  white-space: nowrap;
-}
-.option-item.selected .option-label {
-  color: #1d4ed8;
   font-weight: 600;
+  color: #3b82f6;
+  margin-bottom: 8px;
 }
 
-/* 提交区域 */
-.submit-section {
-  background: #f8fafc;
+.scenario-image {
+  width: 100%;
+  height: 120px;
+  background: #f1f5f9;
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  gap: 24px;
+  justify-content: center;
+  margin-bottom: 12px;
 }
 
-/* 进度信息 */
-.progress-info {
-  flex: 1;
+.scenario-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
-.progress-text {
-  font-size: 14px;
-  font-weight: 600;
+
+.scenario-title {
+  font-size: 13px;
   color: #374151;
+  line-height: 1.4;
   margin-bottom: 8px;
-  display: block;
-}
-.progress-bar {
-  height: 8px;
-  background: #e5e7eb;
-  border-radius: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #10b981, #059669);
-  border-radius: 4px;
-  transition: width 0.3s ease;
+
+.drag-hint {
+  font-size: 11px;
+  color: #6b7280;
+  text-align: center;
+  font-style: italic;
 }
 
-/* 按钮样式 */
-.submit-btn {
-  padding: 12px 24px;
+/* 选项容器 */
+.options-container {
+  background: #fef7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+/* 拖放目标区域 */
+.option-dropzone {
+  background: white;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 160px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.option-dropzone.drag-over {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  transform: scale(1.02);
+}
+
+.option-dropzone.has-answer {
+  border-style: solid;
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.option-header {
+  text-align: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.option-label {
   font-size: 14px;
   font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-width: 120px;
-}
-.submit-btn:not(:disabled) {
-  background: #3b82f6;
-  color: white;
-}
-.submit-btn:not(:disabled):hover {
-  background: #2563eb;
-  transform: translateY(-1px);
-}
-.submit-btn:disabled {
-  background: #e5e7eb;
-  color: #9ca3af;
-  cursor: not-allowed;
-}
-.submit-btn.success {
-  background: #10b981;
-  color: white;
-}
-.submit-btn.success:hover {
-  background: #059669;
+  color: #1f2937;
+  display: block;
 }
 
-.reset-btn {
-  padding: 12px 20px;
-  font-size: 14px;
-  font-weight: 500;
-  background: white;
-  color: #6b7280;
-  border: 1px solid #d1d5db;
+/* 已放置的情境容器 */
+.placed-scenarios {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 已放置的情境显示 */
+.placed-scenario {
+  position: relative;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.placed-scenario-number {
+  font-size: 12px;
+  font-weight: 600;
+  color: #059669;
+  margin-bottom: 4px;
+}
+
+.placed-scenario-title {
+  font-size: 11px;
+  color: #374151;
+  line-height: 1.3;
+  padding-right: 20px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 16px;
+  height: 16px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
   cursor: pointer;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.2s ease;
 }
-.reset-btn:not(:disabled):hover {
-  border-color: #9ca3af;
-  color: #374151;
+
+.remove-btn:hover {
+  background: #dc2626;
+  transform: scale(1.1);
 }
-.reset-btn:disabled {
-  opacity: 0.5;
+
+.remove-btn:disabled {
+  background: #d1d5db;
   cursor: not-allowed;
 }
+
+/* 空状态提示 */
+.drop-hint {
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 14px;
+  padding: 40px 20px;
+}
+
 
 /* 响应式设计 */
+@media (max-width: 1024px) {
+  .scenarios-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .options-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
-  .question-image {
-    min-height: 200px;
+  .page {
+    padding: 16px;
   }
-  .question-image img {
-    max-height: 180px;
+  
+  .main-content {
+    gap: 24px;
   }
-  .question-options {
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
+  
+  .scenarios-grid {
+    grid-template-columns: 1fr;
   }
-  .option-item {
-    min-width: 200px;
+  
+  .options-grid {
+    grid-template-columns: 1fr;
   }
-  .submit-section {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
+  
+  .scenario-image {
+    height: 100px;
+  }
+  
+  .option-dropzone {
+    min-height: 120px;
   }
 }
 </style>

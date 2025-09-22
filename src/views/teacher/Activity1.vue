@@ -33,8 +33,7 @@
           <div v-if="getParticipantsCount(question.id) > 0" class="top-options">
             <div class="top-options-title">选择情况（按人数排序）：</div>
             <div v-for="(topOption, idx) in getTopOptions(question.id)" :key="topOption.id" class="top-option-item" :class="'top-' + topOption.id">
-              <span class="option-rank">{{ idx + 1 }}.</span>
-              <span class="option-name">{{ topOption.id }}. {{ topOption.label }}</span>
+              <span class="option-name">{{ topOption.label }}</span>
               <span class="option-count">{{ topOption.count }}人</span>
               <span class="option-percent">({{ Math.round(topOption.count / getParticipantsCount(question.id) * 100) }}%)</span>
             </div>
@@ -62,7 +61,7 @@
       <div class="detail-content">
         <div v-for="option in getSortedOptionsForDetail(selectedQuestionId)" :key="option.id" class="detail-section">
           <div class="detail-header">
-            <span class="detail-label" :class="'bg-' + option.id">{{ option.id }}. {{ option.label }}</span>
+            <span class="detail-label" :class="'bg-' + option.id">{{ option.label }}</span>
             <span class="detail-count">{{ option.count }}人</span>
             <span v-if="selectedQuestionId && getParticipantsCount(selectedQuestionId) > 0" class="detail-percent">
               ({{ Math.round(option.count / getParticipantsCount(selectedQuestionId) * 100) }}%)

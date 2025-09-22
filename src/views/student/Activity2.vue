@@ -17,30 +17,38 @@
               class="survey-card"
               shadow="hover"
             >
-              <div class="pv-item" :class="{ selected: isSelected(item.key, (item.q as any).id) }">
-                <div class="pv-row">
-                  <div class="pv-content">
-                    <div class="pv-q">
-                      {{ (item.q as any).text || '（未命名题目）' }}
-                    </div>
-                    <template v-if="(item.q as any).type === 'single'">
-                      <el-radio-group>
-                        <el-radio v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi" :label="oi" disabled>
-                          {{ opt || `${letter(oi)}. 选项` }}
-                        </el-radio>
-                      </el-radio-group>
-                    </template>
-                    <template v-else-if="(item.q as any).type === 'multi'">
-                      <el-checkbox-group>
-                        <el-checkbox v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi" :label="oi" disabled>
-                          {{ opt || `${letter(oi)}. 选项` }}
-                        </el-checkbox>
-                      </el-checkbox-group>
-                    </template>
-                    <template v-else>
-                      <div class="pv-blank" aria-hidden="true"></div>
-                    </template>
-                  </div>
+               <div class="pv-item" :class="{ selected: isSelected(item.key, (item.q as any).id) }">
+                 <!-- 左上角标注 -->
+                 <div class="pv-tags">
+                   <span class="type-tag" :class="item.isDescription ? 'desc-tag' : 'question-tag'">{{ item.isDescription ? '说明' : '问题' }}</span>
+                   <span class="source-tag">{{ getSourceLabel((item.q as any).source) }}</span>
+                 </div>
+                 <div class="pv-row">
+                   <div class="pv-content">
+                     <div class="pv-q" :class="{ 'desc-only': item.isDescription }">
+                       {{ (item.q as any).text || '（未命名内容）' }}
+                     </div>
+                     <!-- 如果是说明部分，不显示任何选项 -->
+                     <template v-if="!item.isDescription">
+                       <template v-if="(item.q as any).type === 'single'">
+                         <el-radio-group>
+                           <el-radio v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi" :label="oi" disabled>
+                             {{ opt || `${letter(oi)}. 选项` }}
+                           </el-radio>
+                         </el-radio-group>
+                       </template>
+                       <template v-else-if="(item.q as any).type === 'multi'">
+                         <el-checkbox-group>
+                           <el-checkbox v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi" :label="oi" disabled>
+                             {{ opt || `${letter(oi)}. 选项` }}
+                           </el-checkbox>
+                         </el-checkbox-group>
+                       </template>
+                       <template v-else>
+                         <div class="pv-blank" aria-hidden="true"></div>
+                       </template>
+                     </template>
+                   </div>
                   <div class="pv-check">
                     <el-checkbox
                       size="large"
@@ -57,16 +65,19 @@
         <aside class="side">
           <!-- 选中题目渲染卡片（右侧侧栏） -->
           <el-card class="selected-card" shadow="never">
-             <el-button size="default" type="success" :disabled="!selectedList.length" @click="sendSelectedToTeacher">发送</el-button>
-            <el-button size="default" :disabled="!selectedList.length" @click="clearSelected">清空</el-button>
             <template #header>
               <div class="sel-head">
-                <div class="pv-title">全校学生数字设备使用情况调查</div>
-                <div class="pv-desc">为全面了解全校学生的近视情况，以及大家日常使用电脑、平板、手机等数字设备的时长、频率等实际情况，特开展本次调查。后续我们会结合调查数据，分析数字设备使用与近视之间是否存在关联，请大家根据自身真实情况填写问卷，感谢您的配合！</div>
+                <!-- 操作按钮移到最上方 -->
+                <div class="sel-actions">
+                  <el-button size="default" type="success" :disabled="!questionOnlyList.length" @click="sendSelectedToTeacher">发送</el-button>
+                  <el-button size="default" :disabled="!selectedList.length" @click="clearSelected">清空</el-button>
+                </div>
+                <div class="pv-title">数字设备对学习的利与弊调查问卷</div>
+                <div class="pv-desc">{{ currentDescription }}</div>
               </div>
             </template>
             <div class="sel-body">
-              <div class="sel-item" v-for="(item, idx) in selectedList" :key="item.key + '-' + item.qid">
+              <div class="sel-item" v-for="(item, idx) in questionOnlyList" :key="item.key + '-' + item.qid">
                 <div class="q-block">
                   <div class="q-head">
                     <span class="q-index">{{ idx + 1 }}.</span>
@@ -91,23 +102,24 @@
   import { useAuthStore } from '@/stores/auth'
   import { ElMessage } from 'element-plus'
   
-  type QSingle = { id: string; type: 'single'; text: string; options: string[]; index?: number; createdAt?: number }
-  type QMulti = { id: string; type: 'multi'; text: string; options: string[]; index?: number; createdAt?: number }
-  type QText = { id: string; type: 'text'; text: string; index?: number; createdAt?: number }
-  interface SurveyPayload {
-    type: 'survey'
-    from: { groupNo: string; studentNo: string }
-    data: {
-      title: string;
-      description?: string;
-      version?: number;
-      author?: { groupNo: string; studentNo: string };
-      topic?: string;
-      formattedText?: string;
-      questions: Array<QSingle | QMulti | QText>;
-    }
-    at: number
-  }
+   type QSingle = { id: string; type: 'single'; text: string; options: string[]; index?: number; createdAt?: number; source?: number }
+   type QMulti = { id: string; type: 'multi'; text: string; options: string[]; index?: number; createdAt?: number; source?: number }
+   type QText = { id: string; type: 'text'; text: string; index?: number; createdAt?: number; source?: number }
+   type QDescription = { id: string; type: 'description'; text: string; index?: number; createdAt?: number; source?: number }
+   interface SurveyPayload {
+     type: 'survey'
+     from: { groupNo: string; studentNo: string }
+     data: {
+       title: string;
+       version?: number;
+       author?: { groupNo: string; studentNo: string };
+       topic?: string;
+       formattedText?: string;
+       descriptions: Array<QDescription>;
+       questions: Array<QSingle | QMulti | QText>;
+     }
+     at: number
+   }
   
   const store = reactive(new Map<string, SurveyPayload>())
   // 行聚合：同一小组仅保留最新一份（覆盖）
@@ -132,16 +144,7 @@
   
   // 工具栏过滤
   const filter = reactive({ group: '', student: '', keyword: '', topic: '' })
-  const groups = computed(() => Array.from(new Set(rows.value.map(r => r.groupNo))))
-  const students = computed(() => Array.from(new Set(rows.value.map(r => r.studentNo))))
-  const topics = computed(() => {
-    const set = new Set<string>()
-    Array.from(store.values()).forEach(p => {
-      const t = (p.data as any)?.topic
-      if (t) set.add(String(t))
-    })
-    return Array.from(set)
-  })
+  // 已移除未使用的过滤相关计算属性
   const filtered = computed(() => {
     const kw = filter.keyword.trim().toLowerCase()
     return rows.value.filter(r => {
@@ -160,25 +163,33 @@
     })
   })
 
-  // 将小组维度的 filtered 行展开为题目维度，且仅保留 填空(text)/单选(single)/多选(multi)，排除量表/矩阵/排序等
-  const filteredQuestions = computed(() => {
-    const out: Array<{ key: string; q: any; idx: number }> = []
-    const banMarkers = ['[量表题]', '[矩阵题]', '[排序题]']
-    filtered.value.forEach(row => {
-      const payload = getByKey(row.key)
-      const qs = payload?.data?.questions || []
-      qs.forEach((q: any, i: number) => {
-        const t = (q?.type || '').toLowerCase()
-        const text = String(q?.text || '')
-        const allowType = t === 'single' || t === 'multi' || t === 'text'
-        const hasBanMarker = banMarkers.some(m => text.includes(m))
-        if (allowType && !hasBanMarker) {
-          out.push({ key: row.key, q, idx: i })
-        }
-      })
-    })
-    return out
-  })
+   // 将小组维度的 filtered 行展开为题目维度，包含descriptions和questions
+   const filteredQuestions = computed(() => {
+     const out: Array<{ key: string; q: any; idx: number; isDescription?: boolean }> = []
+     const banMarkers = ['[量表题]', '[矩阵题]', '[排序题]']
+     filtered.value.forEach(row => {
+       const payload = getByKey(row.key)
+       
+       // 添加描述项
+       const descriptions = payload?.data?.descriptions || []
+       descriptions.forEach((desc: any, i: number) => {
+         out.push({ key: row.key, q: desc, idx: i, isDescription: true })
+       })
+       
+       // 添加问题项
+       const qs = payload?.data?.questions || []
+       qs.forEach((q: any, i: number) => {
+         const t = (q?.type || '').toLowerCase()
+         const text = String(q?.text || '')
+         const allowType = t === 'single' || t === 'multi' || t === 'text'
+         const hasBanMarker = banMarkers.some(m => text.includes(m))
+         if (allowType && !hasBanMarker) {
+           out.push({ key: row.key, q, idx: i, isDescription: false })
+         }
+       })
+     })
+     return out
+   })
   
   // 卡片内选项字母与访问器
   function getByKey(key: string): SurveyPayload | null {
@@ -220,20 +231,47 @@
     saveToLocalStorage() // 选择变化时保存状态
   }
   
-  // 计算已选题目（全局，按选择顺序）
-  const selectedList = computed(() => {
-    const out: Array<{ key: string; qid: string; q: any }> = []
-    selectedGlobal.forEach(it => {
-      const payload = getByKey(it.key)
-      const q = payload?.data?.questions?.find((qq: any) => qq.id === it.qid)
-      if (q) out.push({ key: it.key, qid: it.qid, q })
-    })
-    return out
-  })
+   // 计算已选题目（全局，按选择顺序）
+   const selectedList = computed(() => {
+     const out: Array<{ key: string; qid: string; q: any; isDescription?: boolean }> = []
+     selectedGlobal.forEach(it => {
+       const payload = getByKey(it.key)
+       
+       // 在descriptions中查找
+       const descQ = payload?.data?.descriptions?.find((qq: any) => qq.id === it.qid)
+       if (descQ) {
+         out.push({ key: it.key, qid: it.qid, q: descQ, isDescription: true })
+         return
+       }
+       
+       // 在questions中查找
+       const questionQ = payload?.data?.questions?.find((qq: any) => qq.id === it.qid)
+       if (questionQ) {
+         out.push({ key: it.key, qid: it.qid, q: questionQ, isDescription: false })
+       }
+     })
+     return out
+   })
+
+   // 只包含问题部分的列表（右侧题目列表显示用）
+   const questionOnlyList = computed(() => {
+     return selectedList.value.filter(item => !item.isDescription)
+   })
   
   function typeTag(t: string) {
     return t === 'single' ? '[单选题]' : (t === 'multi' ? '[多选题]' : '[填空题]')
   }
+
+   // 获取来源标签
+   function getSourceLabel(source: number): string {
+     return source === 0 ? '题库' : `第${source}组`
+   }
+
+   // 动态获取当前选中项目中的说明部分内容
+   const currentDescription = computed(() => {
+     const descItem = selectedList.value.find(item => item.isDescription)
+     return descItem?.q.text || null
+   })
   
   // 已移除复制导出按钮：导出函数不再需要
   
@@ -305,13 +343,7 @@
     }
   }
 
-  // 清除本地存储
-  const clearLocalStorage = () => {
-    const key = getStorageKey()
-    if (key) {
-      localStorage.removeItem(key)
-    }
-  }
+  // 已移除未使用的clearLocalStorage函数
 
   function rid(prefix = 'q'): string {
     return `${prefix}_${Math.random().toString(36).slice(2, 8)}`
@@ -337,40 +369,58 @@
   }
 
   async function sendSelectedToTeacher() {
-    if (!selectedList.value.length) return
+    if (!questionOnlyList.value.length) return
     const user = authStore.currentUser
     if (!user || !user.groupNo || !user.studentNo) {
       console.warn('未获取到学生身份，无法发送')
       return
     }
 
-    // 组合题目（按选择顺序）
-    const questions = selectedList.value.map((item, idx) => {
-      const src: any = item.q
-      return {
-        id: src.id || rid('sel'),
-        type: src.type,
-        text: src.text,
-        options: Array.isArray(src.options) ? [...src.options] : undefined,
-        index: idx + 1,
-        createdAt: Date.now()
-      }
-    })
+     // 分离说明部分和问题部分
+     const descriptionItems = selectedList.value.filter(item => item.isDescription)
+     
+     // 组合描述（按选择顺序）
+     const descriptions = descriptionItems.map((item, idx) => {
+       const src: any = item.q
+       return {
+         id: src.id || rid('desc'),
+         type: 'description',
+         text: src.text,
+         source: src.source || 0,
+         index: idx + 1,
+         createdAt: Date.now()
+       }
+     })
+     
+     // 组合题目（按选择顺序，仅包含问题部分）
+     const questions = questionOnlyList.value.map((item, idx) => {
+       const src: any = item.q
+       return {
+         id: src.id || rid('sel'),
+         type: src.type,
+         text: src.text,
+         options: Array.isArray(src.options) ? [...src.options] : undefined,
+         source: src.source || 0,
+         index: idx + 1,
+         createdAt: Date.now()
+       }
+     })
 
-    const payload = {
-      type: 'survey',
-      from: {
-        groupNo: String(user.groupNo!),
-        studentNo: String(user.studentNo!)
-      },
-      data: {
-        title: '全校学生数字设备使用情况调查\n为全面了解全校学生的近视情况，以及大家日常使用电脑、平板、手机等数字设备的时长、频率等实际情况，特开展本次调查。后续我们会结合调查数据，分析数字设备使用与近视之间是否存在关联，请大家根据自身真实情况填写问卷，感谢您的配合！',
-        topic: '课堂练习',
-        formattedText: buildFormattedFromSelected(),
-        questions
-      },
-      at: Date.now()
-    }
+     const payload = {
+       type: 'survey',
+       from: {
+         groupNo: String(user.groupNo!),
+         studentNo: String(user.studentNo!)
+       },
+       data: {
+         title: '数字设备对学习的利与弊调查问卷',
+         topic: '课堂练习',
+         formattedText: buildFormattedFromSelected(),
+         descriptions,
+         questions
+       },
+       at: Date.now()
+     }
 
     try {
       const ack = await socketService.submit(payload as any)
@@ -386,34 +436,40 @@
     }
   }
 
-  // 预置若干静态问卷模板，供左侧卡片浏览与选择题目
-  function seedStaticSurveys() {
-    const now = Date.now()
-    const samples: SurveyPayload[] = [
-      {
-        type: 'survey',
-        from: { groupNo: '1', studentNo: '0' },
-        at: now,
-        data: {
-          title: '视力与用眼习惯调查',
-          topic: '视力健康',
-          questions: [
-            { id: rid(), type: 'single', text: '你是否近视？', options: ['是','否'] },
-            { id: rid(), type: 'single', text: '你的性别？', options: ['男','女'] },
-            { id: rid(), type: 'text',   text: '你的年级？' },
-            { id: rid(), type: 'text',   text: '你周六周日使用数字设备的时间？（分钟）' },
-            { id: rid(), type: 'single', text: '你周六周日使用数字设备时间的长短？', options: ['长','短','不用'] },
-            { id: rid(), type: 'single', text: '你在使用数字设备时与屏幕的距离是多少？', options: ['非常近（小于20厘米）','比较近（20-40厘米）','适中（40-60厘米）','比较远（60厘米以上）'] }
-          ]
-        }
-      }
-    ]
+   // 预置若干静态问卷模板，供左侧卡片浏览与选择题目
+   function seedStaticSurveys() {
+     const now = Date.now()
+     const samples: SurveyPayload[] = [
+       {
+         type: 'survey',
+         from: { groupNo: '0', studentNo: '0' },
+         at: now,
+         data: {
+           title: '数字设备对学习的利与弊调查',
+           topic: '数字设备',
+           descriptions: [
+             { id: rid('desc'), type: 'description', text: '为了更好地了解同学们使用数字设备的情况，用于分析，得出合理建议，提示使用数字设备自我管理意识，特设计此问卷。希望同学们如实填写，感谢大家的积极参与。', source: 0 }
+           ],
+           questions: [
+             { id: rid(), type: 'single', text: '你的性别？', options: ['男','女'], source: 0 },
+             { id: rid(), type: 'text', text: '你的年级________', source: 0 },
+             { id: rid(), type: 'single', text: '你的年级', options: ['一年级','二年级','三年级','四年级','五年级','六年级'], source: 0 },
+             { id: rid(), type: 'text', text: '你周六周日使用数字设备的时间？（分钟）', source: 0 },
+             { id: rid(), type: 'single', text: '你周六周日使用数字设备时间的长短？', options: ['长','短','不用'], source: 0 },
+             { id: rid(), type: 'multi', text: '你平常会使用哪些数字设备【多选题】', options: ['智能手机','平板电脑','笔记本电脑','智能手表','智能电视','其他_____'], source: 0 },
+             { id: rid(), type: 'single', text: '当你不知道怎么使用数字设备的某个功能时，你会问谁', options: ['爸爸','妈妈','老师','同学','自己摸索'], source: 0 },
+             { id: rid(), type: 'single', text: '你觉得使用数字设备对你认识新朋友有帮助吗？', options: ['没有帮助','一般','有帮助','很有帮助'], source: 0 },
+             { id: rid(), type: 'single', text: '你用数字设备玩游戏的频率是', options: ['几乎每天','每周3-4次','每月1-2次','每月几次','很少'], source: 0 }
+           ]
+         }
+       }
+     ]
 
-    samples.forEach(p => {
-      const key = `${p.from.groupNo}-${p.from.studentNo}`
-      store.set(key, p)
-    })
-  }
+     samples.forEach(p => {
+       const key = `${p.from.groupNo}-${p.from.studentNo}`
+       store.set(key, p)
+     })
+   }
 
   onMounted(() => {
     seedStaticSurveys()
@@ -446,8 +502,31 @@
   .card-grid { display: grid; grid-template-columns: repeat(2, 380px); gap: 8px 8px; justify-content: start; }
   .survey-card { border-radius: 10px; width: 380px; height: 160px; }
   .survey-card :deep(.el-card__body) { height: 100%; display: flex; flex-direction: column; min-height: 0; padding: 8px 10px; }
-  .pv-item { height: 100%; display: flex; }
-  .pv-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px; }
+  .pv-item { height: 100%; display: flex; flex-direction: column; position: relative; }
+  .pv-tags { display: flex; gap: 6px; margin-bottom: 8px; }
+  .source-tag { 
+    font-size: 11px; 
+    background: #e0e7ff; 
+    color: #3730a3; 
+    padding: 2px 8px; 
+    border-radius: 10px; 
+    font-weight: 500; 
+  }
+  .type-tag { 
+    font-size: 11px; 
+    padding: 2px 8px; 
+    border-radius: 10px; 
+    font-weight: 500; 
+  }
+  .desc-tag { 
+    background: #fef3c7; 
+    color: #92400e; 
+  }
+  .question-tag { 
+    background: #dcfce7; 
+    color: #166534; 
+  }
+  .pv-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px; flex: 1; }
   .pv-content { overflow: hidden; flex: 1 1 auto; min-width: 0; }
   .pv-check { flex: 0 0 auto; }
   .card-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
@@ -455,6 +534,14 @@
   .meta .time { color: #888; font-size: 12px; margin-left: auto; }
   .title { font-weight: 700; color: #333; }
   .pv-q { margin-bottom: 6px; font-weight: 600; white-space: normal; overflow: visible; text-overflow: clip; }
+  .pv-q.desc-only { 
+    font-weight: 400; 
+    color: #666; 
+    line-height: 1.5; 
+    text-indent: 2em; 
+    font-size: 13px;
+    margin-bottom: 0;
+  }
   .pv-index { margin-right: 6px; color: #2b6aa6; }
   .pv-blank { height: 18px; border-bottom: 2px solid #bbb; width: 60%; margin-top: 8px; }
   .fmt-wrap { margin-top: 10px; }
@@ -463,8 +550,13 @@
   
   /* 选中预览卡片固定高度并内部滚动 */
   .selected-card { width: 100%; height: 500px; display: flex; flex-direction: column; }
-  .sel-head { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 4px; }
-  .sel-actions { display: flex; gap: 6px; }
+  .sel-head { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 12px; }
+  .sel-actions { 
+    display: flex; 
+    gap: 8px; 
+    justify-content: flex-end; 
+    margin-bottom: 8px;
+  }
   .selected-card :deep(.el-card__body) { flex: 1 1 auto; overflow: auto; padding-right: 6px; }
   .sel-body { padding-right: 2px; }
   .preview-head { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0; }

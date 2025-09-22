@@ -14,29 +14,46 @@
     <div class="grid">
       <el-empty v-if="!cards.length" description="等待学生提交问卷…" />
       <el-card v-for="card in cards" :key="card.key" class="t-card" shadow="hover">
-        <div class="sel-head">
-
-
-          <div class="pv-title">第{{ card.from.groupNo }}小组 - 全校学生数字…</div>
-          <div class="pv-desc">为全面了解全校学生的近视情况，以及大家日常使用……</div>
+        <!-- 左上角组别标签 -->
+        <div class="card-tags">
+          <span class="type-tag group-tag">第{{ card.from.groupNo }}组</span>
         </div>
 
-        <div class="t-body">
-          <div class="q-item" v-for="(q, qi) in card.data.questions" :key="(q as any).id || qi">
-            <div class="q-head">
-              <span class="q-index">{{ qi + 1 }}.</span>
-              <span class="q-text">{{ (q as any).text || '（未命名题目）' }}</span>
-              <span class="q-type">{{ typeTag((q as any).type) }}</span>
+        <div class="card-content">
+          <div class="card-title">{{ card.data.title || '未命名问卷' }}</div>
+          
+          <!-- 显示说明部分 -->
+          <div v-if="card.data.descriptions && card.data.descriptions.length > 0" class="desc-section">
+            <div v-for="(desc, di) in card.data.descriptions" :key="(desc as any).id || di" class="desc-item">
+              {{ (desc as any).text }}
             </div>
+          </div>
 
-            <div v-if="Array.isArray((q as any).options)" class="q-opts">
-              <div class="q-opt" v-for="(opt, oi) in ((q as any).options || [])" :key="oi">{{ letter(oi) }}. {{ opt }}</div>
+          <!-- 显示问题列表 -->
+          <div v-if="card.data.questions && card.data.questions.length > 0" class="questions-list">
+            <div class="q-item" v-for="(q, qi) in card.data.questions" :key="(q as any).id || qi">
+              <div class="q-head">
+                <span class="q-index">{{ qi + 1 }}.</span>
+                <span class="q-text">{{ (q as any).text || '（未命名题目）' }}</span>
+                <span class="q-type">{{ typeTag((q as any).type) }}</span>
+              </div>
+
+              <div v-if="Array.isArray((q as any).options)" class="q-opts">
+                <div class="q-opt" v-for="(opt, oi) in ((q as any).options || [])" :key="oi">{{ letter(oi) }}. {{ opt }}</div>
+              </div>
+              <div v-else class="q-blank" />
             </div>
-            <div v-else class="q-blank" />
+          </div>
+          
+          <!-- 空状态 -->
+          <div v-if="(!card.data.questions || card.data.questions.length === 0) && (!card.data.descriptions || card.data.descriptions.length === 0)" class="empty-state">
+            该问卷暂无内容
           </div>
         </div>
-        <el-button size="default" type="primary" @click="exportCard(card)">文本导出</el-button>
-
+        
+        <div class="card-actions">
+          <el-button size="default" type="primary" @click="exportCard(card)">文本导出</el-button>
+        </div>
       </el-card>
     </div>
   </div>
@@ -47,19 +64,20 @@ import { reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { socketService } from '@/services/socket'
 import { saveActivity2Data, loadActivity2Data } from '@/utils/localStorage'
 
-type QSingle = { id: string; type: 'single'; text: string; options: string[]; index?: number; createdAt?: number }
-type QMulti = { id: string; type: 'multi'; text: string; options: string[]; index?: number; createdAt?: number }
-type QText = { id: string; type: 'text'; text: string; index?: number; createdAt?: number }
+type QSingle = { id: string; type: 'single'; text: string; options: string[]; index?: number; createdAt?: number; source?: number }
+type QMulti = { id: string; type: 'multi'; text: string; options: string[]; index?: number; createdAt?: number; source?: number }
+type QText = { id: string; type: 'text'; text: string; index?: number; createdAt?: number; source?: number }
+type QDescription = { id: string; type: 'description'; text: string; index?: number; createdAt?: number; source?: number }
 interface SurveyPayload {
   type: 'survey'
   from: { groupNo: string; studentNo: string }
   data: {
     title: string;
-    description?: string;
     version?: number;
     author?: { groupNo: string; studentNo: string };
     topic?: string;
     formattedText?: string;
+    descriptions: Array<QDescription>;
     questions: Array<QSingle | QMulti | QText>;
   }
   at: number
@@ -90,18 +108,35 @@ function typeTag(t: string) { return t === 'single' ? '[单选题]' : (t === 'mu
 function exportCard(card: any) {
   if (!card || !card.data) return
   const lines: string[] = []
+  
+  // 添加标题
   if (card.data.title) lines.push(String(card.data.title))
-  if (card.data.description) lines.push(String(card.data.description))
-  const qs = Array.isArray(card.data.questions) ? card.data.questions : []
-  qs.forEach((q: any, idx: number) => {
-    lines.push(`${idx + 1}. ${q.text || ''} ${typeTag(q.type)}`.trim())
-    if (Array.isArray(q.options)) {
-      q.options.forEach((opt: string, oi: number) => {
-        lines.push(`${letter(oi)}.${opt || ''}`)
-      })
-    }
+  lines.push(`第${card.from.groupNo}小组`)
+  lines.push('')
+  
+  // 添加说明部分
+  if (card.data.descriptions && Array.isArray(card.data.descriptions)) {
+    lines.push('问卷说明：')
+    card.data.descriptions.forEach((desc: any) => {
+      if (desc.text) lines.push(String(desc.text))
+    })
     lines.push('')
-  })
+  }
+  
+  // 添加问题列表
+  if (card.data.questions && Array.isArray(card.data.questions)) {
+    lines.push('问题列表：')
+    card.data.questions.forEach((q: any, idx: number) => {
+      lines.push(`${idx + 1}. ${q.text || ''} ${typeTag(q.type)}`.trim())
+      if (Array.isArray(q.options)) {
+        q.options.forEach((opt: string, oi: number) => {
+          lines.push(`${letter(oi)}.${opt || ''}`)
+        })
+      }
+      lines.push('')
+    })
+  }
+  
   copyFormatted(lines.join('\n'))
 }
 
@@ -220,25 +255,174 @@ onBeforeUnmount(() => {
 .header h3 { margin: 0 0 4px; }
 .header .sub { color: #666; font-size: 12px; }
 
-.grid { display: grid; grid-template-columns: repeat(3, 400px); gap: 12px; align-items: start; justify-content: start; }
-.t-card { display: flex; flex-direction: column; min-height: 0; width: 400px; height: 600px; }
-.t-card :deep(.el-card__body) { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; overflow: auto; }
-.sel-head { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
-.t-actions { display: flex; justify-content: flex-end; }
-.t-meta { display: flex; gap: 6px; align-items: center; }
-.t-time { color: #888; font-size: 12px; margin-left: auto; }
+.grid { display: grid; grid-template-columns: repeat(3, 380px); gap: 12px; align-items: start; justify-content: start; }
+.t-card { 
+  display: flex; 
+  flex-direction: column; 
+  width: 380px; 
+  height: 400px; /* 固定高度 */
+  position: relative;
+}
+.t-card :deep(.el-card__body) { 
+  display: flex; 
+  flex-direction: column; 
+  height: 100%; 
+  padding: 8px 10px; 
+  position: relative;
+}
 
-/* 参考学生端标题与说明样式 */
-.pv-title { font-size: 24px; font-weight: 900; color: #1677ff; margin-bottom: 6px; text-align: center; letter-spacing: 0.5px; }
-.pv-desc { font-size: 14px; color: #444; text-align: left; }
+/* 左上角标签样式 - 参考学生端 */
+.card-tags { 
+  display: flex; 
+  width: 100%;
+  background: #FFFFFF;
+  gap: 6px; 
+  margin-bottom: 8px; 
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  z-index: 10;
+}
+.source-tag { 
+  font-size: 11px; 
+  background: #e0e7ff; 
+  color: #3730a3; 
+  padding: 2px 8px; 
+  border-radius: 10px; 
+  font-weight: 500; 
+}
+.type-tag { 
+  font-size: 11px; 
+  padding: 2px 8px; 
+  border-radius: 10px; 
+  font-weight: 500; 
+}
+.group-tag { 
+  background: #dbeafe; 
+  color: #1e40af; 
+}
 
-.t-body { display: flex; flex-direction: column; gap: 8px; overflow: visible; }
-.q-item { padding: 6px 8px; background: #fafafa; border: 1px dashed #eee; border-radius: 6px; }
+/* 标题样式 */
+.card-title { 
+  font-size: 16px; 
+  font-weight: 700; 
+  color: #1677ff; 
+  margin-bottom: 8px; 
+  text-align: center; 
+  letter-spacing: 0.5px;
+  margin-top: 28px; /* 为左上角标签留出足够空间 */
+  padding: 0 4px; /* 避免与标签重叠 */
+}
+
+/* 说明部分样式 */
+.desc-section {
+  margin-bottom: 12px;
+  padding: 0 4px; /* 与标题保持一致的padding */
+}
+.desc-item { 
+  font-size: 13px; 
+  color: #444; 
+  text-align: left; 
+  line-height: 1.5;
+  text-indent: 2em;
+  background: #f9fafb;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 3px solid #fbbf24;
+  margin-bottom: 6px;
+}
+
+/* 卡片内容区域 */
+.card-content { 
+  display: flex; 
+  flex-direction: column;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-right: 4px;
+  min-height: 0;
+}
+
+/* 问题列表样式 */
+.questions-list {
+  /* 移除单独的滚动，让整个内容一起滚动 */
+  padding: 0 4px 12px; /* 与标题和描述保持一致的padding，底部留出空间 */
+}
+
+.q-item { 
+  padding: 6px 8px; 
+  background: #fafafa; 
+  border: 1px dashed #eee; 
+  border-radius: 6px; 
+  margin-bottom: 6px;
+}
 .q-head { display: flex; align-items: baseline; gap: 0; }
-.q-index { margin-right: 6px; color: #2b6aa6; }
+.q-index { margin-right: 6px; color: #2b6aa6; font-weight: 600; }
 .q-text { font-weight: 600; color: #222; flex: 1 1 auto; }
-.q-type { font-size: 12px; color: #999; margin-left: 0; }
-.q-opts { display: grid; grid-template-columns: 1fr; gap: 4px; margin-left: 0; color: #444; }
-.q-opt { padding-left: 2px; }
-.q-blank { height: 18px; border-bottom: 2px solid #666; width: 60%; margin-top: 8px; }
+.q-type { 
+  font-size: 12px; 
+  color: #999; 
+  margin-left: 6px;
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.q-opts { 
+  display: grid; 
+  grid-template-columns: 1fr; 
+  gap: 2px; 
+  margin-left: 16px; 
+  margin-top: 4px;
+  color: #666; 
+}
+.q-opt { 
+  padding-left: 2px; 
+  font-size: 13px;
+  color: #666;
+}
+.q-blank { 
+  height: 18px; 
+  border-bottom: 2px solid #bbb; 
+  width: 60%; 
+  margin-top: 8px; 
+  margin-left: 16px;
+}
+
+/* 空状态样式 */
+.empty-state {
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px dashed #d1d5db;
+  margin: 20px 0;
+}
+
+/* 卡片操作区域 */
+.card-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 0 4px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+/* 滚动条样式 */
+.card-content::-webkit-scrollbar {
+  width: 6px;
+}
+.card-content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+.card-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.card-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
 </style>
