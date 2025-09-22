@@ -9,10 +9,24 @@
     </div>
     
     <div style="margin: 6px 0 8px; display: flex; gap: 8px;">
-      <router-link to="/teacher/activity1">
-        <el-button type="primary" size="large">前往活动一</el-button>
-      </router-link>
-      <el-button size="large" @click="goActivity2">前往活动二</el-button>
+      <el-button 
+        :type="currentActivity === 'activity1' ? 'primary' : 'default'" 
+        size="large" 
+        @click="goActivity1"
+        :class="{ 'active-button': currentActivity === 'activity1' }"
+      >
+        前往活动一
+        <span v-if="currentActivity === 'activity1'" class="active-indicator">✓</span>
+      </el-button>
+      <el-button 
+        :type="currentActivity === 'activity2' ? 'primary' : 'default'" 
+        size="large" 
+        @click="goActivity2"
+        :class="{ 'active-button': currentActivity === 'activity2' }"
+      >
+        前往活动二
+        <span v-if="currentActivity === 'activity2'" class="active-indicator">✓</span>
+      </el-button>
     </div>
 
     <div class="layout">
@@ -84,9 +98,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { reactive, computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { socketService } from '@/services/socket'
+import { ElMessage } from 'element-plus'
 
 // 25个小组，每组2个位置：left/right；值为学号字符串，空为 ''
 const GROUP_COUNT = 25
@@ -302,8 +317,31 @@ const activitiesView = computed(() => {
   return enhanced.sort((x, y) => Number(y.active) - Number(x.active))
 })
 
-// 教师端点击“前往活动二”：广播分发并自跳转
+// 记录当前活跃的活动
+const currentActivity = ref<string>('')
+
+// 教师端点击"前往活动一"：广播分发并自跳转
 const router = useRouter()
+async function goActivity1() {
+  try {
+    const payload: any = {
+      type: 'navigate',
+      from: { role: 'teacher' },
+      to: ['0'], // 广播到全体
+      data: { target: 'student', route: 'activity1' },
+      at: Date.now()
+    }
+    await socketService.distribute(payload)
+    currentActivity.value = 'activity1'
+    ElMessage.success('已通知所有学生前往活动一')
+  } catch (error) {
+    console.error('发送导航消息失败:', error)
+    ElMessage.warning('发送通知失败，但教师端已跳转')
+  }
+  router.push('/teacher/activity1')
+}
+
+// 教师端点击"前往活动二"：广播分发并自跳转
 async function goActivity2() {
   try {
     const payload: any = {
@@ -314,7 +352,12 @@ async function goActivity2() {
       at: Date.now()
     }
     await socketService.distribute(payload)
-  } catch { /* ignore network/ack error for local navigation */ }
+    currentActivity.value = 'activity2'
+    ElMessage.success('已通知所有学生前往活动二')
+  } catch (error) {
+    console.error('发送导航消息失败:', error)
+    ElMessage.warning('发送通知失败，但教师端已跳转')
+  }
   router.push('/teacher/activity2')
 }
 </script>
@@ -501,4 +544,24 @@ async function goActivity2() {
 .thumb-img { display: block; }
 .thumb-canvas { position: absolute; left: 0; top: 0; }
 .thumb-meta { font-size: 11px; color: #666; margin-top: 4px; }
+
+/* 活跃按钮样式 */
+.active-button {
+  position: relative;
+}
+.active-indicator {
+  margin-left: 6px;
+  font-size: 12px;
+  color: #fff;
+  font-weight: bold;
+}
+.active-button .active-indicator {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
 </style>

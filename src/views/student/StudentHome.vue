@@ -25,6 +25,7 @@
 import { onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { socketService } from '@/services/socket'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
@@ -45,8 +46,18 @@ function onDistribute(payload: any) {
   if (!payload) return
   const type = String(payload.type || '')
   const data = payload.data || {}
-  if (type === 'navigate' && String((data as any).route || '') === 'activity2') {
-    router.push('/student/activity2')
+  
+  if (type === 'navigate') {
+    const targetRoute = String((data as any).route || '')
+    if (targetRoute === 'activity1') {
+      router.push('/student/activity1')
+      ElMessage.info('教师已通知前往活动一')
+      console.log('收到教师端导航指令：前往活动一')
+    } else if (targetRoute === 'activity2') {
+      router.push('/student/activity2')
+      ElMessage.info('教师已通知前往活动二')
+      console.log('收到教师端导航指令：前往活动二')
+    }
   }
 }
 
