@@ -10,3 +10,8 @@
 - 修复了教师端Activity2.vue中问卷数据覆盖问题：1. 优化onSubmit函数，添加数据覆盖检测和调试日志；2. 规范化groupNo和studentNo的处理（trim空格）；3. 确保时间戳正确设置；4. 简化cards计算属性，移除冗余的去重逻辑；5. 由于store使用Map结构，相同key会自动覆盖，确保每个小组只显示最新的问卷数据。现在同一小组的新问卷会正确覆盖旧数据而不是追加。
 - 已完成Activity1的重大重构：1. 学生端改为4个情景题单选界面，每题配图片和4个选项（A.现场记录 B.问卷调查 C.网络获取 D.设备采集）；2. 教师端改为统计显示界面，显示每个情景题的选择人数和比例，点击可查看具体学生选择；3. 通信协议从activity1_drag改为activity1_question，数据格式为{answers: {q1:'A', q2:'B', q3:'C', q4:'D'}}；4. 两端都具备完整的本地存储功能；5. 图片文件位于src/public/activity1_q1.png到q4.png；6. 界面设计现代化，具备响应式布局和悬浮效果。
 - 已为教师端和学生端实现完整的路由跳转功能：1. 教师端TeacherHome.vue增加goActivity1()函数，与goActivity2()功能一致；2. 两个按钮都通过socketService.distribute发送navigate消息给学生端；3. 新增sentActivities状态管理，记录已发送的活动；4. 按钮发送后变为primary类型并显示✓标记和pulse动画；5. 学生端StudentHome.vue扩展onDistribute函数，支持接收activity1和activity2的导航消息；6. 学生端收到消息后自动跳转到对应路由并显示ElMessage提示；7. 消息格式：{type:'navigate',data:{route:'activity1/activity2'}}。
+- Activity3需求分析：
+1. 学生端：问题设计板块+Activity2数据恢复+动态监听其他同学问题+重新提交功能
+2. 教师端：展示学生设计的题目+学生设计的问卷
+3. 基于Activity2优化，需要socketIO通信支持submit和discuss事件
+4. 使用localStorage存储和恢复Activity2数据

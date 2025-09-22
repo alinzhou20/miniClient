@@ -9,6 +9,9 @@ export interface TeacherStorageData {
   activity1_selections?: Record<string, Record<string, string>>
   // Activity2 问卷数据
   activity2_surveys?: Record<string, any>
+  // Activity3 问卷和设计数据
+  activity3_surveys?: Record<string, any>
+  activity3_designs?: Record<string, any>
   // 存储时间戳
   timestamp?: number
 }
@@ -119,4 +122,50 @@ export function loadActivity2Data(): Map<string, any> | null {
   })
   
   return result
+}
+
+/**
+ * Activity3 专用：保存问卷和设计数据
+ */
+export function saveActivity3Data(data: { surveys: Map<string, any>; designs: Map<string, any> }): void {
+  const surveysToSave: Record<string, any> = {}
+  const designsToSave: Record<string, any> = {}
+  
+  data.surveys.forEach((payload, key) => {
+    surveysToSave[key] = payload
+  })
+  
+  data.designs.forEach((payload, key) => {
+    designsToSave[key] = payload
+  })
+  
+  saveTeacherData('activity3', { 
+    activity3_surveys: surveysToSave,
+    activity3_designs: designsToSave
+  })
+}
+
+/**
+ * Activity3 专用：加载问卷和设计数据
+ */
+export function loadActivity3Data(): { surveys: Map<string, any>; designs: Map<string, any> } | null {
+  const data = loadTeacherData('activity3')
+  if (!data?.activity3_surveys && !data?.activity3_designs) return null
+  
+  const surveys = new Map<string, any>()
+  const designs = new Map<string, any>()
+  
+  if (data.activity3_surveys) {
+    Object.entries(data.activity3_surveys).forEach(([key, payload]) => {
+      surveys.set(key, payload)
+    })
+  }
+  
+  if (data.activity3_designs) {
+    Object.entries(data.activity3_designs).forEach(([key, payload]) => {
+      designs.set(key, payload)
+    })
+  }
+  
+  return { surveys, designs }
 }

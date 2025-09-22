@@ -27,6 +27,15 @@
         前往活动二
         <span v-if="currentActivity === 'activity2'" class="active-indicator">✓</span>
       </el-button>
+      <el-button 
+        :type="currentActivity === 'activity3' ? 'primary' : 'default'" 
+        size="large" 
+        @click="goActivity3"
+        :class="{ 'active-button': currentActivity === 'activity3' }"
+      >
+        前往活动三
+        <span v-if="currentActivity === 'activity3'" class="active-indicator">✓</span>
+      </el-button>
     </div>
 
     <div class="layout">
@@ -108,10 +117,11 @@ const GROUP_COUNT = 25
 const groups = reactive(Array.from({ length: GROUP_COUNT }, () => ({ left: '', right: '' })))
 
 // 活动定义与完成集（以 学生唯一键 group-student 记录）
-type ActivityKey = 'a1' | 'a2'
+type ActivityKey = 'a1' | 'a2' | 'a3'
 const activities: Array<{ key: ActivityKey; title: string }> = [
   { key: 'a1', title: '活动一：数据获取方法多' },
-  { key: 'a2', title: '活动二：问卷调查巧设计' }
+  { key: 'a2', title: '活动二：问卷调查巧设计' },
+  { key: 'a3', title: '活动三：协作问卷设计' }
 ]
 
 // 调查问卷完成集（以 学生唯一键 group-student 记录）
@@ -125,7 +135,8 @@ function isSurveyed(groupNo: string, studentNo: string): boolean {
 const groupDoneSets = reactive<Record<ActivityKey, Set<string>>>(
   {
     a1: new Set<string>(),
-    a2: new Set<string>()
+    a2: new Set<string>(),
+    a3: new Set<string>()
   }
 )
 const studentKey = (groupNo: string, studentNo: string) => `${groupNo}-${studentNo}`
@@ -216,13 +227,22 @@ function handleSubmit(payload: any) {
     const s = String(from.studentNo)
     const sk = studentKey(g, s)
     surveyDone.add(sk)
-  }
-  // 记录活动完成：根据 data.title 判定（仅A1/A2，按组统计任一学生完成即记组完成）
-  const title = String(data.title || '')
-  const key: ActivityKey | '' = title === '数据我看看' ? 'a1' : title === '维数据我用用' ? 'a2' : ''
-  if (key !== '') {
-    const g = String(from.groupNo)
-    groupDoneSets[key].add(g)
+    
+    // 记录活动完成：根据 data.topic 判定（Activity3使用topic字段区分）
+    const topic = String(data.topic || '')
+    let activityKey: ActivityKey | '' = ''
+    
+    if (topic === '协作设计') {
+      activityKey = 'a3'
+    } else {
+      // 原有的title判定逻辑保持不变
+      const title = String(data.title || '')
+      activityKey = title === '数据我看看' ? 'a1' : title === '维数据我用用' ? 'a2' : ''
+    }
+    
+    if (activityKey !== '') {
+      groupDoneSets[activityKey].add(g)
+    }
   }
 }
 
@@ -291,11 +311,13 @@ const percent = computed(() => Math.round((loggedInCount.value / GROUP_COUNT) * 
 // 活动完成统计与百分比（按组）
 const activityCount = computed<Record<ActivityKey, number>>(() => ({
   a1: groupDoneSets.a1.size,
-  a2: groupDoneSets.a2.size
+  a2: groupDoneSets.a2.size,
+  a3: groupDoneSets.a3.size
 }))
 const activityPercent = computed<Record<ActivityKey, number>>(() => ({
   a1: Math.round((groupDoneSets.a1.size / GROUP_COUNT) * 100),
-  a2: Math.round((groupDoneSets.a2.size / GROUP_COUNT) * 100)
+  a2: Math.round((groupDoneSets.a2.size / GROUP_COUNT) * 100),
+  a3: Math.round((groupDoneSets.a3.size / GROUP_COUNT) * 100)
 }))
 
 // 问卷完成百分比（保留字段，若后续需要展示，可改为按组）
@@ -307,6 +329,7 @@ const currentActKey = computed<ActivityKey | ''>(() => {
   const p = String(route.path || '')
   if (p.includes('activity1')) return 'a1'
   if (p.includes('activity2')) return 'a2'
+  if (p.includes('activity3')) return 'a3'
   return ''
 })
 const activitiesView = computed(() => {
@@ -359,6 +382,26 @@ async function goActivity2() {
     ElMessage.warning('发送通知失败，但教师端已跳转')
   }
   router.push('/teacher/activity2')
+}
+
+// 教师端点击"前往活动三"：广播分发并自跳转
+async function goActivity3() {
+  try {
+    const payload: any = {
+      type: 'navigate',
+      from: { role: 'teacher' },
+      to: ['0'], // 广播到全体
+      data: { target: 'student', route: 'activity3' },
+      at: Date.now()
+    }
+    await socketService.distribute(payload)
+    currentActivity.value = 'activity3'
+    ElMessage.success('已通知所有学生前往活动三')
+  } catch (error) {
+    console.error('发送导航消息失败:', error)
+    ElMessage.warning('发送通知失败，但教师端已跳转')
+  }
+  router.push('/teacher/activity3')
 }
 </script>
 

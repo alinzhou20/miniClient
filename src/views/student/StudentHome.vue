@@ -30,17 +30,23 @@ import { ElMessage } from 'element-plus'
 const router = useRouter()
 const route = useRoute()
 
-const currentActivity = computed<'activity1' | 'activity2'>(() => {
+const currentActivity = computed<'activity1' | 'activity2' | 'activity3'>(() => {
   const p = String(route.path || '')
-  return p.includes('activity2') ? 'activity2' : 'activity1'
+  if (p.includes('activity3')) return 'activity3'
+  if (p.includes('activity2')) return 'activity2'
+  return 'activity1'
 })
 
-const learnTitle = computed(() => currentActivity.value === 'activity2' ? '活动二' : '活动一')
-const learnItems = computed<string[]>(() =>
-  currentActivity.value === 'activity2'
-    ? ['问卷调查巧设计']
-    : ['数据获取方法多']
-)
+const learnTitle = computed(() => {
+  if (currentActivity.value === 'activity3') return '活动三'
+  if (currentActivity.value === 'activity2') return '活动二'
+  return '活动一'
+})
+const learnItems = computed<string[]>(() => {
+  if (currentActivity.value === 'activity3') return ['协作问卷设计']
+  if (currentActivity.value === 'activity2') return ['问卷调查巧设计']
+  return ['数据获取方法多']
+})
 
 function onDistribute(payload: any) {
   if (!payload) return
@@ -57,6 +63,10 @@ function onDistribute(payload: any) {
       router.push('/student/activity2')
       ElMessage.info('教师已通知前往活动二')
       console.log('收到教师端导航指令：前往活动二')
+    } else if (targetRoute === 'activity3') {
+      router.push('/student/activity3')
+      ElMessage.info('教师已通知前往活动三')
+      console.log('收到教师端导航指令：前往活动三')
     }
   }
 }
