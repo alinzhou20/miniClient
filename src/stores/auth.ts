@@ -90,8 +90,17 @@ export const useAuthStore = defineStore('auth', () => {
         const auth = JSON.parse(savedAuthInfo) as AuthInfo
         const user = JSON.parse(savedUser) as User
         
-        // 尝试重新连接
+        // 尝试重新连接并初始化监听器
         await socketService.connect(auth)
+        
+        // 延迟初始化Socket和消息监听器，确保在连接成功后
+        const { useSocketStore } = await import('@/stores/socket')
+        const { useMessageStore } = await import('@/stores/message')
+        const socketStore = useSocketStore()
+        const messageStore = useMessageStore()
+        
+        socketStore.initSocketListeners()
+        messageStore.initMessageListener()
         
         authInfo.value = auth
         currentUser.value = user

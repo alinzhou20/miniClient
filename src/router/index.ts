@@ -8,12 +8,14 @@ import StudentHome from '@/views/student/StudentHome.vue'
 import StudentActivity1 from '@/views/student/Activity1.vue'
 import StudentActivity2 from '@/views/student/Activity2.vue'
 import StudentActivity3 from '@/views/student/Activity3.vue'
+import StudentActivity4 from '@/views/student/Activity4.vue'
 
 // 教师端组件（布局 + 子页面）
 import TeacherHome from '@/views/teacher/TeacherHome.vue'
 import TeacherActivity1 from '@/views/teacher/Activity1.vue'
 import TeacherActivity2 from '@/views/teacher/Activity2.vue'
 import TeacherActivity3 from '@/views/teacher/Activity3.vue'
+import TeacherActivity4 from '@/views/teacher/Activity4.vue'
 
 const routes = [
   {
@@ -43,6 +45,7 @@ const routes = [
       { path: 'activity1', name: 'StudentActivity1', component: StudentActivity1, meta: { requiresAuth: true, role: 'student' } },
       { path: 'activity2', name: 'StudentActivity2', component: StudentActivity2, meta: { requiresAuth: true, role: 'student' } },
       { path: 'activity3', name: 'StudentActivity3', component: StudentActivity3, meta: { requiresAuth: true, role: 'student' } },
+      { path: 'activity4', name: 'StudentActivity4', component: StudentActivity4, meta: { requiresAuth: true, role: 'student' } },
     ]
   },
   // 教师端路由（嵌套路由：固定主页框架 + 可切换内容）
@@ -56,6 +59,7 @@ const routes = [
       { path: 'activity1', name: 'TeacherActivity1', component: TeacherActivity1, meta: { requiresAuth: true, role: 'teacher' } },
       { path: 'activity2', name: 'TeacherActivity2', component: TeacherActivity2, meta: { requiresAuth: true, role: 'teacher' } },
       { path: 'activity3', name: 'TeacherActivity3', component: TeacherActivity3, meta: { requiresAuth: true, role: 'teacher' } },
+      { path: 'activity4', name: 'TeacherActivity4', component: TeacherActivity4, meta: { requiresAuth: true, role: 'teacher' } },
     ]
   },
   

@@ -16,6 +16,7 @@
               <div class="design-header">
                 <span class="design-title">问题设计</span>
                 <div class="design-actions">
+                  <el-button size="small" type="primary" :icon="ChatDotRound" @click="openAIHelper">AI求助</el-button>
                   <el-button size="small" type="success" :disabled="!canSubmitDesign" @click="submitDesign">发送设计</el-button>
                 </div>
               </div>
@@ -163,15 +164,63 @@
         </el-card>
       </aside>
     </div>
+
+    <!-- AI助手对话框 -->
+    <el-dialog
+      v-model="aiDialogVisible"
+      title="AI问卷设计助手"
+      width="600px"
+      :before-close="closeAIDialog"
+    >
+      <div class="ai-chat-container">
+        <div class="chat-messages" ref="chatMessagesRef">
+          <div v-for="(message, index) in chatMessages" :key="index" class="message-item" :class="message.role">
+            <div class="message-avatar">
+              <el-icon v-if="message.role === 'assistant'"><ChatDotRound /></el-icon>
+              <el-icon v-else><User /></el-icon>
+            </div>
+            <div class="message-content">
+              <div class="message-text">{{ message.content }}</div>
+              <div class="message-time">{{ formatMessageTime(message.timestamp) }}</div>
+            </div>
+          </div>
+          <div v-if="isAIThinking" class="message-item assistant">
+            <div class="message-avatar">
+              <el-icon><ChatDotRound /></el-icon>
+            </div>
+            <div class="message-content">
+              <div class="message-text thinking">AI正在思考中...</div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-input">
+          <el-input
+            v-model="userInput"
+            type="textarea"
+            :rows="3"
+            placeholder="请描述您想设计的问卷主题或具体问题，例如：关于学习效率的调查问卷"
+            @keydown.ctrl.enter="sendMessage"
+            :disabled="isAIThinking"
+          />
+          <div class="input-actions">
+            <span class="input-hint">Ctrl+Enter 发送</span>
+            <el-button type="primary" @click="sendMessage" :loading="isAIThinking" :disabled="!userInput.trim()">
+              发送
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, onMounted, watch, ref } from 'vue'
+import { reactive, computed, onMounted, watch, ref, nextTick } from 'vue'
 import { socketService } from '@/services/socket'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
-import { Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete, User, ChatDotRound } from '@element-plus/icons-vue'
+import { CozeAPI } from '@coze/api'
 
 type QSingle = { id: string; type: 'single'; text: string; options: string[]; index?: number; createdAt?: number; source?: number }
 type QMulti = { id: string; type: 'multi'; text: string; options: string[]; index?: number; createdAt?: number; source?: number }
@@ -200,6 +249,12 @@ interface DesignPayload {
   at: number
 }
 
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: number
+}
+
 const designPanelRef = ref()
 const store = reactive(new Map<string, SurveyPayload>())
 const designStore = reactive(new Map<string, DesignPayload>())
@@ -214,6 +269,13 @@ const designForm = reactive<{
   text: '',
   options: ['', '']
 })
+
+// AI助手相关状态
+const aiDialogVisible = ref(false)
+const chatMessages = reactive<ChatMessage[]>([])
+const userInput = ref('')
+const isAIThinking = ref(false)
+const chatMessagesRef = ref()
 
 // 行聚合：同一小组仅保留最新一份（覆盖）
 const rows = computed(() => {
@@ -454,6 +516,118 @@ function clearSelected() {
   selectedGlobal.splice(0, selectedGlobal.length)
   ui.forEach(state => state.selected.splice(0, state.selected.length))
   saveToLocalStorage() // 清空选择后保存状态
+}
+
+// AI助手功能
+const cozeClient = new CozeAPI({
+  token: import.meta.env.VITE_COZE_KEY || '',
+  baseURL: 'https://api.coze.cn',
+  allowPersonalAccessTokenInBrowser: true  // 允许在浏览器中使用PAT（仅限开发环境）
+})
+
+function openAIHelper() {
+  aiDialogVisible.value = true
+  // 添加欢迎消息
+  if (chatMessages.length === 0) {
+    chatMessages.push({
+      role: 'assistant',
+      content: '您好！我是问卷设计助手，可以帮助您设计调查问卷。请告诉我您想调查的主题或具体问题，我将为您提供专业的建议和示例问题。',
+      timestamp: Date.now()
+    })
+  }
+}
+
+function closeAIDialog() {
+  aiDialogVisible.value = false
+}
+
+function formatMessageTime(timestamp: number): string {
+  const date = new Date(timestamp)
+  return date.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' })
+}
+
+async function sendMessage() {
+  if (!userInput.value.trim() || isAIThinking.value) return
+  
+  const token = import.meta.env.VITE_COZE_KEY
+  if (!token) {
+    ElMessage.error('AI服务未配置，请联系管理员')
+    return
+  }
+
+  // 添加用户消息
+  const userMessage: ChatMessage = {
+    role: 'user',
+    content: userInput.value.trim(),
+    timestamp: Date.now()
+  }
+  chatMessages.push(userMessage)
+  
+  const currentInput = userInput.value.trim()
+  userInput.value = ''
+  isAIThinking.value = true
+  
+  // 滚动到底部
+  nextTick(() => {
+    if (chatMessagesRef.value) {
+      chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
+    }
+  })
+
+  try {
+    const response = await cozeClient.chat.stream({
+      bot_id: '7552721160778530855',
+      user_id: authStore.currentUser?.studentNo?.toString() || '123456789',
+      additional_messages: [
+        {
+          content_type: 'text',
+          role: 'user' as any,
+          type: 'question',
+          content: currentInput
+        }
+      ]
+    })
+
+    let assistantMessage = ''
+    
+    // 处理流式响应
+    for await (const chunk of response) {
+      if (chunk.event === 'conversation.message.delta' && chunk.data?.content) {
+        assistantMessage += chunk.data.content
+      }
+    }
+
+    // 添加AI回复
+    if (assistantMessage) {
+      chatMessages.push({
+        role: 'assistant',
+        content: assistantMessage,
+        timestamp: Date.now()
+      })
+    } else {
+      chatMessages.push({
+        role: 'assistant',
+        content: '抱歉，我暂时无法回答您的问题，请稍后重试。',
+        timestamp: Date.now()
+      })
+    }
+  } catch (error: any) {
+    console.error('AI请求失败:', error)
+    chatMessages.push({
+      role: 'assistant',
+      content: '抱歉，AI服务暂时不可用，请稍后重试。您也可以参考其他同学的设计或查阅相关资料。',
+      timestamp: Date.now()
+    })
+    ElMessage.error('AI请求失败，请稍后重试')
+  } finally {
+    isAIThinking.value = false
+    // 滚动到底部
+    nextTick(() => {
+      if (chatMessagesRef.value) {
+        chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
+      }
+    })
+  }
 }
 
 const authStore = useAuthStore()
@@ -1024,4 +1198,123 @@ watch([selectedGlobal, ui, store, designStore], () => {
 .q-type { font-size: 12px; color: #999; margin-left: 0; }
 .q-opts { display: grid; grid-template-columns: 1fr; gap: 4px; margin-left: 0; color: #333; }
 .q-opt { padding-left: 2px; }
+
+/* AI助手对话框样式 */
+.ai-chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 500px;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  margin-bottom: 16px;
+}
+
+.message-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.message-item.user {
+  flex-direction: row-reverse;
+}
+
+.message-item.user .message-content {
+  background: #3b82f6;
+  color: white;
+  border-radius: 18px 4px 18px 18px;
+}
+
+.message-item.assistant .message-content {
+  background: #e5e7eb;
+  color: #374151;
+  border-radius: 4px 18px 18px 18px;
+}
+
+.message-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.message-item.user .message-avatar {
+  background: #3b82f6;
+  color: white;
+}
+
+.message-item.assistant .message-avatar {
+  background: #10b981;
+  color: white;
+}
+
+.message-content {
+  max-width: 70%;
+  padding: 8px 12px;
+  word-wrap: break-word;
+}
+
+.message-text {
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+.message-text.thinking {
+  font-style: italic;
+  color: #6b7280;
+}
+
+.message-time {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.chat-input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.input-hint {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* 滚动条样式 */
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
 </style>

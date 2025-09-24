@@ -21,11 +21,7 @@ const messageStore = useMessageStore()
 
 // 生命周期
 onMounted(() => {
-  // 初始化Socket监听器
-  socketStore.initSocketListeners()
-  
-  // 初始化消息监听器
-  messageStore.initMessageListener()
+  // 注意：Socket监听器将在登录成功后初始化，避免模块加载顺序问题
   
   // 尝试自动登录
   authStore.autoLogin().then((success) => {

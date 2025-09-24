@@ -30,19 +30,22 @@ import { ElMessage } from 'element-plus'
 const router = useRouter()
 const route = useRoute()
 
-const currentActivity = computed<'activity1' | 'activity2' | 'activity3'>(() => {
+const currentActivity = computed<'activity1' | 'activity2' | 'activity3' | 'activity4'>(() => {
   const p = String(route.path || '')
+  if (p.includes('activity4')) return 'activity4'
   if (p.includes('activity3')) return 'activity3'
   if (p.includes('activity2')) return 'activity2'
   return 'activity1'
 })
 
 const learnTitle = computed(() => {
+  if (currentActivity.value === 'activity4') return '活动四'
   if (currentActivity.value === 'activity3') return '活动三'
   if (currentActivity.value === 'activity2') return '活动二'
   return '活动一'
 })
 const learnItems = computed<string[]>(() => {
+  if (currentActivity.value === 'activity4') return ['摄像头拍照记录']
   if (currentActivity.value === 'activity3') return ['协作问卷设计']
   if (currentActivity.value === 'activity2') return ['问卷调查巧设计']
   return ['数据获取方法多']
@@ -67,6 +70,10 @@ function onDistribute(payload: any) {
       router.push('/student/activity3')
       ElMessage.info('教师已通知前往活动三')
       console.log('收到教师端导航指令：前往活动三')
+    } else if (targetRoute === 'activity4') {
+      router.push('/student/activity4')
+      ElMessage.info('教师已通知前往活动四')
+      console.log('收到教师端导航指令：前往活动四')
     }
   }
 }
