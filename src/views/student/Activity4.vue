@@ -46,6 +46,32 @@
           </div>
         </div>
         
+        <!-- 题目选择器 -->
+        <div class="topic-selector">
+          <div class="selector-label">
+            <el-icon><InfoFilled /></el-icon>
+            <span>选择要分析的题目：</span>
+          </div>
+          <div class="topic-buttons">
+            <el-button 
+              v-for="index in [1, 2, 3]" 
+              :key="index"
+              :type="selectedInputIndex === index ? 'primary' : 'default'"
+              :class="{ 'active-topic': selectedInputIndex === index }"
+              @click="selectedInputIndex = index"
+              size="default"
+            >
+              题目{{ index }}
+            </el-button>
+          </div>
+        </div>
+        
+        <!-- 当前选择提示 -->
+        <div class="current-selection">
+          <el-icon><Camera /></el-icon>
+          <span>当前将分析：<strong>题目{{ selectedInputIndex }}</strong></span>
+        </div>
+        
         <!-- 拍照控制按钮 -->
         <div class="camera-controls">
           <el-button 
@@ -56,7 +82,7 @@
             class="capture-button"
           >
             <el-icon><Camera /></el-icon>
-            拍照
+            {{ captureButtonText }}
           </el-button>
           
           <el-button 
@@ -85,7 +111,81 @@
             </div>
             <div class="history-info">
               <div class="history-time">{{ formatTime(photo.timestamp) }}</div>
+              
+              <!-- 题目信息显示 -->
+              <div v-if="photo.inputIndex" class="topic-info">
+                <el-tag size="small" type="info">题目{{ photo.inputIndex }}</el-tag>
+              </div>
+              
+              <!-- 上传状态显示 -->
+              <div class="upload-status">
+                <div v-if="photo.uploadStatus === 'uploading'" class="status-item uploading">
+                  <el-icon class="loading-icon"><Loading /></el-icon>
+                  <span>上传中...</span>
+                </div>
+                <div v-else-if="photo.uploadStatus === 'success'" class="status-item success">
+                  <el-icon><CircleCheck /></el-icon>
+                  <span>已上传</span>
+                </div>
+                <div v-else-if="photo.uploadStatus === 'failed'" class="status-item failed">
+                  <el-icon><CircleClose /></el-icon>
+                  <span>上传失败</span>
+                  <el-tooltip v-if="photo.uploadError" :content="photo.uploadError">
+                    <el-icon class="error-info"><Warning /></el-icon>
+                  </el-tooltip>
+                </div>
+              </div>
+              
+              <!-- 工作流状态显示 -->
+              <div v-if="photo.uploadStatus === 'success' && photo.fileId" class="workflow-status">
+                <div v-if="photo.workflowStatus === 'running'" class="status-item workflow-running">
+                  <el-icon class="loading-icon"><Loading /></el-icon>
+                  <span>正在分析题目{{ photo.inputIndex }}...</span>
+                </div>
+                <div v-else-if="photo.workflowStatus === 'success'" class="status-item workflow-success">
+                  <el-icon><CircleCheck /></el-icon>
+                  <span>题目{{ photo.inputIndex }}分析完成</span>
+                  <!-- Token使用统计 -->
+                  <div v-if="photo.tokenUsage" class="token-usage">
+                    (用量: {{ photo.tokenUsage.total }} tokens)
+                  </div>
+                </div>
+                <div v-else-if="photo.workflowStatus === 'failed'" class="status-item workflow-failed">
+                  <el-icon><CircleClose /></el-icon>
+                  <span>题目{{ photo.inputIndex }}分析失败</span>
+                  <el-tooltip v-if="photo.workflowError" :content="photo.workflowError">
+                    <el-icon class="error-info"><Warning /></el-icon>
+                  </el-tooltip>
+                </div>
+              </div>
+              
+              <!-- 工作流结果显示 -->
+              <div v-if="photo.workflowResult" class="workflow-result">
+                <div class="result-label">分析结果:</div>
+                <div class="result-content">{{ photo.workflowResult }}</div>
+              </div>
+              
               <div class="history-actions">
+                <!-- 重新上传按钮（仅在上传失败时显示）-->
+                <el-button 
+                  v-if="photo.uploadStatus === 'failed'"
+                  type="warning" 
+                  size="small" 
+                  @click="retryUpload(photo)"
+                >
+                  重新上传
+                </el-button>
+                
+                <!-- 重新分析按钮（仅在分析失败时显示）-->
+                <el-button 
+                  v-if="photo.workflowStatus === 'failed'"
+                  type="warning" 
+                  size="small" 
+                  @click="runWorkflowAuto(photo, photo.inputIndex || selectedInputIndex)"
+                >
+                  重新分析题目{{ photo.inputIndex || selectedInputIndex }}
+                </el-button>
+                
                 <el-button 
                   type="success" 
                   size="small" 
@@ -124,7 +224,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { socketService } from '@/services/socket'
 import { ElMessage } from 'element-plus'
-import { Camera, Loading, Warning, Picture } from '@element-plus/icons-vue'
+import { Camera, Loading, Warning, Picture, CircleCheck, CircleClose, InfoFilled } from '@element-plus/icons-vue'
 
 // 摄像头相关状态
 const videoRef = ref<HTMLVideoElement>()
@@ -144,6 +244,19 @@ interface PhotoRecord {
   dataUrl: string
   timestamp: number
   submitted: boolean
+  uploadStatus?: 'uploading' | 'success' | 'failed'
+  uploadUrl?: string
+  uploadError?: string
+  fileId?: string  // Coze文件ID
+  workflowStatus?: 'pending' | 'running' | 'success' | 'failed'
+  workflowResult?: string
+  workflowError?: string
+  inputIndex?: number  // 使用的题目编号
+  tokenUsage?: {
+    input: number
+    output: number
+    total: number
+  }
 }
 
 const photoHistory = ref<PhotoRecord[]>([])
@@ -151,6 +264,18 @@ const photoHistory = ref<PhotoRecord[]>([])
 const auth = useAuthStore()
 const groupNo = computed(() => String(auth.currentUser?.groupNo ?? ''))
 const studentNo = computed(() => String(auth.currentUser?.studentNo ?? ''))
+
+// Coze API 配置
+const COZE_API_URL = 'https://api.coze.cn/v1/files/upload'
+const COZE_WORKFLOW_URL = 'https://api.coze.cn/v1/workflow/run' // 使用非流式API
+const COZE_API_TOKEN = 'sat_3NtHyM2cY3Un8anULY7pAp9bLwLMdW9sVH4CRcfZC8G378M5OrT4dS2TzeAZQ2vg'
+const WORKFLOW_ID = '7553827536788193322'
+
+// 题目选择状态
+const selectedInputIndex = ref<number>(1) // 默认选择题目1
+
+// 计算属性：拍照按钮文本
+const captureButtonText = computed(() => `拍照分析题目${selectedInputIndex.value}`)
 
 // 初始化摄像头
 const initCamera = async () => {
@@ -250,6 +375,87 @@ const initCamera = async () => {
   }
 }
 
+// 将base64数据URL转换为File对象
+const dataURLtoFile = (dataurl: string, filename: string): File => {
+  const arr = dataurl.split(',')
+  const mime = arr[0].match(/:(.*?);/)![1]
+  const bstr = atob(arr[1])
+  let n = bstr.length
+  const u8arr = new Uint8Array(n)
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n)
+  }
+  return new File([u8arr], filename, { type: mime })
+}
+
+// 上传文件到Coze API
+const uploadToCoze = async (photo: PhotoRecord): Promise<{ success: boolean; fileId?: string; fileName?: string; url?: string; error?: string }> => {
+  try {
+    console.log('[Upload Debug] 开始上传文件到Coze API')
+    
+    // 将base64转换为File对象
+    const filename = `photo_${photo.id}_${Date.now()}.jpg`
+    const file = dataURLtoFile(photo.dataUrl, filename)
+    
+    console.log('[Upload Debug] 文件信息:', {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    })
+    
+    // 创建FormData
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    // 发送请求
+    const response = await fetch(COZE_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${COZE_API_TOKEN}`
+        // 注意：不要手动设置 Content-Type，让浏览器自动设置multipart/form-data边界
+      },
+      body: formData
+    })
+    
+    console.log('[Upload Debug] 响应状态:', response.status)
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[Upload Debug] 上传失败响应:', errorText)
+      throw new Error(`上传失败: ${response.status} ${response.statusText}`)
+    }
+    
+    const result = await response.json()
+    console.log('[Upload Debug] 上传成功响应:', result)
+    
+    // 检查响应格式 {"code":0,"data":{"id":"7553936125526736948",...},"msg":""}
+    if (result.code === 0 && result.data?.id) {
+      const returnValue = {
+        success: true,
+        fileId: result.data.id,
+        fileName: result.data.file_name,
+        url: result.data.url || result.file_url
+      }
+      console.log('[Upload Debug] 返回上传结果:', returnValue)
+      return returnValue
+    } else {
+      console.error('[Upload Debug] 响应格式检查失败:', {
+        code: result.code,
+        hasData: !!result.data,
+        hasId: !!result.data?.id,
+        msg: result.msg
+      })
+      throw new Error(result.msg || '上传响应格式异常')
+    }
+  } catch (error: any) {
+    console.error('[Upload Debug] 上传异常:', error)
+    return {
+      success: false,
+      error: error.message || '上传失败'
+    }
+  }
+}
+
 // 视频加载完成
 const onVideoLoaded = () => {
   console.log('[Camera Debug] 视频流加载完成')
@@ -289,24 +495,284 @@ const capturePhoto = () => {
 }
 
 // 确认保存照片
-const confirmPhoto = () => {
+const confirmPhoto = async () => {
   if (!capturedPhoto.value) return
   
   const photo: PhotoRecord = {
     id: `photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     dataUrl: capturedPhoto.value,
     timestamp: Date.now(),
-    submitted: false
+    submitted: false,
+    uploadStatus: 'uploading',
+    inputIndex: selectedInputIndex.value // 保存选择的题目编号
   }
   
+  // 先添加到历史记录（显示上传中状态）
   photoHistory.value.unshift(photo)
   capturedPhoto.value = null
   
   // 保存到本地存储
   saveToLocalStorage()
   
-  ElMessage.success('照片已保存到历史记录')
+  ElMessage.success('照片已保存，正在上传到云端...')
+  
+  // 异步上传到Coze API
+  try {
+    const uploadResult = await uploadToCoze(photo)
+    console.log('[confirmPhoto Debug] 上传结果:', uploadResult)
+    
+    if (uploadResult.success && uploadResult.fileId) {
+      // 更新照片记录
+      photo.uploadStatus = 'success'
+      photo.uploadUrl = uploadResult.url
+      photo.fileId = uploadResult.fileId
+      photo.workflowStatus = 'running'  // 立即开始工作流分析
+      console.log('[confirmPhoto Debug] 状态已更新为success:', {
+        uploadStatus: photo.uploadStatus,
+        fileId: photo.fileId,
+        workflowStatus: photo.workflowStatus
+      })
+      
+      // 强制触发响应式更新
+      photoHistory.value = [...photoHistory.value]
+      saveToLocalStorage()
+      
+      ElMessage.success('照片上传成功，正在分析...')
+      
+      // 自动开始工作流分析（使用用户选择的题目）
+      await runWorkflowAuto(photo, selectedInputIndex.value)
+      
+    } else {
+      // 上传失败
+      photo.uploadStatus = 'failed'
+      photo.uploadError = uploadResult.error
+      console.log('[confirmPhoto Debug] 上传失败:', uploadResult)
+      ElMessage.warning(`照片上传失败: ${uploadResult.error}`)
+    }
+  } catch (error: any) {
+    console.error('上传过程异常:', error)
+    photo.uploadStatus = 'failed'
+    photo.uploadError = error.message || '上传过程发生异常'
+    ElMessage.error('照片上传失败，请稍后重试')
+  }
+  
+  // 强制触发响应式更新
+  photoHistory.value = [...photoHistory.value]
+  
+  // 保存更新后的状态
+  saveToLocalStorage()
+  console.log('[confirmPhoto Debug] 本地存储已保存，当前照片状态:', photo)
 }
+
+// 重新上传照片
+const retryUpload = async (photo: PhotoRecord) => {
+  if (photo.uploadStatus === 'uploading') return
+  
+  photo.uploadStatus = 'uploading'
+  photo.uploadError = undefined
+  saveToLocalStorage()
+  
+  ElMessage.info('正在重新上传照片...')
+  
+  try {
+    const uploadResult = await uploadToCoze(photo)
+    console.log('[retryUpload Debug] 重新上传结果:', uploadResult)
+    
+    if (uploadResult.success && uploadResult.fileId) {
+      photo.uploadStatus = 'success'
+      photo.uploadUrl = uploadResult.url
+      photo.fileId = uploadResult.fileId
+      photo.workflowStatus = 'running'  // 立即开始工作流分析
+      console.log('[retryUpload Debug] 状态已更新为success:', {
+        uploadStatus: photo.uploadStatus,
+        fileId: photo.fileId
+      })
+      
+      // 强制触发响应式更新
+      photoHistory.value = [...photoHistory.value]
+      saveToLocalStorage()
+      
+      ElMessage.success('照片重新上传成功，正在分析...')
+      
+      // 自动开始工作流分析（使用用户选择的题目）
+      await runWorkflowAuto(photo, selectedInputIndex.value)
+      
+    } else {
+      photo.uploadStatus = 'failed'
+      photo.uploadError = uploadResult.error
+      console.log('[retryUpload Debug] 重新上传失败:', uploadResult)
+      ElMessage.warning(`照片上传失败: ${uploadResult.error}`)
+    }
+  } catch (error: any) {
+    console.error('重新上传异常:', error)
+    photo.uploadStatus = 'failed'
+    photo.uploadError = error.message || '上传过程发生异常'
+    ElMessage.error('照片上传失败，请稍后重试')
+  }
+  
+  // 强制触发响应式更新
+  photoHistory.value = [...photoHistory.value]
+  
+  saveToLocalStorage()
+  console.log('[retryUpload Debug] 重新上传完成，当前照片状态:', photo)
+}
+
+// 自动执行工作流（使用指定题目）- 一次性响应版本
+const runWorkflowAuto = async (photo: PhotoRecord, inputIndex: number) => {
+  if (!photo.fileId) return
+  
+  console.log('[WorkflowAuto Debug] 开始自动执行工作流:', { fileId: photo.fileId, inputIndex })
+  
+  // 初始化工作流状态
+  photo.workflowError = undefined
+  photo.workflowResult = undefined
+  photo.tokenUsage = undefined
+  
+  // 实时更新UI
+  photoHistory.value = [...photoHistory.value]
+  saveToLocalStorage()
+  
+  try {
+    console.log('[WorkflowAuto Debug] 开始调用工作流API')
+    
+    // 使用原生 fetch 调用非流式工作流 API
+    const payload = {
+      workflow_id: WORKFLOW_ID,
+      parameters: {
+        input_img: {
+          file_id: photo.fileId
+        },
+        input_index: inputIndex
+      }
+    }
+    
+    console.log('[WorkflowAuto Debug] 请求参数:', payload)
+    
+    const response = await fetch(COZE_WORKFLOW_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${COZE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[WorkflowAuto Debug] 工作流请求失败:', errorText)
+      throw new Error(`工作流执行失败: ${response.status} ${response.statusText}`)
+    }
+    
+    const res = await response.json()
+    console.log('[WorkflowAuto Debug] 工作流执行完成，响应:', res)
+    
+    // 检查响应状态 {"code":0,"msg":"","data":"...","debug_url":"...","usage":{...}}
+    if (res.code === 0) {
+      // 解析 data 字段（JSON字符串）
+      let analysisResults = {}
+      if (res.data) {
+        try {
+          analysisResults = JSON.parse(res.data)
+          console.log('[WorkflowAuto Debug] 解析分析结果:', analysisResults)
+        } catch (parseError) {
+          console.error('[WorkflowAuto Debug] 解析data字段失败:', parseError)
+          // 如果解析失败，直接使用字符串作为结果
+          photo.workflowResult = res.data
+          photo.workflowStatus = 'success'
+          ElMessage.success(`题目${inputIndex}分析完成！`)
+          return
+        }
+      }
+      
+      // 保存Token使用统计
+      if (res.usage) {
+        photo.tokenUsage = {
+          input: res.usage.input_count,
+          output: res.usage.output_count,
+          total: res.usage.token_count
+        }
+        console.log('[WorkflowAuto Debug] Token使用统计:', photo.tokenUsage)
+      }
+      
+      // 格式化并保存分析结果
+      photo.workflowResult = formatWorkflowResults(analysisResults, inputIndex)
+      photo.workflowStatus = 'success'
+      
+      // 显示调试URL（如果有的话）
+      if (res.debug_url) {
+        console.log('[WorkflowAuto Debug] 调试页面:', res.debug_url)
+      }
+      
+      ElMessage.success(`题目${inputIndex}分析完成！`)
+      
+    } else {
+      // 处理API调用失败
+      console.error('[WorkflowAuto Debug] API调用失败:', {
+        code: res.code,
+        msg: res.msg
+      })
+      throw new Error(res.msg || `API调用失败，状态码: ${res.code}`)
+    }
+    
+  } catch (error: any) {
+    console.error('[WorkflowAuto Debug] 工作流执行异常:', error)
+    photo.workflowStatus = 'failed'
+    photo.workflowError = error.message || '工作流执行失败'
+    ElMessage.error(`题目${inputIndex}分析失败，请重试`)
+  }
+  
+  // 最终更新状态
+  photoHistory.value = [...photoHistory.value]
+  saveToLocalStorage()
+}
+
+// 格式化工作流结果显示
+const formatWorkflowResults = (contentObj: any, targetIndex?: number): string => {
+  console.log('[Format Debug] 开始格式化结果:', contentObj, 'targetIndex:', targetIndex)
+  
+  let formattedResult = ''
+  
+  // 处理所有题目的结果，但优先显示目标题目
+  const indices = targetIndex ? [targetIndex, ...([1, 2, 3].filter(i => i !== targetIndex))] : [1, 2, 3]
+  
+  for (const i of indices) {
+    const outputKey = `output${i}`
+    const outputValue = contentObj[outputKey]
+    
+    if (outputValue && outputValue !== '' && outputValue !== null) {
+      const isTarget = i === targetIndex
+      formattedResult += `${isTarget ? '🎯 ' : ''}=== 题目${i}分析结果 ===${isTarget ? ' (主要分析)' : ''}\n`
+      
+      try {
+        // 检查是否是对象格式（如 output2 的格式）
+        if (typeof outputValue === 'object' && outputValue !== null) {
+          // 处理对象格式: {"q1":"里面都是游戏","q2":"数学题少",...}
+          Object.entries(outputValue).forEach(([key, value]) => {
+            if (value && value !== '') {
+              formattedResult += `${key}: ${value}\n`
+            }
+          })
+        } else if (typeof outputValue === 'string' && outputValue.trim() !== '') {
+          // 处理字符串格式
+          formattedResult += `${outputValue}\n`
+        }
+      } catch (error) {
+        console.warn('[Format Debug] 格式化单个结果失败:', error)
+        formattedResult += `${outputValue}\n`
+      }
+      
+      formattedResult += '\n'
+    }
+  }
+  
+  if (formattedResult === '') {
+    formattedResult = '暂无分析结果'
+  }
+  
+  console.log('[Format Debug] 格式化完成:', formattedResult)
+  return formattedResult
+}
+
 
 // 重新拍照
 const retakePhoto = () => {
@@ -566,6 +1032,61 @@ onUnmounted(() => {
   to { transform: rotate(360deg); }
 }
 
+/* 题目选择器 */
+.topic-selector {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.selector-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.topic-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.active-topic {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+  transform: scale(1.05);
+  transition: all 0.2s ease;
+}
+
+.topic-buttons .el-button {
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.topic-buttons .el-button:hover:not(.active-topic) {
+  transform: scale(1.02);
+}
+
+/* 当前选择提示 */
+.current-selection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 10px 16px;
+  background: #ecfdf5;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  color: #166534;
+  font-size: 14px;
+}
+
 /* 拍照控制按钮 */
 .camera-controls {
   display: flex;
@@ -574,7 +1095,20 @@ onUnmounted(() => {
 }
 
 .capture-button {
-  min-width: 120px;
+  min-width: 180px;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+}
+
+.capture-button:not(:disabled) {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.capture-button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
 }
 
 /* 照片历史区域 */
@@ -626,8 +1160,82 @@ onUnmounted(() => {
   color: #6b7280;
 }
 
+.topic-info {
+  margin: 4px 0;
+}
+
+/* 状态显示样式 */
+.upload-status,
+.workflow-status {
+  margin: 8px 0;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-item.uploading,
+.status-item.workflow-running {
+  color: #3b82f6;
+}
+
+.status-item.uploading .loading-icon,
+.status-item.workflow-running .loading-icon {
+  animation: spin 1s linear infinite;
+}
+
+.status-item.success,
+.status-item.workflow-success {
+  color: #10b981;
+}
+
+.status-item.failed,
+.status-item.workflow-failed {
+  color: #ef4444;
+}
+
+.error-info {
+  cursor: help;
+  margin-left: 4px;
+}
+
+.token-usage {
+  font-size: 11px;
+  color: #6b7280;
+  margin-left: 4px;
+}
+
+/* 工作流结果样式 */
+.workflow-result {
+  margin: 8px 0;
+  padding: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.result-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.result-content {
+  font-size: 13px;
+  color: #1f2937;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .history-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 

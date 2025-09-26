@@ -116,7 +116,7 @@ server: {
   https: httpsConfig,
   proxy: {
     '/socket.io': {
-      target: useSSL ? 'https://localhost:3001' : 'http://localhost:3000',
+      target: 'http://localhost:3000', // 始终连接到HTTP后端
       secure: false // 允许自签名证书
     }
   }
@@ -200,6 +200,12 @@ A: 检查：
 1. 后端服务器是否支持HTTPS（可能需要后端也配置SSL）
 2. 代理配置中的 `secure: false` 设置
 3. 浏览器开发者工具中的网络错误信息
+
+### Q: HTTPS模式下出现CORS跨源请求错误？
+A: 这通常是因为前端HTTPS试图连接后端HTTP服务造成的协议不匹配。解决方案：
+1. **推荐做法**：修改 `vite.config.ts` 中的代理配置为固定的HTTP后端地址
+2. 或者配置后端也使用HTTPS
+3. 或者暂时使用HTTP模式运行前端（不推荐，因为摄像头功能需要HTTPS）
 
 ## 🧹 清理命令
 

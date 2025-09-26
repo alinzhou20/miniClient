@@ -30,8 +30,11 @@ import { ElMessage } from 'element-plus'
 const router = useRouter()
 const route = useRoute()
 
-const currentActivity = computed<'activity1' | 'activity2' | 'activity3' | 'activity4'>(() => {
+const currentActivity = computed<'activity1' | 'activity2' | 'activity3' | 'activity4' | 'activity5' | 'activity6' | 'activity7'>(() => {
   const p = String(route.path || '')
+  if (p.includes('activity7')) return 'activity7'
+  if (p.includes('activity6')) return 'activity6'
+  if (p.includes('activity5')) return 'activity5'
   if (p.includes('activity4')) return 'activity4'
   if (p.includes('activity3')) return 'activity3'
   if (p.includes('activity2')) return 'activity2'
@@ -39,12 +42,18 @@ const currentActivity = computed<'activity1' | 'activity2' | 'activity3' | 'acti
 })
 
 const learnTitle = computed(() => {
+  if (currentActivity.value === 'activity7') return '活动七'
+  if (currentActivity.value === 'activity6') return '活动六'
+  if (currentActivity.value === 'activity5') return '活动五'
   if (currentActivity.value === 'activity4') return '活动四'
   if (currentActivity.value === 'activity3') return '活动三'
   if (currentActivity.value === 'activity2') return '活动二'
   return '活动一'
 })
 const learnItems = computed<string[]>(() => {
+  if (currentActivity.value === 'activity7') return ['智能问题设计活动']
+  if (currentActivity.value === 'activity6') return ['AI学习助手活动']
+  if (currentActivity.value === 'activity5') return ['快速投票活动']
   if (currentActivity.value === 'activity4') return ['摄像头拍照记录']
   if (currentActivity.value === 'activity3') return ['协作问卷设计']
   if (currentActivity.value === 'activity2') return ['问卷调查巧设计']
@@ -74,6 +83,18 @@ function onDistribute(payload: any) {
       router.push('/student/activity4')
       ElMessage.info('教师已通知前往活动四')
       console.log('收到教师端导航指令：前往活动四')
+    } else if (targetRoute === 'activity5') {
+      router.push('/student/activity5')
+      ElMessage.info('教师已通知前往活动五')
+      console.log('收到教师端导航指令：前往活动五')
+    } else if (targetRoute === 'activity6') {
+      router.push('/student/activity6')
+      ElMessage.info('教师已通知前往活动六')
+      console.log('收到教师端导航指令：前往活动六')
+    } else if (targetRoute === 'activity7') {
+      router.push('/student/activity7')
+      ElMessage.info('教师已通知前往活动七')
+      console.log('收到教师端导航指令：前往活动七')
     }
   }
 }

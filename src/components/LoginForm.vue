@@ -86,13 +86,93 @@
         </el-tag>
       </div>
     </el-card>
+
+    <!-- 摄像头检查弹窗 -->
+    <el-dialog
+      v-model="showCameraCheck"
+      title="📷 摄像头检查"
+      width="600px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="false"
+      center
+    >
+      <div class="camera-check-content">
+        <div class="check-description">
+          <p>为了确保Activity4拍照功能正常使用，请检查摄像头是否清晰</p>
+        </div>
+
+        <!-- 摄像头预览区域 -->
+        <div class="camera-preview-container">
+          <video 
+            ref="videoRef" 
+            class="camera-preview"
+            autoplay 
+            muted 
+            playsinline
+            @loadedmetadata="onVideoLoaded"
+          ></video>
+          
+          <!-- 加载状态 -->
+          <div v-if="isLoading" class="loading-overlay">
+            <el-icon class="loading-icon"><Loading /></el-icon>
+            <p>正在启动摄像头...</p>
+          </div>
+          
+          <!-- 错误状态 -->
+          <div v-if="cameraError" class="error-overlay">
+            <el-icon class="error-icon"><Warning /></el-icon>
+            <p>{{ cameraError }}</p>
+            <el-button type="primary" @click="initCamera">重新尝试</el-button>
+          </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="camera-check-actions">
+          <el-button 
+            v-if="!isCameraReady && !cameraError" 
+            type="primary" 
+            size="large"
+            @click="initCamera"
+            :loading="isLoading"
+          >
+            启动摄像头检查
+          </el-button>
+          
+          <template v-if="isCameraReady">
+            <el-button 
+              type="success" 
+              size="large"
+              @click="confirmCameraAndLogin"
+            >
+              摄像头清晰，确认登录
+            </el-button>
+            <el-button 
+              size="large"
+              @click="retryCamera"
+            >
+              重新检查
+            </el-button>
+          </template>
+          
+          <el-button 
+            type="info" 
+            size="large"
+            @click="skipCameraCheck"
+          >
+            跳过检查，直接登录
+          </el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
+import { Loading, Warning } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSocketStore } from '@/stores/socket'
 import type { StudentAuth } from '@/types'
@@ -113,6 +193,14 @@ const studentForm = ref({
   studentNo: '',
   groupNo: ''
 })
+
+// 摄像头检查相关状态
+const showCameraCheck = ref(false)
+const videoRef = ref<HTMLVideoElement>()
+const mediaStream = ref<MediaStream | null>(null)
+const isLoading = ref(false)
+const cameraError = ref('')
+const isCameraReady = ref(false)
 
 // 直接键盘输入，不再使用下拉选项
 
@@ -149,13 +237,102 @@ const connectionStatusText = computed(() => {
   return '未连接'
 })
 
-// 方法
-const handleStudentLogin = async () => {
-  if (!studentFormRef.value) return
+// 摄像头相关方法
+const initCamera = async () => {
+  console.log('[Camera Check] 开始初始化摄像头')
+  isLoading.value = true
+  cameraError.value = ''
   
   try {
-    await studentFormRef.value.validate()
+    // 检查浏览器支持
+    if (!navigator.mediaDevices) {
+      throw new Error('浏览器不支持 MediaDevices API')
+    }
+    if (!navigator.mediaDevices.getUserMedia) {
+      throw new Error('浏览器不支持 getUserMedia API')
+    }
     
+    // 检查协议
+    console.log('[Camera Check] 当前协议:', window.location.protocol)
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      console.warn('[Camera Check] 摄像头API需要HTTPS或localhost环境')
+    }
+    
+    // 停止现有流
+    if (mediaStream.value) {
+      mediaStream.value.getTracks().forEach(track => track.stop())
+    }
+    
+    // 请求摄像头权限
+    const constraints = { 
+      video: { 
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        facingMode: 'environment' // 优先使用后置摄像头
+      } 
+    }
+    
+    const stream = await navigator.mediaDevices.getUserMedia(constraints)
+    mediaStream.value = stream
+    
+    if (videoRef.value) {
+      videoRef.value.srcObject = stream
+    }
+    
+    isCameraReady.value = true
+    ElMessage.success('摄像头启动成功')
+  } catch (error: any) {
+    console.error('[Camera Check] 摄像头启动失败:', error)
+    
+    if (error.name === 'NotAllowedError') {
+      cameraError.value = '摄像头权限被拒绝，请点击地址栏摄像头图标允许访问'
+    } else if (error.name === 'NotFoundError') {
+      cameraError.value = '未找到摄像头设备，请检查摄像头是否连接'
+    } else if (error.name === 'NotReadableError') {
+      cameraError.value = '摄像头被其他应用占用，请关闭其他使用摄像头的应用'
+    } else if (error.name === 'SecurityError') {
+      cameraError.value = '安全限制：请确保在HTTPS或localhost环境下使用'
+    } else {
+      cameraError.value = `摄像头启动失败: ${error.message}`
+    }
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const onVideoLoaded = () => {
+  console.log('[Camera Check] 视频流加载完成')
+}
+
+const retryCamera = () => {
+  isCameraReady.value = false
+  cameraError.value = ''
+  initCamera()
+}
+
+const cleanup = () => {
+  if (mediaStream.value) {
+    mediaStream.value.getTracks().forEach(track => track.stop())
+    mediaStream.value = null
+  }
+  isCameraReady.value = false
+}
+
+const confirmCameraAndLogin = async () => {
+  cleanup()
+  showCameraCheck.value = false
+  await performLogin()
+}
+
+const skipCameraCheck = async () => {
+  cleanup()
+  showCameraCheck.value = false
+  await performLogin()
+}
+
+// 实际登录逻辑
+const performLogin = async () => {
+  try {
     const sNo = parseInt(String(studentForm.value.studentNo).trim(), 10)
     const gNo = parseInt(String(studentForm.value.groupNo).trim(), 10)
     if (!Number.isFinite(sNo) || sNo <= 0) throw new Error('学号必须为正整数')
@@ -180,6 +357,26 @@ const handleStudentLogin = async () => {
   }
 }
 
+// 登录入口方法
+const handleStudentLogin = async () => {
+  if (!studentFormRef.value) return
+  
+  try {
+    await studentFormRef.value.validate()
+    
+    // 显示摄像头检查弹窗
+    showCameraCheck.value = true
+    
+    // 自动启动摄像头检查
+    setTimeout(() => {
+      initCamera()
+    }, 500) // 延迟一点确保弹窗已显示
+    
+  } catch (error: any) {
+    ElMessage.error(error.message || '表单验证失败')
+  }
+}
+
 // 生命周期
 onMounted(() => {
   // 初始化Socket监听器
@@ -189,6 +386,11 @@ onMounted(() => {
   authStore.autoLogin().catch(() => {
     // 自动登录失败，忽略错误
   })
+})
+
+// 组件卸载时清理摄像头资源
+onUnmounted(() => {
+  cleanup()
 })
 </script>
 
@@ -341,5 +543,95 @@ onMounted(() => {
 
 .login-button-item {
   margin-top: 32px;
+}
+
+/* 摄像头检查弹窗样式 */
+.camera-check-content {
+  text-align: center;
+}
+
+.check-description {
+  margin-bottom: 20px;
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.camera-preview-container {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  background: #1f2937;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.camera-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+/* 加载和错误状态 */
+.loading-overlay,
+.error-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #ffffff;
+  text-align: center;
+}
+
+.loading-overlay {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.error-overlay {
+  background: rgba(239, 68, 68, 0.8);
+}
+
+.loading-icon {
+  font-size: 32px;
+  animation: spin 1s linear infinite;
+}
+
+.error-icon {
+  font-size: 32px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.camera-check-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.camera-check-actions .el-button {
+  min-width: 120px;
+}
+
+/* 弹窗样式覆盖 */
+:deep(.el-dialog__header) {
+  background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%);
+  border-bottom: 1px solid #e4e7ed;
+}
+
+:deep(.el-dialog__title) {
+  font-weight: 600;
+  color: #303133;
 }
 </style>

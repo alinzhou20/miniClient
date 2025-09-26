@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "vite --host",
+    "dev:ssl": "cross-env VITE_USE_SSL=true vite --host",
     "build": "vite build",
     "preview": "vite preview --host",
     "ssl:generate": "tsx scripts/generate-ssl.ts",
@@ -16,6 +17,8 @@
   "dependencies": {
     "@coze/api": "^1.3.7",
     "@element-plus/icons-vue": "^2.3.1",
+    "echarts": "^5.4.3",
+    "echarts-wordcloud": "^2.1.0",
     "element-plus": "^2.4.4",
     "pinia": "^2.1.7",
     "socket.io-client": "^4.7.5",
@@ -23,8 +26,10 @@
     "vue-router": "^4.2.5"
   },
   "devDependencies": {
+    "@types/echarts": "^4.9.22",
     "@types/node": "^20.14.9",
     "@vitejs/plugin-vue": "^5.0.0",
+    "cross-env": "^7.0.3",
     "typescript": "^5.5.4",
     "vite": "^5.0.8",
     "tsx": "^4.20.5",

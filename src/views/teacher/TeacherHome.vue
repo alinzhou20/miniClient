@@ -45,6 +45,33 @@
         前往活动四
         <span v-if="currentActivity === 'activity4'" class="active-indicator">✓</span>
       </el-button>
+      <el-button 
+        :type="currentActivity === 'activity5' ? 'primary' : 'default'" 
+        size="large" 
+        @click="goActivity5"
+        :class="{ 'active-button': currentActivity === 'activity5' }"
+      >
+        前往活动五
+        <span v-if="currentActivity === 'activity5'" class="active-indicator">✓</span>
+      </el-button>
+      <el-button 
+        :type="currentActivity === 'activity6' ? 'primary' : 'default'" 
+        size="large" 
+        @click="goActivity6"
+        :class="{ 'active-button': currentActivity === 'activity6' }"
+      >
+        前往活动六
+        <span v-if="currentActivity === 'activity6'" class="active-indicator">✓</span>
+      </el-button>
+      <el-button 
+        :type="currentActivity === 'activity7' ? 'primary' : 'default'" 
+        size="large" 
+        @click="goActivity7"
+        :class="{ 'active-button': currentActivity === 'activity7' }"
+      >
+        前往活动七
+        <span v-if="currentActivity === 'activity7'" class="active-indicator">✓</span>
+      </el-button>
     </div>
 
     <div class="layout">
@@ -126,12 +153,15 @@ const GROUP_COUNT = 25
 const groups = reactive(Array.from({ length: GROUP_COUNT }, () => ({ left: '', right: '' })))
 
 // 活动定义与完成集（以 学生唯一键 group-student 记录）
-type ActivityKey = 'a1' | 'a2' | 'a3' | 'a4'
+type ActivityKey = 'a1' | 'a2' | 'a3' | 'a4' | 'a5' | 'a6' | 'a7'
 const activities: Array<{ key: ActivityKey; title: string }> = [
   { key: 'a1', title: '活动一：数据获取方法多' },
   { key: 'a2', title: '活动二：问卷调查巧设计' },
   { key: 'a3', title: '活动三：协作问卷设计' },
-  { key: 'a4', title: '活动四：摄像头拍照活动' }
+  { key: 'a4', title: '活动四：摄像头拍照活动' },
+  { key: 'a5', title: '活动五：快速投票活动' },
+  { key: 'a6', title: '活动六：AI学习助手活动' },
+  { key: 'a7', title: '活动七：智能问题设计活动' }
 ]
 
 // 调查问卷完成集（以 学生唯一键 group-student 记录）
@@ -147,7 +177,10 @@ const groupDoneSets = reactive<Record<ActivityKey, Set<string>>>(
     a1: new Set<string>(),
     a2: new Set<string>(),
     a3: new Set<string>(),
-    a4: new Set<string>()
+    a4: new Set<string>(),
+    a5: new Set<string>(),
+    a6: new Set<string>(),
+    a7: new Set<string>()
   }
 )
 const studentKey = (groupNo: string, studentNo: string) => `${groupNo}-${studentNo}`
@@ -261,6 +294,24 @@ function handleSubmit(payload: any) {
     const g = String(from.groupNo)
     groupDoneSets.a4.add(g)
   }
+  
+  // 投票提交：Activity5完成统计
+  if (String(payload.type || '') === 'activity5_vote') {
+    const g = String(from.groupNo)
+    groupDoneSets.a5.add(g)
+  }
+  
+  // 上传提交：Activity6完成统计
+  if (String(payload.type || '') === 'activity6_upload') {
+    const g = String(from.groupNo)
+    groupDoneSets.a6.add(g)
+  }
+  
+  // 问题设计提交：Activity7完成统计
+  if (String(payload.type || '') === 'activity7_design') {
+    const g = String(from.groupNo)
+    groupDoneSets.a7.add(g)
+  }
 }
 
 function removeStudentByIds(groupNo: string, studentNo: string) {
@@ -330,13 +381,19 @@ const activityCount = computed<Record<ActivityKey, number>>(() => ({
   a1: groupDoneSets.a1.size,
   a2: groupDoneSets.a2.size,
   a3: groupDoneSets.a3.size,
-  a4: groupDoneSets.a4.size
+  a4: groupDoneSets.a4.size,
+  a5: groupDoneSets.a5.size,
+  a6: groupDoneSets.a6.size,
+  a7: groupDoneSets.a7.size
 }))
 const activityPercent = computed<Record<ActivityKey, number>>(() => ({
   a1: Math.round((groupDoneSets.a1.size / GROUP_COUNT) * 100),
   a2: Math.round((groupDoneSets.a2.size / GROUP_COUNT) * 100),
   a3: Math.round((groupDoneSets.a3.size / GROUP_COUNT) * 100),
-  a4: Math.round((groupDoneSets.a4.size / GROUP_COUNT) * 100)
+  a4: Math.round((groupDoneSets.a4.size / GROUP_COUNT) * 100),
+  a5: Math.round((groupDoneSets.a5.size / GROUP_COUNT) * 100),
+  a6: Math.round((groupDoneSets.a6.size / GROUP_COUNT) * 100),
+  a7: Math.round((groupDoneSets.a7.size / GROUP_COUNT) * 100)
 }))
 
 // 问卷完成百分比（保留字段，若后续需要展示，可改为按组）
@@ -346,10 +403,12 @@ const activityPercent = computed<Record<ActivityKey, number>>(() => ({
 const route = useRoute()
 const currentActKey = computed<ActivityKey | ''>(() => {
   const p = String(route.path || '')
-  if (p.includes('activity1')) return 'a1'
-  if (p.includes('activity2')) return 'a2'
-  if (p.includes('activity3')) return 'a3'
+  if (p.includes('activity6')) return 'a6'
+  if (p.includes('activity5')) return 'a5'
   if (p.includes('activity4')) return 'a4'
+  if (p.includes('activity3')) return 'a3'
+  if (p.includes('activity2')) return 'a2'
+  if (p.includes('activity1')) return 'a1'
   return ''
 })
 const activitiesView = computed(() => {
@@ -442,6 +501,66 @@ async function goActivity4() {
     ElMessage.warning('发送通知失败，但教师端已跳转')
   }
   router.push('/teacher/activity4')
+}
+
+// 教师端点击"前往活动五"：广播分发并自跳转
+async function goActivity5() {
+  try {
+    const payload: any = {
+      type: 'navigate',
+      from: { role: 'teacher' },
+      to: ['0'], // 广播到全体
+      data: { target: 'student', route: 'activity5' },
+      at: Date.now()
+    }
+    await socketService.distribute(payload)
+    currentActivity.value = 'activity5'
+    ElMessage.success('已通知所有学生前往活动五')
+  } catch (error) {
+    console.error('发送导航消息失败:', error)
+    ElMessage.warning('发送通知失败，但教师端已跳转')
+  }
+  router.push('/teacher/activity5')
+}
+
+// 教师端点击"前往活动六"：广播分发并自跳转
+async function goActivity6() {
+  try {
+    const payload: any = {
+      type: 'navigate',
+      from: { role: 'teacher' },
+      to: ['0'], // 广播到全体
+      data: { target: 'student', route: 'activity6' },
+      at: Date.now()
+    }
+    await socketService.distribute(payload)
+    currentActivity.value = 'activity6'
+    ElMessage.success('已通知所有学生前往活动六')
+  } catch (error) {
+    console.error('发送导航消息失败:', error)
+    ElMessage.warning('发送通知失败，但教师端已跳转')
+  }
+  router.push('/teacher/activity6')
+}
+
+// 教师端点击"前往活动七"：广播分发并自跳转
+async function goActivity7() {
+  try {
+    const payload: any = {
+      type: 'navigate',
+      from: { role: 'teacher' },
+      to: ['0'], // 广播到全体
+      data: { target: 'student', route: 'activity7' },
+      at: Date.now()
+    }
+    await socketService.distribute(payload)
+    currentActivity.value = 'activity7'
+    ElMessage.success('已通知所有学生前往活动七')
+  } catch (error) {
+    console.error('发送导航消息失败:', error)
+    ElMessage.warning('发送通知失败，但教师端已跳转')
+  }
+  router.push('/teacher/activity7')
 }
 </script>
 
