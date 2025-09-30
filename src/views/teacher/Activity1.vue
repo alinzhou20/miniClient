@@ -1,663 +1,691 @@
 <template>
   <div class="page">
-    <h2 class="title">活动一：数据获取方法多</h2>
-    
-    <!-- 小组完成进度 -->
-    <div class="progress-section">
-      <div class="progress-header">
-        <span class="progress-label">小组完成进度</span>
-        <span class="progress-count">{{ completedGroups.size }}/25</span>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: progressPercentage + '%' }"></div>
-      </div>
+    <!-- 活动标题 -->
+    <div class="activity-header">
+      <h2 class="activity-title">🗳️ Activity 5: 快速投票活动</h2>
+      <div class="activity-description">发起投票并实时查看学生选择情况</div>
     </div>
-    
-    <!-- 4个情景题统计卡片 -->
-    <div class="questions-grid">
-      <div v-for="(question, index) in questions" :key="question.id" class="question-card" @click="openDetailDialog(question.id)">
-        <div class="question-header">
-          <div class="question-number">情景{{ getQuestionNumber(index) }}</div>
-          <div class="question-title">{{ question.title }}</div>
-        </div>
-        
-        <div class="question-image">
-          <img :src="question.image" :alt="question.title" />
-        </div>
-        
-        <div class="question-stats">
-          <div class="participants-count">
-            参与人数：<strong>{{ getParticipantsCount(question.id) }}</strong>
+
+    <!-- 投票控制区域 -->
+    <div class="control-section">
+      <div class="control-panel">
+        <div class="control-info">
+          <div v-if="!voteStarted" class="start-hint">
+            <el-icon class="hint-icon"><ChatDotRound /></el-icon>
+            <span>点击下方按钮开始投票，学生可以随时拍照投票</span>
           </div>
-          
-          <div v-if="getParticipantsCount(question.id) > 0" class="top-options">
-            <div class="top-options-title">选择情况（按人数排序）：</div>
-            <div v-for="(topOption, idx) in getTopOptions(question.id)" :key="topOption.id" class="top-option-item" :class="'top-' + topOption.id">
-              <span class="option-name">{{ topOption.label }}</span>
-              <span class="option-count">{{ topOption.count }}人</span>
-              <span class="option-percent">({{ Math.round(topOption.count / getParticipantsCount(question.id) * 100) }}%)</span>
+          <div v-else class="vote-info">
+            <div class="status-display">
+              <el-icon class="status-icon"><CircleCheck /></el-icon>
+              <span class="status-text">投票进行中...</span>
             </div>
           </div>
-          
-          <div v-else class="no-data">
-            暂无学生回答数据
-          </div>
         </div>
         
-        <div class="question-indicator">
-          <el-icon><ArrowRight /></el-icon>
+        <div class="control-buttons">
+          <el-button 
+            v-if="!voteStarted"
+            type="primary" 
+            size="large"
+            @click="startVote"
+            class="start-vote-button"
+          >
+            <el-icon><VideoPlay /></el-icon>
+            开始投票
+          </el-button>
+          
+          <el-button 
+            v-if="voteStarted"
+            type="danger" 
+            size="large"
+            @click="endVote"
+            class="end-vote-button"
+          >
+            <el-icon><VideoPause /></el-icon>
+            结束投票
+          </el-button>
+          
+          <el-button 
+            v-if="!voteStarted && votes.size > 0"
+            type="success" 
+            size="large"
+            @click="resetVote"
+            class="reset-vote-button"
+          >
+            <el-icon><Refresh /></el-icon>
+            重新投票
+          </el-button>
         </div>
       </div>
     </div>
 
-    <!-- 详细统计弹窗 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogTitle"
-      width="700px"
-      top="10vh"
-      :before-close="closeDetailDialog"
-    >
-      <div class="detail-content">
-        <div v-for="option in getSortedOptionsForDetail(selectedQuestionId)" :key="option.id" class="detail-section">
-          <div class="detail-header">
-            <span class="detail-label" :class="'bg-' + option.id">{{ option.label }}</span>
-            <span class="detail-count">{{ option.count }}人</span>
-            <span v-if="selectedQuestionId && getParticipantsCount(selectedQuestionId) > 0" class="detail-percent">
-              ({{ Math.round(option.count / getParticipantsCount(selectedQuestionId) * 100) }}%)
-            </span>
-          </div>
-          <div class="detail-students">
-            <span v-for="student in option.students" :key="student.key" class="student-tag">
-              第{{ student.groupNo }}组-{{ student.studentNo }}号
-            </span>
-          </div>
-          <div v-if="option.students.length === 0" class="no-students">
-            暂无学生选择此选项
-        </div>
+    <!-- 投票统计区域 -->
+    <div class="stats-section">
+      <div class="stats-header">
+        <h3 class="stats-title">投票统计</h3>
+        <div class="participation-info">
+          <span class="participated">已投票: {{ votes.size }}组</span>
+          <span class="separator">|</span>
+          <span class="total">总计: 25组</span>
         </div>
       </div>
-    </el-dialog>
+
+      <!-- 投票对战界面 -->
+      <div class="battle-arena">
+        <div class="option-section option-a">
+          <div class="option-header">
+            <div class="option-label">观点A：使用数字设备利大于弊</div>
+            <div class="option-count">{{ optionACount }}组</div>
+          </div>
+          <div class="option-bar">
+            <div 
+              class="option-fill option-a-fill" 
+              :style="{ width: optionAPercentage + '%' }"
+            ></div>
+          </div>
+          <div class="option-percentage">{{ optionAPercentage }}%</div>
+          
+          <!-- 选择A的小组列表 -->
+          <div class="group-list">
+            <span 
+              v-for="group in optionAGroups" 
+              :key="group"
+              class="group-tag option-a-tag"
+            >
+              第{{ group }}组
+            </span>
+          </div>
+        </div>
+
+        <div class="vs-divider">
+          <div class="vs-text">VS</div>
+        </div>
+
+        <div class="option-section option-b">
+          <div class="option-header">
+            <div class="option-label">观点B：使用数字设备弊大于利</div>
+            <div class="option-count">{{ optionBCount }}组</div>
+          </div>
+          <div class="option-bar">
+            <div 
+              class="option-fill option-b-fill" 
+              :style="{ width: optionBPercentage + '%' }"
+            ></div>
+          </div>
+          <div class="option-percentage">{{ optionBPercentage }}%</div>
+          
+          <!-- 选择B的小组列表 -->
+          <div class="group-list">
+            <span 
+              v-for="group in optionBGroups" 
+              :key="group"
+              class="group-tag option-b-tag"
+            >
+              第{{ group }}组
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 未投票小组 -->
+      <div v-if="unvotedGroups.length > 0" class="unvoted-section">
+        <div class="unvoted-header">未投票小组 ({{ unvotedGroups.length }}组)</div>
+        <div class="unvoted-list">
+          <span 
+            v-for="group in unvotedGroups" 
+            :key="group"
+            class="group-tag unvoted-tag"
+          >
+            第{{ group }}组
+          </span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { socketService } from '@/services/socket'
-import { ArrowRight } from '@element-plus/icons-vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useSocket } from '@/utils/socket'
+import { ElMessage } from 'element-plus'
+import { ChatDotRound, CircleCheck, VideoPlay, VideoPause, Refresh } from '@element-plus/icons-vue'
 
-// 类型定义
-type AnswerId = 'A' | 'B' | 'C' | 'D'
-type QuestionId = 'q1' | 'q2' | 'q3' | 'q4'
+console.log('[Activity1 Teacher] 🟢 组件脚本开始执行')
 
-const options = [
-  { id: 'A' as AnswerId, label: '现场记录' },
-  { id: 'B' as AnswerId, label: '问卷调查' },
-  { id: 'C' as AnswerId, label: '网络获取' },
-  { id: 'D' as AnswerId, label: '设备采集' }
-]
+// Store
+const socket = useSocket()
 
-// 4个情景题定义
-const questions = [
-  {
-    id: 'q1' as QuestionId,
-    title: '在学校组织的体检中，医生应如何准确获取学生的肺活量数据？',
-    image: '/src/public/activity1_q1.png'
-  },
-  {
-    id: 'q2' as QuestionId,
-    title: '小明希望了解未来几天的天气状况，他应如何快速有效获取相关的天气数据？',
-    image: '/src/public/activity1_q2.png'
-  },
-  {
-    id: 'q3' as QuestionId,
-    title: '科学课上，每个小组需要记录蚕宝宝的生长情况，如何获取相关数据？',
-    image: '/src/public/activity1_q3.png'
-  },
-  {
-    id: 'q4' as QuestionId,
-    title: '为改进学校午餐的口味，校方应如何快速全面获取全校师生对饭菜喜爱程度的数据？',
-    image: '/src/public/activity1_q4.png'
+// 投票状态
+const voteStarted = ref(false)
+
+// 投票数据：Map<groupNo, {choice: 'A'|'B', timestamp: number}>
+const votes = reactive(new Map<string, {choice: 'A' | 'B', timestamp: number}>())
+
+// 计算属性
+const optionAGroups = computed(() => {
+  const groups: string[] = []
+  votes.forEach((vote, groupNo) => {
+    if (vote.choice === 'A') {
+      groups.push(groupNo)
+    }
+  })
+  return groups.sort((a, b) => parseInt(a) - parseInt(b))
+})
+
+const optionBGroups = computed(() => {
+  const groups: string[] = []
+  votes.forEach((vote, groupNo) => {
+    if (vote.choice === 'B') {
+      groups.push(groupNo)
+    }
+  })
+  return groups.sort((a, b) => parseInt(a) - parseInt(b))
+})
+
+const optionACount = computed(() => optionAGroups.value.length)
+const optionBCount = computed(() => optionBGroups.value.length)
+
+const totalVotes = computed(() => optionACount.value + optionBCount.value)
+
+const optionAPercentage = computed(() => {
+  if (totalVotes.value === 0) return 0
+  return Math.round((optionACount.value / totalVotes.value) * 100)
+})
+
+const optionBPercentage = computed(() => {
+  if (totalVotes.value === 0) return 0
+  return Math.round((optionBCount.value / totalVotes.value) * 100)
+})
+
+const unvotedGroups = computed(() => {
+  const allGroups = Array.from({length: 25}, (_, i) => String(i + 1))
+  const votedGroups = new Set(Array.from(votes.keys()))
+  return allGroups.filter(group => !votedGroups.has(group))
+})
+
+// 开始投票
+const startVote = async () => {
+  try {
+    // 重置投票数据
+    votes.clear()
+    voteStarted.value = true
+    
+    // 发送投票开始消息给所有学生
+    const payload = {
+      type: 'start_vote',
+      from: { role: 'teacher' },
+      to: ['0'], // 广播到全体
+      data: {},
+      at: Date.now()
+    }
+    
+    await socket.distribute(payload as any)
+    
+    ElMessage.success('投票已开始！学生可以随时拍照投票')
+    saveToLocalStorage()
+    
+  } catch (error: any) {
+    console.error('[Activity5 Teacher] 开始投票失败:', error)
+    ElMessage.error('开始投票失败，请重试')
   }
-]
-
-// 存储学生答案数据: Map<studentKey, answers>
-// studentKey格式: "groupNo-studentNo"
-// answers格式: { q1: 'A', q2: 'B', q3: 'C', q4: 'D' }
-const studentAnswers = reactive(new Map<string, Record<QuestionId, AnswerId>>())
-
-// 弹窗相关状态
-const dialogVisible = ref(false)
-const selectedQuestionId = ref<QuestionId | null>(null)
-
-const dialogTitle = computed(() => {
-  if (!selectedQuestionId.value) return ''
-  const question = questions.find(q => q.id === selectedQuestionId.value)
-  return question ? `${question.title} - 详细统计` : ''
-})
-
-// 小组完成统计
-const completedGroups = reactive(new Set<string>())
-const progressPercentage = computed(() => {
-  return Math.round((completedGroups.size / 25) * 100)
-})
-
-const getQuestionNumber = (index: number) => {
-  const numbers = ['一', '二', '三', '四']
-  return numbers[index] || (index + 1)
 }
 
-function studentKey(groupNo: string, studentNo: string) {
-  return `${groupNo}-${studentNo}`
+// 结束投票
+const endVote = () => {
+  voteStarted.value = false
+  
+  ElMessage.warning(`投票结束！共收到${votes.size}组投票`)
+  saveToLocalStorage()
 }
 
-// 解析学生key获取组号和学号
-function parseStudentKey(key: string): { groupNo: string; studentNo: string } {
-  const [groupNo, studentNo] = key.split('-')
-  return { groupNo: groupNo || '', studentNo: studentNo || '' }
+// 重新投票
+const resetVote = () => {
+  votes.clear()
+  voteStarted.value = false
+  
+  ElMessage.info('投票已重置，可以重新开始')
+  saveToLocalStorage()
 }
 
-function handleSubmit(payload: any) {
-  if (!payload || String(payload.type || '') !== 'activity1_question') return
+// 处理学生投票结果
+const handleVoteSubmit = (payload: any) => {
+  if (!payload || payload.type !== 'activity5_vote') return
+  
   const from = payload.from || {}
   const data = payload.data || {}
-  const g = String(from.groupNo ?? '').trim()
-  const s = String(from.studentNo ?? '').trim()
-  const action = String(data.action ?? 'submit')
+  const groupNo = String(from.groupNo ?? '').trim()
+  const output0 = data.output0  // 获取原始的output0值
   
-  if (!g || !s) return
+  if (!groupNo || output0 === undefined || output0 === null) return
   
-  const key = studentKey(g, s)
-  const wasGroupCompleted = completedGroups.has(g)
+  console.log(`[Activity5 Teacher] 收到第${groupNo}组的原始分析结果:`, output0)
   
-  if (action === 'reset') {
-    // 重置操作
-    studentAnswers.delete(key)
-    
-    // 检查该小组是否还有其他学生的数据
-    const hasOtherGroupData = Array.from(studentAnswers.keys()).some(k => k.startsWith(g + '-'))
-    if (!hasOtherGroupData) {
-      completedGroups.delete(g)
-    }
+  // 解析output0值并转换为A/B
+  let choice: 'A' | 'B' = 'A' // 默认值
+  
+  const outputStr = String(output0).toUpperCase()
+  if (outputStr.includes('A') || outputStr === 'A') {
+    choice = 'A'
+  } else if (outputStr.includes('B') || outputStr === 'B') {
+    choice = 'B'
   } else {
-    // 提交答案
-    const answers = data.answers
-    if (!answers || typeof answers !== 'object') return
-    
-    studentAnswers.set(key, answers)
-    
-    // 首次提交时添加到完成统计
-    if (!wasGroupCompleted) {
-      completedGroups.add(g)
-    }
+    // 如果output0不包含明确的A或B，使用字符串特征判断
+    choice = outputStr.charCodeAt(0) % 2 === 0 ? 'A' : 'B'
   }
   
-  // 保存到本地存储
-  saveActivity1TeacherData()
+  // 记录投票（同一小组以最新的为准）
+  votes.set(groupNo, {
+    choice: choice,
+    timestamp: data.timestamp || Date.now()
+  })
   
-  console.log(`[Activity1] 处理提交: 第${g}组-${s}号, 操作: ${action}, 完成小组数: ${completedGroups.size}`)
+  console.log(`[Activity5 Teacher] 第${groupNo}组分析结果转换: "${output0}" -> 观点${choice}`)
+  ElMessage.success(`第${groupNo}组投票: 观点${choice}`)
+  
+  saveToLocalStorage()
 }
 
-// 本地存储相关
-function saveActivity1TeacherData() {
-  const data = {
-    studentAnswers: Array.from(studentAnswers.entries()),
-    completedGroups: Array.from(completedGroups),
-    timestamp: Date.now()
-  }
-  localStorage.setItem('activity1_teacher_data', JSON.stringify(data))
-}
-
-function loadActivity1TeacherData() {
+// 本地存储
+const saveToLocalStorage = () => {
   try {
-    const stored = localStorage.getItem('activity1_teacher_data')
+    const data = {
+      votes: Array.from(votes.entries()),
+      voteStarted: voteStarted.value,
+      timestamp: Date.now()
+    }
+    localStorage.setItem('teacher_activity5_votes', JSON.stringify(data))
+  } catch (error) {
+    console.warn('保存Activity5数据失败:', error)
+  }
+}
+
+const loadFromLocalStorage = () => {
+  try {
+    const stored = localStorage.getItem('teacher_activity5_votes')
     if (stored) {
       const data = JSON.parse(stored)
       
-      // 恢复学生答案数据
-      if (data.studentAnswers && Array.isArray(data.studentAnswers)) {
-        data.studentAnswers.forEach(([key, answers]: [string, any]) => {
-          studentAnswers.set(key, answers)
+      if (Array.isArray(data.votes)) {
+        votes.clear()
+        data.votes.forEach(([groupNo, vote]: [string, any]) => {
+          votes.set(groupNo, vote)
         })
       }
       
-      // 恢复小组完成统计
-      if (data.completedGroups && Array.isArray(data.completedGroups)) {
-        data.completedGroups.forEach((groupNo: string) => {
-          completedGroups.add(groupNo)
-        })
-      }
+      // 页面刷新时重置投票状态
+      voteStarted.value = false
       
-      console.log(`[Activity1] 已恢复本地存储数据，学生数据: ${studentAnswers.size}, 完成小组数: ${completedGroups.size}`)
+      console.log('Activity5 教师端数据已从本地存储恢复')
     }
   } catch (error) {
-    console.warn('恢复Activity1教师端数据失败:', error)
+    console.warn('恢复Activity5数据失败:', error)
   }
 }
 
+// 组件生命周期
 onMounted(() => {
-  loadActivity1TeacherData()
-  socketService.on('submit', handleSubmit)
+  loadFromLocalStorage()
+  socket.on('submit', handleVoteSubmit)
+  console.log('[Activity5 Teacher] 开始监听学生投票')
 })
 
-onBeforeUnmount(() => {
-  socketService.off('submit', handleSubmit)
+onUnmounted(() => {
+  socket.off('submit', handleVoteSubmit)
 })
-
-// 统计相关函数
-function getParticipantsCount(questionId: QuestionId): number {
-  let count = 0
-  studentAnswers.forEach((answers) => {
-    if (answers[questionId]) {
-      count++
-    }
-  })
-  return count
-}
-
-function getOptionCount(questionId: QuestionId, optionId: AnswerId): number {
-  let count = 0
-  studentAnswers.forEach((answers) => {
-    if (answers[questionId] === optionId) {
-      count++
-    }
-  })
-  return count
-}
-
-// 删除了未使用的getOptionPercent和getDetailOptionCount函数
-
-function getDetailStudents(questionId: QuestionId | null, optionId: AnswerId): Array<{ key: string; groupNo: string; studentNo: string }> {
-  if (!questionId) return []
-  
-  const students: Array<{ key: string; groupNo: string; studentNo: string }> = []
-  
-  studentAnswers.forEach((answers, key) => {
-    if (answers[questionId] === optionId) {
-      const { groupNo, studentNo } = parseStudentKey(key)
-      students.push({ key, groupNo, studentNo })
-    }
-  })
-  
-  // 按组号和学号排序
-  return students.sort((a, b) => {
-    const groupDiff = parseInt(a.groupNo) - parseInt(b.groupNo)
-    if (groupDiff !== 0) return groupDiff
-    return parseInt(a.studentNo) - parseInt(b.studentNo)
-  })
-}
-
-// 获取按人数排序的前几个选项
-function getTopOptions(questionId: QuestionId): Array<{ id: AnswerId; label: string; count: number }> {
-  const optionCounts = options.map(option => ({
-    id: option.id,
-    label: option.label,
-    count: getOptionCount(questionId, option.id)
-  }))
-  
-  return optionCounts
-    .filter(option => option.count > 0)
-    .sort((a, b) => b.count - a.count)
-}
-
-// 获取详细统计的排序选项（包含学生信息）
-function getSortedOptionsForDetail(questionId: QuestionId | null): Array<{
-  id: AnswerId;
-  label: string;
-  count: number;
-  students: Array<{ key: string; groupNo: string; studentNo: string }>
-}> {
-  if (!questionId) return []
-  
-  const optionDetails = options.map(option => ({
-    id: option.id,
-    label: option.label,
-    count: getOptionCount(questionId, option.id),
-    students: getDetailStudents(questionId, option.id)
-  }))
-  
-  // 按人数降序排列，人数为0的放在最后
-  return optionDetails.sort((a, b) => {
-    if (a.count === 0 && b.count === 0) return 0
-    if (a.count === 0) return 1
-    if (b.count === 0) return -1
-    return b.count - a.count
-  })
-}
-
-// 弹窗操作
-function openDetailDialog(questionId: QuestionId) {
-  selectedQuestionId.value = questionId
-  dialogVisible.value = true
-}
-
-function closeDetailDialog() {
-  dialogVisible.value = false
-  selectedQuestionId.value = null
-}
 </script>
 
 <style scoped>
-.page { 
+.page {
   padding: 20px;
-  max-width: 1400px;
+  width: 1240px;
+  max-width: 100%;
   margin: 0 auto;
+  background: #F5F5F0;
 }
 
-.title { 
-  font-size: 18px; 
-  font-weight: 700; 
-  margin-bottom: 20px; 
-  color: #1f2937; 
+/* 活动标题 */
+.activity-header {
+  margin-bottom: 24px;
+  text-align: center;
 }
 
-/* 进度条样式 */
-.progress-section {
+.activity-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+}
+
+.activity-description {
+  color: #6b7280;
+  font-size: 16px;
+}
+
+/* 控制区域 */
+.control-section {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
-  padding: 20px;
+  padding: 24px;
   margin-bottom: 24px;
 }
-.progress-header {
+
+.control-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.control-info {
+  text-align: center;
+}
+
+.start-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.hint-icon {
+  font-size: 24px;
+  color: #3b82f6;
+}
+
+.vote-info {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.status-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #059669;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.status-icon {
+  font-size: 24px;
+  color: #10b981;
+}
+
+.control-buttons {
+  display: flex;
+  gap: 16px;
+}
+
+.start-vote-button,
+.end-vote-button,
+.reset-vote-button {
+  min-width: 160px;
+  height: 56px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.start-vote-button {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none;
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+}
+
+.start-vote-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(16, 185, 129, 0.4);
+}
+
+.end-vote-button {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border: none;
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);
+}
+
+.reset-vote-button {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border: none;
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+}
+
+/* 统计区域 */
+.stats-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.stats-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
 }
-.progress-label {
-  font-size: 15px;
-  font-weight: 600;
-  color: #374151;
-}
-.progress-count {
-  font-size: 15px;
+
+.stats-title {
+  font-size: 20px;
   font-weight: 700;
-  color: #059669;
+  color: #1f2937;
+  margin: 0;
 }
-.progress-bar {
-  height: 10px;
-  background: #e5e7eb;
-  border-radius: 5px;
+
+.participation-info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.participated {
+  color: #059669;
+  font-weight: 600;
+}
+
+.separator {
+  color: #d1d5db;
+}
+
+.total {
+  color: #6b7280;
+}
+
+/* 投票对战界面 */
+.battle-arena {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.option-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.option-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.option-label {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+}
+
+.option-a .option-label {
+  background: #ef4444;
+}
+
+.option-b .option-label {
+  background: #3b82f6;
+}
+
+.option-count {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.option-bar {
+  height: 24px;
+  background: #f1f5f9;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.option-fill {
+  height: 100%;
+  border-radius: 12px;
+  transition: width 0.5s ease;
+  position: relative;
   overflow: hidden;
 }
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #10b981, #059669);
-  border-radius: 5px;
-  transition: width 0.3s ease;
+
+.option-a-fill {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
 }
 
-/* 问题网格 */
-.questions-grid { 
-  display: grid; 
-  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); 
-  gap: 24px; 
+.option-b-fill {
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
 }
 
-/* 问题卡片 */
-.question-card { 
-  border: 1px solid #e5e7eb; 
-  border-radius: 16px; 
-  background: #fff; 
-  padding: 20px; 
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-.question-card:hover { 
-  border-color: #3b82f6; 
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
-  transform: translateY(-2px);
-}
-
-/* 问题头部 */
-.question-header {
-  margin-bottom: 16px;
-}
-.question-number {
-  font-size: 14px;
+.option-percentage {
+  text-align: center;
+  font-size: 18px;
   font-weight: 700;
-  color: #3b82f6;
-  background: #eff6ff;
-  padding: 4px 10px;
-  border-radius: 12px;
-  display: inline-block;
-  margin-bottom: 8px;
-}
-.question-title { 
-  font-size: 14px; 
-  font-weight: 600; 
-  color: #1f2937; 
-  line-height: 1.5;
+  color: #374151;
 }
 
-/* 问题图片 */
-.question-image {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 12px;
+.vs-divider {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.vs-text {
+  font-size: 32px;
+  font-weight: 900;
+  color: #6b7280;
+  background: white;
+  border: 3px solid #e5e7eb;
+  border-radius: 50%;
+  width: 80px;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 180px;
-  margin-bottom: 16px;
-}
-.question-image img {
-  max-width: 100%;
-  max-height: 160px;
-  object-fit: contain;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* 问题统计 */
-.question-stats {
-  flex: 1;
-}
-.participants-count {
-  font-size: 13px;
-  color: #6b7280;
-  margin-bottom: 16px;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border-radius: 8px;
-}
-.participants-count strong {
-  color: #059669;
-  font-weight: 700;
-}
-
-/* 选项统计 */
-.top-options {
+/* 小组列表 */
+.group-list {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 8px;
-}
-.top-options-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #6b7280;
-  margin-bottom: 4px;
-}
-.top-option-item {
-  display: flex; 
-  align-items: center; 
-  gap: 8px; 
-  padding: 8px 12px;
-  background: #f8fafc;
-  border-radius: 8px;
-  border-left: 3px solid;
-}
-.top-option-item:first-child { border-left-color: #3b82f6; }
-.top-option-item:nth-child(2) { border-left-color: #10b981; }
-.top-option-item:nth-child(3) { border-left-color: #f59e0b; }
-.top-option-item:nth-child(4) { border-left-color: #ef4444; }
-
-.option-rank {
-  font-size: 12px; 
-  font-weight: 700;
-  color: #6b7280; 
-  min-width: 16px;
-}
-.option-name {
-  font-size: 13px; 
-  font-weight: 600; 
-  color: #374151;
-  flex: 1;
-}
-.option-count {
-  font-size: 12px; 
-  font-weight: 700; 
-  color: #059669;
-  background: #d1fae5;
-  padding: 2px 8px;
-  border-radius: 10px;
-}
-.option-percent {
-  font-size: 11px;
-  color: #6b7280;
-  margin-left: 4px;
-}
-
-/* 选项配色 */
-.top-A { border-left-color: #16a34a !important; }
-.top-B { border-left-color: #f59e0b !important; }
-.top-C { border-left-color: #3b82f6 !important; }
-.top-D { border-left-color: #ef4444 !important; }
-
-.top-A .option-count { background: #d1fae5; color: #065f46; }
-.top-B .option-count { background: #fed7aa; color: #9a3412; }
-.top-C .option-count { background: #dbeafe; color: #1e3a8a; }
-.top-D .option-count { background: #fecaca; color: #991b1b; }
-
-.no-data { 
-  color: #9ca3af; 
-  font-size: 14px; 
-  text-align: center;
-  padding: 30px 0;
-  font-style: italic;
+  min-height: 40px;
+  padding: 12px;
   background: #f9fafb;
-  border-radius: 12px;
-}
-
-/* 指示器 */
-.question-indicator { 
-  display: flex; 
-  justify-content: flex-end; 
-  align-items: center;
-  color: #9ca3af;
-  font-size: 14px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f1f5f9;
-}
-
-/* 弹窗样式 */
-.detail-content { 
-  max-height: 400px; 
-  overflow-y: auto;
-  padding-right: 8px;
-}
-
-/* 自定义滚动条样式 */
-.detail-content::-webkit-scrollbar {
-  width: 6px;
-}
-.detail-content::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-.detail-content::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-.detail-content::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-.detail-section { 
-  margin-bottom: 24px; 
-  background: #fafbfc;
+  border-radius: 8px;
   border: 1px solid #f1f5f9;
+}
+
+.group-tag {
+  padding: 4px 10px;
   border-radius: 12px;
-  padding: 16px;
-}
-.detail-section:last-child { 
-  margin-bottom: 0; 
-}
-
-.detail-header { 
-  display: flex; 
-  align-items: center; 
-  gap: 12px; 
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e5e7eb;
-}
-.detail-label { 
-  font-size: 13px; 
-  font-weight: 600; 
-  padding: 6px 14px;
-  border-radius: 20px;
-  color: white;
-}
-.detail-count { 
-  font-size: 13px; 
-  color: #6b7280;
-  font-weight: 600;
-}
-.detail-percent {
   font-size: 12px;
-  color: #9ca3af;
-  margin-left: 8px;
+  font-weight: 600;
+  color: white;
+  text-align: center;
 }
 
-/* 弹窗中的选项配色 */
-.bg-A { background: #16a34a; }
-.bg-B { background: #f59e0b; }
-.bg-C { background: #3b82f6; }
-.bg-D { background: #ef4444; }
-
-.detail-students { 
-  display: flex; 
-  flex-wrap: wrap; 
-  gap: 8px;
+.option-a-tag {
+  background: #ef4444;
 }
-.student-tag { 
-  font-size: 12px; 
-  background: #f3f4f6; 
-  color: #374151;
-  padding: 6px 12px;
-  border-radius: 16px;
-  font-weight: 500;
+
+.option-b-tag {
+  background: #3b82f6;
+}
+
+.unvoted-tag {
+  background: #9ca3af;
+}
+
+/* 未投票区域 */
+.unvoted-section {
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
   border: 1px solid #e5e7eb;
 }
 
-.no-students {
-  color: #9ca3af; 
-  font-size: 12px;
-  font-style: italic;
-  text-align: center;
-  padding: 20px;
+.unvoted-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 12px;
+}
+
+.unvoted-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 /* 响应式设计 */
-@media (max-width: 1200px) {
-  .questions-grid { 
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); 
+@media (max-width: 1024px) {
+  .battle-arena {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .vs-divider {
+    order: 1;
+  }
+  
+  .option-a {
+    order: 0;
+  }
+  
+  .option-b {
+    order: 2;
+  }
+  
+  .vs-text {
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
   }
 }
+
 @media (max-width: 768px) {
-  .questions-grid { 
-    grid-template-columns: 1fr; 
+  .page {
+    padding: 16px;
   }
-  .question-card { 
-    padding: 16px; 
+  
+  .control-buttons {
+    flex-direction: column;
+    width: 100%;
   }
-  .question-image {
-    min-height: 120px;
-  }
-  .question-image img {
-    max-height: 100px;
+  
+  .stats-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
   }
 }
 </style>

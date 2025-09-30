@@ -5,62 +5,57 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import { useSocketStore } from '@/stores/socket'
-import { useMessageStore } from '@/stores/message'
+import { useStatus } from '@/store/status'
+import { useSocket } from '@/utils/socket'
+import { ElMessage } from 'element-plus'
+import { EntityMode } from '@/types'
 
-// Router
 const router = useRouter()
+const status = useStatus()
+const socket = useSocket()
 
-// Store
-const authStore = useAuthStore()
-const socketStore = useSocketStore()
-const messageStore = useMessageStore()
+// 自动登录
+onMounted(async () => {
+  const currentPath = router.currentRoute.value.path
+  const isInLoginPage = currentPath.includes('/login')
+  
+  if (!isInLoginPage) {
+    try {
+      const savedUser = localStorage.getItem('user')
+      if (!savedUser) {
+        router.push('/login')
+        return
+      }
 
-// 生命周期
-onMounted(() => {
-  // 注意：Socket监听器将在登录成功后初始化，避免模块加载顺序问题
-  
-  // 尝试自动登录
-  authStore.autoLogin().then((success) => {
-    if (success) {
-      // 自动登录成功，尝试恢复之前的路径
-      const savedPath = localStorage.getItem('lastVisitedPath')
-      const currentPath = router.currentRoute.value.path
-      
-      if (savedPath && savedPath !== '/login' && savedPath !== '/login/teacher') {
-        // 验证保存的路径是否与当前用户角色匹配
-        const isValidPath = authStore.isStudent 
-          ? savedPath.startsWith('/student')
-          : savedPath.startsWith('/teacher')
-        
-        if (isValidPath) {
-          router.push(savedPath)
-          return
-        }
+      const user = JSON.parse(savedUser)
+
+      if (user.type === 'student') {
+        await socket.connect({
+          type: 'student',
+          mode: EntityMode.GROUP,
+          groupNo: user.groupNo
+        })
+      } else {
+        await socket.connect({ type: 'teacher' })
       }
-      
-      // 如果没有有效的保存路径，或当前已在正确页面，使用默认路径
-      if (currentPath === '/' || currentPath === '/login' || currentPath === '/login/teacher') {
-        const defaultRoute = authStore.isStudent ? '/student/activity1' : '/teacher/activity1'
-        router.push(defaultRoute)
-      }
+
+      status.userStatus = user
+      console.log('[App] 自动登录成功')
+    } catch (error) {
+      console.error('[App] 自动登录失败:', error)
+      localStorage.removeItem('user')
+      router.push('/login')
     }
-  }).catch(() => {
-    // 自动登录失败，确保在登录页面
-    router.push('/login')
-  })
-  
-  // 监听路由变化，保存当前路径（排除登录页面）
-  watch(() => router.currentRoute.value.path, (newPath) => {
-    if (authStore.isAuthenticated && 
-        newPath !== '/login' && 
-        newPath !== '/login/teacher' && 
-        newPath !== '/') {
-      localStorage.setItem('lastVisitedPath', newPath)
-    }
+  }
+
+  // 监听被踢下线
+  socket.on('off_line', (data: any) => {
+    ElMessage.warning(data?.message || '您的账号在其他地方登录')
+    status.userStatus = null
+    localStorage.removeItem('user')
+    setTimeout(() => router.push('/login'), 1500)
   })
 })
 </script>
@@ -79,7 +74,8 @@ body {
 
 #app {
   width: 100%;
-  height: 100vh;
+  height: 100%;
+  background: #F5F5F0;
 }
 
 /* 全局滚动条样式 */

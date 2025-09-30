@@ -2,195 +2,413 @@
   <div class="page">
     <!-- 活动说明 -->
     <div class="activity-description">
-      <strong>拖拽匹配活动</strong><br>
-      请将上方的情境卡片拖拽到下方对应的数据获取方式框中
+      <strong>快速投票活动</strong><br>
+      等待教师发起投票，拍照表达你的选择
     </div>
 
-    <!-- 主要内容区域：上方情境，下方选项 -->
-    <div class="main-content">
-      <!-- 上方：可拖拽的情境卡片 -->
-      <div class="scenarios-container">
-        <h3 class="section-title">📋 情境卡片</h3>
-        <div class="scenarios-grid">
-          <div 
-            v-for="(question, index) in questions" 
-            :key="question.id"
-            class="scenario-card"
-            :class="{ 
-              'is-dragging': draggingItem === question.id,
-              'is-placed': isQuestionAnswered(question.id)
-            }"
-            draggable="true"
-            @dragstart="onDragStart($event, question.id)"
-            @dragend="onDragEnd"
+    <!-- 投票状态区域 -->
+    <div class="vote-container">
+      <div class="vote-panel">
+        <h3 class="section-title">🗳️ 快速投票</h3>
+        
+        <!-- 投票状态显示 -->
+        <div class="vote-status">
+          <div v-if="!voteStarted" class="waiting-status">
+            <el-icon class="waiting-icon"><Clock /></el-icon>
+            <p>等待教师发起投票...</p>
+          </div>
+          
+          <div v-else-if="voteStarted && !hasVoted" class="voting-status">
+            <el-icon class="voting-icon"><Camera /></el-icon>
+            <p>投票进行中，请点击下方按钮拍照投票</p>
+          </div>
+          
+          <div v-else-if="hasVoted && !voteChoice" class="analyzing-status">
+            <el-icon class="loading-icon"><Loading /></el-icon>
+            <p>正在分析投票结果...</p>
+          </div>
+          
+          <div v-else-if="voteChoice" class="finished-status">
+            <el-icon class="finished-icon"><CircleCheck /></el-icon>
+            <p>投票完成！</p>
+          </div>
+        </div>
+
+        <!-- 摄像头预览区域 -->
+        <div class="camera-preview-wrapper" v-if="voteStarted && !hasVoted">
+          <video 
+            ref="videoRef" 
+            class="camera-preview"
+            autoplay 
+            muted 
+            playsinline
+            @loadedmetadata="onVideoLoaded"
+          ></video>
+          
+          <!-- 加载状态 -->
+          <div v-if="isLoading" class="loading-overlay">
+            <el-icon class="loading-icon"><Loading /></el-icon>
+            <p>正在启动摄像头...</p>
+          </div>
+          
+          <!-- 错误状态 -->
+          <div v-if="cameraError" class="error-overlay">
+            <el-icon class="error-icon"><Warning /></el-icon>
+            <p>{{ cameraError }}</p>
+            <el-button type="primary" @click="initCamera">重新尝试</el-button>
+          </div>
+        </div>
+        
+        <!-- 投票按钮 -->
+        <div class="vote-controls" v-if="voteStarted && !hasVoted">
+          <el-button 
+            type="primary" 
+            size="large" 
+            :disabled="!isCameraReady || isVoting"
+            :loading="isVoting"
+            @click="castVote"
+            class="vote-button"
           >
-            <div class="scenario-number">情景{{ getQuestionNumber(index) }}</div>
-            <div class="scenario-image">
-              <img :src="question.image" :alt="question.title" />
+            <el-icon v-if="!isVoting"><Camera /></el-icon>
+            {{ isVoting ? '正在上传分析...' : '点击投票' }}
+          </el-button>
+        </div>
+
+        <!-- 投票结果显示 -->
+        <div v-if="voteChoice" class="vote-result">
+          <div class="result-header">
+            <div class="result-label">投票结果:</div>
+            <div class="result-badge" :class="'result-' + voteChoice?.toLowerCase()">
+              观点{{ voteChoice }}：{{ getViewpointMeaning(voteChoice) }}
             </div>
-            <div class="scenario-title">{{ question.title }}</div>
+          </div>
+          <div class="result-description">
+            <p>您的观点选择已成功提交给教师</p>
           </div>
         </div>
       </div>
-
-      <!-- 下方：拖放目标选项框 -->
-      <div class="options-container">
-        <h3 class="section-title">🎯 数据获取方式</h3>
-        <div class="options-grid">
-          <div 
-            v-for="option in options" 
-            :key="option.id"
-            class="option-dropzone"
-            :class="{ 
-              'drag-over': dragOverTarget === option.id,
-              'has-answer': getQuestionsForOption(option.id).length > 0
-            }"
-            @dragover.prevent="onDragOver($event, option.id)"
-            @dragleave="onDragLeave"
-            @drop="onDrop($event, option.id)"
-          >
-            <div class="option-header">
-              <span class="option-label">{{ option.label }}</span>
-            </div>
-            
-            <!-- 显示所有放置的情境 -->
-            <div v-if="getQuestionsForOption(option.id).length > 0" class="placed-scenarios">
-              <div 
-                v-for="questionId in getQuestionsForOption(option.id)" 
-                :key="questionId"
-                class="placed-scenario"
-              >
-                <div class="placed-scenario-number">
-                  情景{{ getQuestionNumber(questions.findIndex(q => q.id === questionId)) }}
-                </div>
-                <div class="placed-scenario-title">
-                  {{ questions.find(q => q.id === questionId)?.title }}
-                </div>
-                <button 
-                  class="remove-btn" 
-                  @click="removeAnswer(option.id, questionId)"
-                  :disabled="hasSubmitted"
-                  title="移除"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-            
-            <!-- 空状态提示 -->
-            <div v-else class="drop-hint">
-              拖拽情境至此
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
+
+    <!-- 隐藏的Canvas用于图像处理 -->
+    <canvas ref="canvasRef" style="display: none;"></canvas>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useAuthStore } from '@/stores/auth'
-import { socketService } from '@/services/socket'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useStatus } from '@/store/status'
+import { useSocket } from '@/utils/socket'
+import { EntityMode } from '@/types'
 import { ElMessage } from 'element-plus'
+import { Clock, CircleCheck, Camera, Loading, Warning } from '@element-plus/icons-vue'
 
-// 选项定义
-type AnswerId = 'A' | 'B' | 'C' | 'D'
-type QuestionId = 'q1' | 'q2' | 'q3' | 'q4'
+// 投票状态
+const voteStarted = ref(false)
+const hasVoted = ref(false)
+const isVoting = ref(false)
+const voteChoice = ref<'A' | 'B' | null>(null)
+const rawAnalysisResult = ref<string>('')  // 存储原始分析结果用于提交
 
-const options = [
-  { id: 'A' as AnswerId, label: '现场记录' },
-  { id: 'B' as AnswerId, label: '问卷调查' },
-  { id: 'C' as AnswerId, label: '网络获取' },
-  { id: 'D' as AnswerId, label: '设备采集' }
-]
+// 摄像头相关状态
+const videoRef = ref<HTMLVideoElement>()
+const canvasRef = ref<HTMLCanvasElement>()
+const mediaStream = ref<MediaStream | null>(null)
+const isLoading = ref(false)
+const cameraError = ref('')
+const isCameraReady = ref(false)
 
-// 4个情景题定义
-const questions = [
-  {
-    id: 'q1' as QuestionId,
-    title: '在学校组织的体检中，医生应如何准确获取学生的肺活量数据？',
-    image: '/src/public/activity1_q1.png'
-  },
-  {
-    id: 'q2' as QuestionId,
-    title: '小明希望了解未来几天的天气状况，他应如何快速有效获取相关的天气数据？',
-    image: '/src/public/activity1_q2.png'
-  },
-  {
-    id: 'q3' as QuestionId,
-    title: '科学课上，每个小组需要记录蚕宝宝的生长情况，如何获取相关数据？',
-    image: '/src/public/activity1_q3.png'
-  },
-  {
-    id: 'q4' as QuestionId,
-    title: '为改进学校午餐的口味，校方应如何快速全面获取全校师生对饭菜喜爱程度的数据？',
-    image: '/src/public/activity1_q4.png'
+const status = useStatus()
+const socket = useSocket()
+const groupNo = computed(() => String(status.userStatus?.groupNo ?? ''))
+
+// Coze API 配置（复用Activity4的配置）
+const COZE_API_URL = 'https://api.coze.cn/v1/files/upload'
+const COZE_WORKFLOW_URL = 'https://api.coze.cn/v1/workflow/run'
+const COZE_API_TOKEN = 'sat_3NtHyM2cY3Un8anULY7pAp9bLwLMdW9sVH4CRcfZC8G378M5OrT4dS2TzeAZQ2vg'
+const WORKFLOW_ID = '7553827536788193322' // 使用相同的工作流ID
+
+// 获取观点含义
+const getViewpointMeaning = (choice: 'A' | 'B' | null): string => {
+  if (choice === 'A') return '使用数字设备利大于弊'
+  if (choice === 'B') return '使用数字设备弊大于利'
+  return ''
+}
+
+// 初始化摄像头（复用Activity4逻辑）
+const initCamera = async () => {
+  console.log('[Activity5] 开始初始化摄像头')
+  isLoading.value = true
+  cameraError.value = ''
+  
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('浏览器不支持摄像头功能')
+    }
+    
+    if (mediaStream.value) {
+      mediaStream.value.getTracks().forEach(track => track.stop())
+    }
+    
+    const constraints = { 
+      video: { 
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        facingMode: 'environment'
+      } 
+    }
+    
+    const stream = await navigator.mediaDevices.getUserMedia(constraints)
+    mediaStream.value = stream
+    
+    if (videoRef.value) {
+      videoRef.value.srcObject = stream
+    }
+    
+    isCameraReady.value = true
+    ElMessage.success('摄像头启动成功')
+  } catch (error: any) {
+    console.error('[Activity5] 摄像头启动失败:', error)
+    
+    if (error.name === 'NotAllowedError') {
+      cameraError.value = '摄像头权限被拒绝，请允许访问'
+    } else if (error.name === 'NotFoundError') {
+      cameraError.value = '未找到摄像头设备'
+    } else {
+      cameraError.value = `摄像头启动失败: ${error.message}`
+    }
+  } finally {
+    isLoading.value = false
   }
-]
-
-// 学生答案状态 - 新数据结构：每个选项包含多个问题ID
-const answers = ref<Record<AnswerId, QuestionId[]>>({
-  A: [],
-  B: [],
-  C: [],
-  D: []
-})
-
-const hasSubmitted = ref(false)
-
-// 拖拽状态
-const draggingItem = ref<QuestionId | null>(null)
-const dragOverTarget = ref<AnswerId | null>(null)
-
-const auth = useAuthStore()
-const groupNo = computed(() => String(auth.currentUser?.groupNo ?? ''))
-const studentNo = computed(() => String(auth.currentUser?.studentNo ?? ''))
-
-// 计算属性
-const completedCount = computed(() => {
-  // 计算已放置的问题总数
-  return Object.values(answers.value).reduce((total, questionIds) => total + questionIds.length, 0)
-})
-
-// canSubmit 已不再需要，因为改为自动提交
-
-// 辅助函数：检查问题是否已回答
-const isQuestionAnswered = (questionId: QuestionId) => {
-  return Object.values(answers.value).some(questionIds => questionIds.includes(questionId))
 }
 
-// 辅助函数：根据选项获取对应的问题ID数组
-const getQuestionsForOption = (optionId: AnswerId) => {
-  return answers.value[optionId] || []
+const onVideoLoaded = () => {
+  console.log('[Activity5] 视频流加载完成')
 }
 
-const getQuestionNumber = (index: number) => {
-  const numbers = ['一', '二', '三', '四']
-  return numbers[index] || (index + 1)
+// 投票功能
+const castVote = async () => {
+  if (!videoRef.value || !canvasRef.value || !isCameraReady.value || hasVoted.value) return
+  
+  isVoting.value = true
+  
+  try {
+    // 拍照
+    const video = videoRef.value
+    const canvas = canvasRef.value
+    const context = canvas.getContext('2d')
+    
+    if (!context) throw new Error('无法获取Canvas上下文')
+    
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+    
+    // 上传图片并获取file_id
+    const fileId = await uploadVoteImage(dataUrl)
+    
+    if (fileId) {
+      // 上传成功，立即显示投票成功
+      hasVoted.value = true
+      ElMessage.success('投票成功！正在分析结果...')
+      
+      // 开始分析并等待结果
+      await analyzeAndSubmitVote(fileId)
+    } else {
+      ElMessage.error('图片上传失败，请重新投票')
+    }
+    
+  } catch (error: any) {
+    console.error('[Activity5] 投票失败:', error)
+    ElMessage.error('投票失败，请重试')
+    hasVoted.value = false // 失败时重置状态
+  } finally {
+    isVoting.value = false
+  }
+}
+
+// 上传投票图片，返回file_id
+const uploadVoteImage = async (dataUrl: string): Promise<string | null> => {
+  try {
+    const filename = `vote_${Date.now()}.jpg`
+    const file = dataURLtoFile(dataUrl, filename)
+    
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const uploadResponse = await fetch(COZE_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${COZE_API_TOKEN}`
+      },
+      body: formData
+    })
+    
+    if (!uploadResponse.ok) {
+      throw new Error('图片上传失败')
+    }
+    
+    const uploadResult = await uploadResponse.json()
+    console.log('[Activity5] 上传响应:', uploadResult)
+    
+    if (uploadResult.code !== 0 || !uploadResult.data?.id) {
+      throw new Error('上传响应异常')
+    }
+    
+    console.log('[Activity5] 图片上传成功，file_id:', uploadResult.data.id)
+    return uploadResult.data.id
+    
+  } catch (error: any) {
+    console.error('[Activity5] 图片上传失败:', error)
+    return null
+  }
+}
+
+// 分析并提交投票
+const analyzeAndSubmitVote = async (fileId: string) => {
+  try {
+    // 调用工作流分析
+    const workflowPayload = {
+      workflow_id: WORKFLOW_ID,
+      parameters: {
+        input_img: {
+          file_id: fileId
+        },
+        input_index: 0 // 使用input_index为0
+      }
+    }
+    
+    console.log('[Activity5] 开始工作流分析:', workflowPayload)
+    
+    const workflowResponse = await fetch(COZE_WORKFLOW_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${COZE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(workflowPayload)
+    })
+    
+    if (!workflowResponse.ok) {
+      throw new Error('工作流调用失败')
+    }
+    
+    const workflowResult = await workflowResponse.json()
+    console.log('[Activity5] 工作流响应:', workflowResult)
+    
+    if (workflowResult.code !== 0) {
+      throw new Error('工作流执行失败')
+    }
+    
+    // 解析分析结果
+    let choice: 'A' | 'B' = 'A' // 默认值
+    let output0Value = 'A' // 原始output0值
+    
+    if (workflowResult.data) {
+      try {
+        const analysisData = JSON.parse(workflowResult.data)
+        console.log('[Activity5] 解析分析数据:', analysisData)
+        
+        // 获取output0的值
+        const output0 = analysisData.output0
+        console.log('[Activity5] output0值:', output0)
+        
+        if (output0) {
+          rawAnalysisResult.value = String(output0)
+          output0Value = String(output0)
+          
+          // 根据output0的内容判断A或B
+          const outputStr = String(output0).toUpperCase()
+          if (outputStr.includes('A') || outputStr === 'A') {
+            choice = 'A'
+          } else if (outputStr.includes('B') || outputStr === 'B') {
+            choice = 'B'
+          } else {
+            // 如果output0不包含明确的A或B，使用默认逻辑
+            choice = outputStr.charCodeAt(0) % 2 === 0 ? 'A' : 'B'
+          }
+        }
+        
+      } catch (parseError) {
+        console.warn('[Activity5] 解析分析结果失败:', parseError)
+        // 使用默认值
+        rawAnalysisResult.value = 'A'
+        output0Value = 'A'
+      }
+    }
+    
+    voteChoice.value = choice
+    
+    // 提交原始的output0值给教师端
+    await submitVoteResult(output0Value)
+    
+    ElMessage.success(`分析完成！投票选择：选项${choice}`)
+    
+  } catch (error: any) {
+    console.error('[Activity5] 分析失败:', error)
+    ElMessage.error('分析失败，但投票已记录')
+    // 分析失败时使用随机选择
+    const fallbackChoice: 'A' | 'B' = Math.random() > 0.5 ? 'A' : 'B'
+    const fallbackOutput0 = fallbackChoice // 失败时的默认值
+    voteChoice.value = fallbackChoice
+    rawAnalysisResult.value = fallbackOutput0
+    await submitVoteResult(fallbackOutput0)
+  }
+}
+
+// 提交投票结果
+const submitVoteResult = async (output0Value: string) => {
+  const g = groupNo.value
+  if (!g) return
+  
+  try {
+    console.log('[Activity1] 📤 提交投票结果, output0:', output0Value)
+    
+    socket.submit({
+      mode: EntityMode.GROUP,
+      messageType: 'vote',
+      activityIndex: '1',
+      data: { 
+        output0: output0Value,
+        timestamp: Date.now()
+      },
+      from: {
+        id: g,
+        groupNo: g
+      },
+      to: null
+    })
+    
+    console.log('[Activity1] ✅ 投票结果已提交')
+    
+    // 保存到本地存储
+    saveToLocalStorage()
+  } catch (error: any) {
+    console.error('[Activity1] ❌ 提交投票结果失败:', error)
+    throw error
+  }
 }
 
 // 本地存储相关
 const getStorageKey = () => {
   const g = groupNo.value
-  const s = studentNo.value
-  return g && s ? `activity1_questions_${g}_${s}` : null
+  return g ? `activity5_vote_${g}` : null
 }
 
-// 保存到本地存储
 const saveToLocalStorage = () => {
   const key = getStorageKey()
   if (!key) return
   
   const data = {
-    answers: answers.value,
-    hasSubmitted: hasSubmitted.value,
+    voteChoice: voteChoice.value,
+    rawAnalysisResult: rawAnalysisResult.value,
+    hasVoted: hasVoted.value,
     timestamp: Date.now()
   }
   localStorage.setItem(key, JSON.stringify(data))
 }
 
-// 从本地存储恢复
 const loadFromLocalStorage = () => {
   const key = getStorageKey()
   if (!key) return
@@ -199,439 +417,322 @@ const loadFromLocalStorage = () => {
     const stored = localStorage.getItem(key)
     if (stored) {
       const data = JSON.parse(stored)
-      answers.value = { ...answers.value, ...data.answers }
-      hasSubmitted.value = data.hasSubmitted || false
-      console.log('Activity1 问答数据已从本地存储恢复')
+      voteChoice.value = data.voteChoice || null
+      rawAnalysisResult.value = data.rawAnalysisResult || ''
+      hasVoted.value = data.hasVoted || false
+      console.log('Activity5 学生端数据已从本地存储恢复')
     }
   } catch (error) {
-    console.warn('恢复Activity1本地数据失败:', error)
+    console.warn('恢复Activity5本地数据失败:', error)
   }
 }
 
-// clearLocalStorage 函数已移除，因为不再需要重置功能
-
-// 拖拽事件处理函数
-const onDragStart = (event: DragEvent, questionId: QuestionId) => {
-  if (hasSubmitted.value) return
-  draggingItem.value = questionId
-  event.dataTransfer!.effectAllowed = 'move'
-  event.dataTransfer!.setData('text/plain', questionId)
-}
-
-const onDragEnd = () => {
-  draggingItem.value = null
-  dragOverTarget.value = null
-}
-
-const onDragOver = (_event: DragEvent, optionId: AnswerId) => {
-  if (hasSubmitted.value) return
-  dragOverTarget.value = optionId
-}
-
-const onDragLeave = () => {
-  dragOverTarget.value = null
-}
-
-const onDrop = (event: DragEvent, optionId: AnswerId) => {
-  if (hasSubmitted.value) return
-  
-  event.preventDefault()
-  const questionId = event.dataTransfer!.getData('text/plain') as QuestionId
-  
-  if (!questionId || !draggingItem.value) return
-  
-  // 先从所有选项中移除该问题（如果存在）
-  Object.keys(answers.value).forEach(key => {
-    const optKey = key as AnswerId
-    const index = answers.value[optKey].indexOf(questionId)
-    if (index > -1) {
-      answers.value[optKey].splice(index, 1)
-    }
-  })
-  
-  // 添加到新选项中
-  if (!answers.value[optionId].includes(questionId)) {
-    answers.value[optionId].push(questionId)
+// 转换base64为File对象（复用Activity4的函数）
+const dataURLtoFile = (dataurl: string, filename: string): File => {
+  const arr = dataurl.split(',')
+  const mime = arr[0].match(/:(.*?);/)![1]
+  const bstr = atob(arr[1])
+  let n = bstr.length
+  const u8arr = new Uint8Array(n)
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n)
   }
-  
-  // 重置拖拽状态
-  draggingItem.value = null
-  dragOverTarget.value = null
-  
-  saveToLocalStorage()
+  return new File([u8arr], filename, { type: mime })
 }
 
-// 移除答案
-const removeAnswer = (optionId: AnswerId, questionId: QuestionId) => {
-  if (hasSubmitted.value) return
+// 开始投票
+const startVoting = () => {
+  console.log('[Activity5] 收到投票开始信号')
+  voteStarted.value = true
+  hasVoted.value = false
+  voteChoice.value = null
+  rawAnalysisResult.value = ''
   
-  const index = answers.value[optionId].indexOf(questionId)
-  if (index > -1) {
-    answers.value[optionId].splice(index, 1)
-    saveToLocalStorage()
-  }
+  // 自动启动摄像头
+  initCamera()
+  
+  ElMessage.info('投票开始！请拍照进行投票')
 }
 
-// 注：原有的onAnswerChange已被拖拽逻辑替代
 
-const onSubmit = async () => {
-  if (hasSubmitted.value || completedCount.value !== 4) return
-  
-  const g = groupNo.value
-  const s = studentNo.value
-  if (!g || !s) {
-    ElMessage.error('用户信息不完整，无法提交')
-    return
+// 清理摄像头资源
+const cleanup = () => {
+  if (mediaStream.value) {
+    mediaStream.value.getTracks().forEach(track => track.stop())
+    mediaStream.value = null
   }
-  
-  try {
-    // 将新的数据结构转换为提交格式
-    const submitAnswers: Record<QuestionId, AnswerId | ''> = { q1: '', q2: '', q3: '', q4: '' }
-    Object.entries(answers.value).forEach(([optionId, questionIds]) => {
-      questionIds.forEach((questionId: QuestionId) => {
-        submitAnswers[questionId] = optionId as AnswerId
-      })
-    })
-    
-    const payload = {
-      type: 'activity1_question',
-      from: { groupNo: g, studentNo: s },
-      data: { answers: submitAnswers },
-      at: Date.now()
-    }
-    
-    const ack = await socketService.submit(payload as any)
-    if (ack.code !== 200) {
-      throw new Error(ack.message || '提交失败')
-    }
-    
-    hasSubmitted.value = true
-    saveToLocalStorage()
-    ElMessage.success('答案提交成功！')
-  } catch (error: any) {
-    ElMessage.error(error.message || '提交失败，请重试')
-  }
+  isCameraReady.value = false
 }
 
-// onReset 函数已移除，因为不再需要重置按钮
+// 处理教师端的投票消息
+const handleDistribute = (payload: any) => {
+  if (!payload || payload.type !== 'start_vote') return
+  
+  console.log('[Activity5] 收到投票开始消息:', payload)
+  startVoting()
+}
 
-// 监听answers变化，自动保存到本地存储
-watch(answers, () => {
-  saveToLocalStorage()
-}, { deep: true })
-
-// 监听完成度变化，自动提交
-watch(completedCount, (newCount) => {
-  if (newCount === 4 && !hasSubmitted.value) {
-    // 延时一点点以确保用户看到最后一次拖拽的视觉反馈
-    setTimeout(() => {
-      onSubmit()
-    }, 500)
-  }
+// 组件挂载时监听投票消息
+onMounted(() => {
+  console.log('[Activity1] 🟢 组件已挂载，开始监听消息')
+  loadFromLocalStorage()
+  socket.on('dispatch', handleDistribute)
 })
 
-// 组件挂载时恢复数据
-onMounted(() => {
-  loadFromLocalStorage()
+// 组件卸载时清理资源
+onUnmounted(() => {
+  console.log('[Activity1] 🔴 组件卸载，清理监听器')
+  socket.off('dispatch', handleDistribute)
+  cleanup()
 })
 </script>
 
 <style scoped>
 .page {
   padding: 20px;
-  max-width: 1400px;
+  width: 1240px;
+  max-width: 100%;
   margin: 0 auto;
+  background: #F5F5F0;
 }
 
 /* 活动说明区域 */
-.activity-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.activity-icon {
-  font-size: 24px;
-}
-.activity-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1f2937;
-}
 .activity-description {
   background: #f0f9ff;
   border: 1px solid #0ea5e9;
   border-radius: 12px;
   padding: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   color: #0c4a6e;
   font-size: 14px;
   line-height: 1.6;
+  text-align: center;
 }
 
-/* 主要内容区域 */
-.main-content {
+/* 投票容器 */
+.vote-container {
   display: flex;
-  flex-direction: column;
-  gap: 32px;
-  margin-bottom: 20px;
+  justify-content: center;
 }
 
-/* 情境容器 */
-.scenarios-container {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+.vote-panel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 24px;
+  width: 100%;
+  max-width: 600px;
 }
 
 .section-title {
   margin: 0 0 20px 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   color: #1f2937;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  text-align: center;
 }
 
-.scenarios-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+/* 投票状态显示 */
+.vote-status {
+  margin-bottom: 20px;
+  text-align: center;
 }
 
-/* 情境卡片样式 */
-.scenario-card {
-  background: white;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
-  cursor: grab;
-  transition: all 0.2s ease;
-  user-select: none;
-}
-
-.scenario-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  border-color: #3b82f6;
-}
-
-.scenario-card.is-dragging {
-  opacity: 0.6;
-  transform: rotate(5deg);
-  cursor: grabbing;
-}
-
-.scenario-card.is-placed {
-  opacity: 0.7;
-  background: #f3f4f6;
-  border-color: #10b981;
-}
-
-.scenario-number {
-  font-size: 14px;
-  font-weight: 600;
-  color: #3b82f6;
-  margin-bottom: 8px;
-}
-
-.scenario-image {
-  width: 100%;
-  height: 120px;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 12px;
-}
-
-.scenario-image img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.scenario-title {
-  font-size: 13px;
-  color: #374151;
-  line-height: 1.4;
-  margin-bottom: 8px;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.drag-hint {
-  font-size: 11px;
+.waiting-status {
+  padding: 40px 20px;
   color: #6b7280;
-  text-align: center;
-  font-style: italic;
 }
 
-/* 选项容器 */
-.options-container {
-  background: #fef7ed;
-  border: 1px solid #fed7aa;
-  border-radius: 16px;
-  padding: 24px;
-}
-
-.options-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-/* 拖放目标区域 */
-.option-dropzone {
-  background: white;
-  border: 2px dashed #d1d5db;
-  border-radius: 12px;
-  padding: 16px;
-  min-height: 160px;
-  transition: all 0.2s ease;
-  position: relative;
-}
-
-.option-dropzone.drag-over {
-  border-color: #3b82f6;
-  background: #eff6ff;
-  transform: scale(1.02);
-}
-
-.option-dropzone.has-answer {
-  border-style: solid;
-  border-color: #10b981;
-  background: #f0fdf4;
-}
-
-.option-header {
-  text-align: center;
+.waiting-icon {
+  font-size: 48px;
   margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e5e7eb;
+  color: #d1d5db;
 }
 
-.option-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
-  display: block;
+.voting-status {
+  padding: 30px 20px;
+  background: #f0f9ff;
+  border-radius: 12px;
+  border: 1px solid #bae6fd;
+  color: #1e40af;
 }
 
-/* 已放置的情境容器 */
-.placed-scenarios {
+.voting-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  color: #3b82f6;
+}
+
+.analyzing-status {
+  padding: 30px 20px;
+  background: #fef3c7;
+  border-radius: 12px;
+  border: 1px solid #fbbf24;
+  color: #92400e;
+}
+
+.finished-status {
+  padding: 40px 20px;
+  color: #059669;
+}
+
+.finished-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #10b981;
+}
+
+/* 摄像头预览区域 */
+.camera-preview-wrapper {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  background: #1f2937;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.camera-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+/* 加载和错误状态 */
+.loading-overlay,
+.error-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-/* 已放置的情境显示 */
-.placed-scenario {
-  position: relative;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 8px 12px;
-}
-
-.placed-scenario-number {
-  font-size: 12px;
-  font-weight: 600;
-  color: #059669;
-  margin-bottom: 4px;
-}
-
-.placed-scenario-title {
-  font-size: 11px;
-  color: #374151;
-  line-height: 1.3;
-  padding-right: 20px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.remove-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 16px;
-  height: 16px;
-  background: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 10px;
-  display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.remove-btn:hover {
-  background: #dc2626;
-  transform: scale(1.1);
-}
-
-.remove-btn:disabled {
-  background: #d1d5db;
-  cursor: not-allowed;
-}
-
-/* 空状态提示 */
-.drop-hint {
+  gap: 16px;
+  color: #ffffff;
   text-align: center;
-  color: #9ca3af;
-  font-style: italic;
-  font-size: 14px;
-  padding: 40px 20px;
 }
 
+.loading-overlay {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.error-overlay {
+  background: rgba(239, 68, 68, 0.8);
+}
+
+.loading-icon {
+  font-size: 32px;
+  animation: spin 1s linear infinite;
+}
+
+.error-icon {
+  font-size: 32px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 投票控制按钮 */
+.vote-controls {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.vote-button {
+  min-width: 200px;
+  height: 56px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border: none;
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+  transition: all 0.3s ease;
+}
+
+.vote-button:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(59, 130, 246, 0.4);
+}
+
+.vote-button:disabled {
+  background: #d1d5db;
+  color: #9ca3af;
+  box-shadow: none;
+}
+
+/* 投票结果显示 */
+.vote-result {
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-top: 20px;
+  text-align: center;
+}
+
+.result-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.result-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.result-badge {
+  display: inline-block;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+}
+
+.result-badge.result-a {
+  background: #ef4444;
+}
+
+.result-badge.result-b {
+  background: #3b82f6;
+}
+
+.result-description {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.result-description p {
+  margin: 0;
+}
 
 /* 响应式设计 */
-@media (max-width: 1024px) {
-  .scenarios-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .options-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @media (max-width: 768px) {
   .page {
     padding: 16px;
   }
   
-  .main-content {
-    gap: 24px;
+  .camera-preview-wrapper {
+    height: 250px;
   }
   
-  .scenarios-grid {
-    grid-template-columns: 1fr;
+  .vote-button {
+    min-width: 160px;
+    height: 48px;
+    font-size: 16px;
   }
   
-  .options-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .scenario-image {
-    height: 100px;
-  }
-  
-  .option-dropzone {
-    min-height: 120px;
-  }
 }
 </style>

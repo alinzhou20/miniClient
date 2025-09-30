@@ -66,14 +66,6 @@ export default defineConfig(({ mode }) => {
           ws: true,
           changeOrigin: true,
           secure: false, // 允许自签名证书
-          configure: (proxy, _options) => {
-            proxy.on('proxyReq', (proxyReq, req, _res) => {
-              console.log('🔀 代理请求:', req.method, req.url, '->', proxyReq.getHeader('host'))
-            })
-            proxy.on('error', (err, _req, _res) => {
-              console.log('❌ 代理错误:', err.message)
-            })
-          }
         }
       }
     },

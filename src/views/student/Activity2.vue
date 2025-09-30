@@ -1,578 +1,1869 @@
 <template>
-    <div class="survey-monitor">
-      <!-- 操作要求模块 -->
-      <div class="task-block">
-        <div class="op-title">2.组问卷</div>
-        <div class="op-text"><span style="font-weight: bold;">选择</span>下方合适的问题，在右侧组成完整的问卷，并交流讨论选择理由</div>
-      </div>
-      
-      <!-- 两栏布局：左侧筛选+网格；右侧选中预览侧栏 -->
-      <div class="layout">
-        <div class="main">
-          <!-- 卡片网格（每卡片仅展示一道题目） -->
-          <div class="card-grid">
-            <el-card
-              v-for="item in filteredQuestions"
-              :key="item.key + '-' + ((item.q as any).id || item.idx)"
-              class="survey-card"
-              shadow="hover"
-            >
-               <div class="pv-item" :class="{ selected: isSelected(item.key, (item.q as any).id) }">
-                 <!-- 左上角标注 -->
-                 <div class="pv-tags">
-                   <span class="type-tag" :class="item.isDescription ? 'desc-tag' : 'question-tag'">{{ item.isDescription ? '说明' : '问题' }}</span>
-                   <span class="source-tag">{{ getSourceLabel((item.q as any).source) }}</span>
-                 </div>
-                 <div class="pv-row">
-                   <div class="pv-content">
-                     <div class="pv-q" :class="{ 'desc-only': item.isDescription }">
-                       {{ (item.q as any).text || '（未命名内容）' }}
-                     </div>
-                     <!-- 如果是说明部分，不显示任何选项 -->
-                     <template v-if="!item.isDescription">
-                       <template v-if="(item.q as any).type === 'single'">
-                         <el-radio-group>
-                           <el-radio v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi" :label="oi" disabled>
-                             {{ opt || `${letter(oi)}. 选项` }}
-                           </el-radio>
-                         </el-radio-group>
-                       </template>
-                       <template v-else-if="(item.q as any).type === 'multi'">
-                         <el-checkbox-group>
-                           <el-checkbox v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi" :label="oi" disabled>
-                             {{ opt || `${letter(oi)}. 选项` }}
-                           </el-checkbox>
-                         </el-checkbox-group>
-                       </template>
-                       <template v-else>
-                         <div class="pv-blank" aria-hidden="true"></div>
-                       </template>
-                     </template>
-                   </div>
-                  <div class="pv-check">
-                    <el-checkbox
-                      size="large"
-                      :model-value="isSelected(item.key, (item.q as any).id)"
-                      @change="() => toggleSelect(item.key, (item.q as any).id)"
-                    />
-                  </div>
-                </div>
-              </div>
-            </el-card>
+  <div class="page">
+    <!-- 活动说明 -->
+    <div class="activity-description">
+      <strong>AI学习助手活动</strong><br>
+      使用AI助手获取学习提示，或根据教师要求进行拍照上传
+    </div>
+
+    <!-- 主要内容区域 -->
+    <div class="main-content">
+      <!-- 问一问功能卡片 -->
+      <div class="ask-ai-card" v-if="!showUploadCard && !showEditCard && !showViewCard">
+        <div class="card-header">
+          <h3 class="card-title">🤖 问一问 AI助手</h3>
+          <div class="header-info">
+            <div class="viewpoint-display" v-if="selectedViewpoint">
+              <span class="viewpoint-badge" :class="'badge-' + selectedViewpoint.toLowerCase()">
+                观点{{ selectedViewpoint }}：{{ getViewpointMeaning(selectedViewpoint) }}
+              </span>
+            </div>
+            <div class="questions-remaining">
+              <span class="remaining-label">剩余次数:</span>
+              <span class="remaining-count">{{ remainingQuestions }}/2</span>
+            </div>
           </div>
         </div>
 
-        <aside class="side">
-          <!-- 选中题目渲染卡片（右侧侧栏） -->
-          <el-card class="selected-card" shadow="never">
-            <template #header>
-              <div class="sel-head">
-                <!-- 操作按钮移到最上方 -->
-                <div class="sel-actions">
-                  <el-button size="default" type="success" :disabled="!questionOnlyList.length" @click="sendSelectedToTeacher">发送</el-button>
-                  <el-button size="default" :disabled="!selectedList.length" @click="clearSelected">清空</el-button>
-                </div>
-                <div class="pv-title">数字设备对学习的利与弊调查问卷</div>
-                <div class="pv-desc">{{ currentDescription }}</div>
-              </div>
-            </template>
-            <div class="sel-body">
-              <div class="sel-item" v-for="(item, idx) in questionOnlyList" :key="item.key + '-' + item.qid">
-                <div class="q-block">
-                  <div class="q-head">
-                    <span class="q-index">{{ idx + 1 }}.</span>
-                    <span class="q-text">{{ item.q.text || '（未命名题目）' }}</span>
-                    <span class="q-type">{{ typeTag(item.q.type) }}</span>
-                  </div>
-                  <div v-if="Array.isArray((item.q as any).options)" class="q-opts">
-                    <div class="q-opt" v-for="(opt, oi) in ((item.q as any).options || [])" :key="oi">{{ letter(oi) }}. {{ opt }}</div>
-                  </div>
-                </div>
+        <!-- 问一问按钮 -->
+        <div class="ask-button-container">
+          <el-button 
+            type="primary" 
+            size="large"
+            :disabled="!selectedViewpoint || isAsking || remainingQuestions <= 0"
+            :loading="isAsking"
+            @click="askAI"
+            class="ask-button"
+          >
+            <el-icon v-if="!isAsking"><ChatDotRound /></el-icon>
+            <span v-if="isAsking" class="generating-text">
+              <span class="dot-animation">正在生成AI提示</span>
+              <span class="ai-dots">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+              </span>
+            </span>
+            <span v-else>{{ remainingQuestions > 0 ? `问一问 AI助手 (${remainingQuestions}次机会)` : '提问次数已用完' }}</span>
+          </el-button>
+        </div>
+
+        <!-- AI提示词展示区域 -->
+        <div v-if="allTips.length > 0" class="tips-container">
+          <div class="tips-header">
+            <h4 class="tips-title">💡 AI学习提示</h4>
+            <div class="tips-count">共{{ allTips.length }}个提示</div>
+          </div>
+          
+          <!-- 按观点分组显示 -->
+          <div v-for="(group, viewpoint) in groupedTips" :key="viewpoint" class="viewpoint-group">
+            <div class="group-header">
+              <span class="viewpoint-label" :class="'viewpoint-' + viewpoint.toLowerCase()">
+                观点{{ viewpoint }}：{{ getViewpointMeaning(viewpoint as 'A' | 'B') }}
+              </span>
+              <span class="group-count">({{ group.length }}个提示)</span>
+            </div>
+            
+            <div class="tips-grid">
+              <div 
+                v-for="(tip, index) in group" 
+                :key="tip.id"
+                class="tip-bubble"
+                :class="'bubble-' + viewpoint.toLowerCase()"
+              >
+                <div class="tip-number">{{ index + 1 }}</div>
+                <div class="tip-text">{{ tip.text }}</div>
               </div>
             </div>
-          </el-card>
-        </aside>
+          </div>
+        </div>
+      </div>
+
+      <!-- 上传功能卡片 -->
+      <div class="upload-card" v-if="showUploadCard && uploadEnabled && !showEditCard && !showViewCard">
+        <div class="card-header">
+          <h3 class="card-title">📷 拍照上传</h3>
+          <div class="upload-status">
+            <span v-if="uploadResults.length === 0" class="status-active">拍照上传中</span>
+            <span v-else class="status-completed">已完成{{ uploadResults.length }}次分析</span>
+          </div>
+        </div>
+
+        <!-- 摄像头预览区域 -->
+        <div class="camera-preview-wrapper">
+          <video 
+            ref="videoRef" 
+            class="camera-preview"
+            autoplay 
+            muted 
+            playsinline
+            @loadedmetadata="onVideoLoaded"
+            :style="{ objectFit: 'contain' }"
+          ></video>
+          
+          <!-- 加载状态 -->
+          <div v-if="isLoading" class="loading-overlay">
+            <el-icon class="loading-icon"><Loading /></el-icon>
+            <p>正在启动摄像头...</p>
+          </div>
+          
+          <!-- 错误状态 -->
+          <div v-if="cameraError" class="error-overlay">
+            <el-icon class="error-icon"><Warning /></el-icon>
+            <p>{{ cameraError }}</p>
+            <el-button type="primary" @click="initCamera">重新尝试</el-button>
+          </div>
+        </div>
+
+        <!-- 上传控制按钮 -->
+        <div class="upload-controls">
+          <el-button 
+            type="primary" 
+            size="large" 
+            :disabled="!isCameraReady || isUploading || isAnalyzing"
+            :loading="isUploading"
+            @click="captureAndUpload"
+            class="upload-button"
+          >
+            <el-icon v-if="!isUploading && !isAnalyzing"><Camera /></el-icon>
+            {{ getUploadButtonText() }}
+          </el-button>
+        </div>
+
+        <!-- 分析进度提示 -->
+        <div v-if="isAnalyzing" class="analysis-progress">
+          <div class="progress-content">
+            <el-icon class="progress-icon"><Loading /></el-icon>
+            <span class="progress-text">正在分析图片，请稍候...</span>
+          </div>
+        </div>
+
+        <!-- 分析结果列表 -->
+        <div v-if="uploadResults.length > 0" class="results-container">
+          <div class="results-header">
+            <h4 class="results-title">📸 分析结果 ({{ uploadResults.length }}次)</h4>
+            <div class="results-hint">选择最满意的结果发送给教师</div>
+          </div>
+          
+          <div class="results-list">
+            <div 
+              v-for="(result, index) in uploadResults" 
+              :key="result.id"
+              class="result-item"
+              :class="{ 'selected': selectedResultIndex === index }"
+              @click="selectedResultIndex = index"
+            >
+              <div class="result-item-header">
+                <span class="result-number">第{{ index + 1 }}次分析</span>
+                <span class="result-time">{{ formatTime(result.timestamp) }}</span>
+                <el-icon v-if="selectedResultIndex === index" class="selected-icon"><CircleCheck /></el-icon>
+              </div>
+              <div class="result-item-content">{{ result.result }}</div>
+            </div>
+          </div>
+          
+          <!-- 发送按钮 -->
+          <div class="send-controls">
+            <el-button 
+              type="success" 
+              size="large"
+              :disabled="selectedResultIndex === -1 || hasSentResult"
+              @click="sendResultToTeacher"
+              class="send-button"
+            >
+              <el-icon><Position /></el-icon>
+              {{ hasSentResult ? '已发送给教师' : '发送选中结果给教师' }}
+            </el-button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 编辑功能卡片 -->
+      <div class="edit-card" v-if="showEditCard && !showViewCard">
+        <div class="card-header">
+          <h3 class="card-title">✏️ 编辑分析结果</h3>
+          <div class="edit-status">
+            <span v-if="!hasSubmittedEdit" class="status-active">请完善分析内容</span>
+            <span v-else class="status-completed">已提交</span>
+          </div>
+        </div>
+
+        <div class="edit-content">
+          <div class="edit-section">
+            <div class="edit-label">问题1：</div>
+            <div class="original-text">原始内容：{{ originalData.q1 }}</div>
+            <el-input
+              v-model="analysisData.q1"
+              type="textarea"
+              :rows="3"
+              placeholder="请完善或修改问题1的内容"
+              maxlength="200"
+              show-word-limit
+              class="edit-input"
+            />
+          </div>
+
+          <div class="edit-section">
+            <div class="edit-label">问题2：</div>
+            <div class="original-text">原始内容：{{ originalData.q2 }}</div>
+            <el-input
+              v-model="analysisData.q2"
+              type="textarea"
+              :rows="3"
+              placeholder="请完善或修改问题2的内容"
+              maxlength="200"
+              show-word-limit
+              class="edit-input"
+            />
+          </div>
+        </div>
+
+        <div class="edit-controls">
+          <el-button 
+            type="success" 
+            size="large"
+            :disabled="!analysisData.q1.trim() || !analysisData.q2.trim() || hasSubmittedEdit"
+            @click="submitEditedData"
+            class="submit-button"
+          >
+            <el-icon><Position /></el-icon>
+            {{ hasSubmittedEdit ? '已提交给教师和同学' : '提交给教师和同学' }}
+          </el-button>
+        </div>
+      </div>
+
+      <!-- 查看功能卡片 -->
+      <div class="view-card" v-if="showViewCard">
+        <div class="card-header">
+          <h3 class="card-title">👀 查看所有小组结果</h3>
+          <div class="view-status">
+            <span class="status-info">共收到{{ wordCloudData.length }}组数据</span>
+          </div>
+        </div>
+
+        <div class="wordcloud-container">
+          <div class="wordcloud-section">
+            <h4 class="section-title">分析问题 - 词云图</h4>
+            <div class="wordcloud-display">
+              <div 
+                ref="wordCloudRef" 
+                id="wordcloud-chart"
+                class="echarts-wordcloud"
+              ></div>
+              <div v-if="wordCloudData.length === 0" class="empty-wordcloud">
+                <el-icon class="empty-icon"><Document /></el-icon>
+                <p>暂无词云数据</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="view-controls">
+          <el-button 
+            type="primary" 
+            size="large"
+            @click="refreshWordCloud"
+            class="refresh-button"
+          >
+            <el-icon><Refresh /></el-icon>
+            刷新数据
+          </el-button>
+          <el-button 
+            type="success" 
+            size="large"
+            @click="generateTestData"
+            class="test-button"
+            v-if="wordCloudData.length === 0"
+          >
+            生成测试数据
+          </el-button>
+        </div>
+      </div>
+
+      <!-- 上传功能关闭提示 -->
+      <div class="upload-disabled-card" v-if="showUploadCard && !uploadEnabled">
+        <div class="card-header">
+          <h3 class="card-title">📷 拍照上传</h3>
+          <div class="upload-status">
+            <span class="status-disabled">教师已关闭上传功能</span>
+          </div>
+        </div>
+        <div class="disabled-content">
+          <el-icon class="disabled-icon"><Lock /></el-icon>
+          <p>上传功能暂时关闭，请等待教师重新开启</p>
+        </div>
       </div>
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { reactive, computed, onMounted, watch } from 'vue'
-  import { socketService } from '@/services/socket'
-  import { useAuthStore } from '@/stores/auth'
-  import { ElMessage } from 'element-plus'
-  
-   type QSingle = { id: string; type: 'single'; text: string; options: string[]; index?: number; createdAt?: number; source?: number }
-   type QMulti = { id: string; type: 'multi'; text: string; options: string[]; index?: number; createdAt?: number; source?: number }
-   type QText = { id: string; type: 'text'; text: string; index?: number; createdAt?: number; source?: number }
-   type QDescription = { id: string; type: 'description'; text: string; index?: number; createdAt?: number; source?: number }
-   interface SurveyPayload {
-     type: 'survey'
-     from: { groupNo: string; studentNo: string }
-     data: {
-       title: string;
-       version?: number;
-       author?: { groupNo: string; studentNo: string };
-       topic?: string;
-       formattedText?: string;
-       descriptions: Array<QDescription>;
-       questions: Array<QSingle | QMulti | QText>;
-     }
-     at: number
-   }
-  
-  const store = reactive(new Map<string, SurveyPayload>())
-  // 行聚合：同一小组仅保留最新一份（覆盖）
-  const rows = computed(() => {
-    const latestByGroup = new Map<string, SurveyPayload>()
-    Array.from(store.values()).forEach(p => {
-      const g = String(p.from.groupNo)
-      const prev = latestByGroup.get(g)
-      if (!prev || (p.at || 0) > (prev.at || 0)) {
-        latestByGroup.set(g, p)
-      }
-    })
-    return Array.from(latestByGroup.values()).map(p => ({
-      groupNo: String(p.from.groupNo),
-      studentNo: String(p.from.studentNo),
-      title: p.data?.title || '',
-      qCount: p.data?.questions?.length || 0,
-      at: p.at || Date.now(),
-      key: `${p.from.groupNo}` // 以小组作为 key
-    })).sort((a,b) => b.at - a.at)
+
+    <!-- 隐藏的Canvas用于图像处理 -->
+    <canvas ref="canvasRef" style="display: none;"></canvas>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useStatus } from '@/store/status'
+import { useSocket } from '@/utils/socket'
+import { EntityMode } from '@/types'
+import { ElMessage } from 'element-plus'
+import { ChatDotRound, Camera, Loading, Warning, Position, CircleCheck, Lock, Refresh, Document } from '@element-plus/icons-vue'
+import * as echarts from 'echarts'
+import 'echarts-wordcloud'
+
+// 基础状态
+const status = useStatus()
+const socket = useSocket()
+const groupNo = computed(() => String(status.userStatus?.groupNo ?? ''))
+
+// 问一问功能状态
+const selectedViewpoint = ref<'A' | 'B' | null>(null)
+const isAsking = ref(false)
+const allTips = ref<Array<{id: string, viewpoint: 'A' | 'B', text: string, timestamp: number}>>([])
+const remainingQuestions = ref(2) // 限制为2次提问
+
+// 上传功能状态
+const showUploadCard = ref(false)
+const isUploading = ref(false)
+const isAnalyzing = ref(false)
+const uploadResults = ref<Array<{id: string, result: string, timestamp: number}>>([])
+const selectedResultIndex = ref<number>(-1)
+const hasSentResult = ref(false)
+
+// 编辑功能状态
+const showEditCard = ref(false)
+const analysisData = ref<{q1: string, q2: string}>({q1: '', q2: ''})
+const originalData = ref<{q1: string, q2: string}>({q1: '', q2: ''})
+const hasSubmittedEdit = ref(false)
+
+// 查看功能状态
+const showViewCard = ref(false)
+const wordCloudData = ref<Array<{groupNo: string, q1: string, q2: string}>>([])
+
+// 上传功能是否可用
+const uploadEnabled = ref(false)
+
+// 摄像头相关状态
+const videoRef = ref<HTMLVideoElement>()
+const canvasRef = ref<HTMLCanvasElement>()
+const mediaStream = ref<MediaStream | null>(null)
+const isLoading = ref(false)
+const cameraError = ref('')
+const isCameraReady = ref(false)
+
+// ECharts词云图相关状态
+const wordCloudRef = ref<HTMLElement>()
+const wordCloudChart = ref<echarts.ECharts | null>(null)
+
+// API配置
+const COZE_API_URL = 'https://api.coze.cn/v1/files/upload'
+const COZE_WORKFLOW_URL = 'https://api.coze.cn/v1/workflow/run'
+const COZE_API_TOKEN = 'sat_3NtHyM2cY3Un8anULY7pAp9bLwLMdW9sVH4CRcfZC8G378M5OrT4dS2TzeAZQ2vg'
+const ASK_WORKFLOW_ID = '7554010166815899682' // 问一问工作流ID
+const UPLOAD_WORKFLOW_ID = '7553827536788193322' // 上传分析工作流ID
+
+// 获取观点含义
+const getViewpointMeaning = (choice: 'A' | 'B' | null): string => {
+  if (choice === 'A') return '使用数字设备利大于弊'
+  if (choice === 'B') return '使用数字设备弊大于利'
+  return ''
+}
+
+// 获取上传按钮文本
+const getUploadButtonText = (): string => {
+  if (isUploading.value) return '正在上传...'
+  if (isAnalyzing.value) return '分析中...'
+  return '拍照上传'
+}
+
+// 按观点分组的提示词
+const groupedTips = computed(() => {
+  const groups: Record<string, typeof allTips.value> = {}
+  allTips.value.forEach(tip => {
+    if (!groups[tip.viewpoint]) {
+      groups[tip.viewpoint] = []
+    }
+    groups[tip.viewpoint].push(tip)
   })
-  
-  // 工具栏过滤
-  const filter = reactive({ group: '', student: '', keyword: '', topic: '' })
-  // 已移除未使用的过滤相关计算属性
-  const filtered = computed(() => {
-    const kw = filter.keyword.trim().toLowerCase()
-    return rows.value.filter(r => {
-      const matchGroup = !filter.group || r.groupNo === filter.group
-      const matchStu = !filter.student || r.studentNo === filter.student
-      const topicVal = (getByKey(r.key)?.data as any)?.topic || ''
-      const matchTopic = !filter.topic || String(topicVal) === String(filter.topic)
-      let matchKw = true
-      if (kw) {
-        const payload = getByKey(r.key)
-        const inTitle = (r.title || '').toLowerCase().includes(kw)
-        const inQuestions = !!payload?.data?.questions?.some(q => (q.text || '').toLowerCase().includes(kw))
-        matchKw = inTitle || inQuestions
-      }
-      return matchGroup && matchStu && matchTopic && matchKw
-    })
-  })
+  return groups
+})
 
-   // 将小组维度的 filtered 行展开为题目维度，包含descriptions和questions
-   const filteredQuestions = computed(() => {
-     const out: Array<{ key: string; q: any; idx: number; isDescription?: boolean }> = []
-     const banMarkers = ['[量表题]', '[矩阵题]', '[排序题]']
-     filtered.value.forEach(row => {
-       const payload = getByKey(row.key)
-       
-       // 添加描述项
-       const descriptions = payload?.data?.descriptions || []
-       descriptions.forEach((desc: any, i: number) => {
-         out.push({ key: row.key, q: desc, idx: i, isDescription: true })
-       })
-       
-       // 添加问题项
-       const qs = payload?.data?.questions || []
-       qs.forEach((q: any, i: number) => {
-         const t = (q?.type || '').toLowerCase()
-         const text = String(q?.text || '')
-         const allowType = t === 'single' || t === 'multi' || t === 'text'
-         const hasBanMarker = banMarkers.some(m => text.includes(m))
-         if (allowType && !hasBanMarker) {
-           out.push({ key: row.key, q, idx: i, isDescription: false })
-         }
-       })
-     })
-     return out
-   })
+// 问一问功能
+const askAI = async () => {
+  if (!selectedViewpoint.value || isAsking.value) return
   
-  // 卡片内选项字母与访问器
-  function getByKey(key: string): SurveyPayload | null {
-    // 按小组作为 key，需从 latestByGroup 视角获取；此处简单遍历 store 中同组最新一条
-    let latest: SurveyPayload | null = null
-    Array.from(store.values()).forEach(p => {
-      if (String(p.from.groupNo) !== String(key)) return
-      if (!latest || (p.at || 0) > (latest.at || 0)) latest = p
-    })
-    return latest
-  }
-  function letter(i: number): string { const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'; return letters[i] || '?' }
+  isAsking.value = true
   
-  // 选中（按卡片-小组维度）
-  type UIState = { selected: string[] }
-  const ui = reactive(new Map<string, UIState>())
-  function uiGet(key: string): UIState {
-    if (!ui.has(key)) ui.set(key, { selected: [] })
-    return ui.get(key)!
-  }
-  function isSelected(key: string, qid: string): boolean {
-    const s = uiGet(key).selected
-    return s.includes(qid)
-  }
-  // 全局选择顺序（跨小组）
-  const selectedGlobal = reactive<Array<{ key: string; qid: string }>>([])
-  function toggleSelect(key: string, qid: string) {
-    const s = uiGet(key).selected
-    const i = s.indexOf(qid)
-    if (i >= 0) s.splice(i, 1)
-    else s.push(qid)
-    // 维护全局顺序
-    const gi = selectedGlobal.findIndex(v => v.key === key && v.qid === qid)
-    if (gi >= 0) {
-      selectedGlobal.splice(gi, 1)
-    } else {
-      selectedGlobal.push({ key, qid })
-    }
-    saveToLocalStorage() // 选择变化时保存状态
-  }
-  
-   // 计算已选题目（全局，按选择顺序）
-   const selectedList = computed(() => {
-     const out: Array<{ key: string; qid: string; q: any; isDescription?: boolean }> = []
-     selectedGlobal.forEach(it => {
-       const payload = getByKey(it.key)
-       
-       // 在descriptions中查找
-       const descQ = payload?.data?.descriptions?.find((qq: any) => qq.id === it.qid)
-       if (descQ) {
-         out.push({ key: it.key, qid: it.qid, q: descQ, isDescription: true })
-         return
-       }
-       
-       // 在questions中查找
-       const questionQ = payload?.data?.questions?.find((qq: any) => qq.id === it.qid)
-       if (questionQ) {
-         out.push({ key: it.key, qid: it.qid, q: questionQ, isDescription: false })
-       }
-     })
-     return out
-   })
-
-   // 只包含问题部分的列表（右侧题目列表显示用）
-   const questionOnlyList = computed(() => {
-     return selectedList.value.filter(item => !item.isDescription)
-   })
-  
-  function typeTag(t: string) {
-    return t === 'single' ? '[单选题]' : (t === 'multi' ? '[多选题]' : '[填空题]')
-  }
-
-   // 获取来源标签
-   function getSourceLabel(source: number): string {
-     return source === 0 ? '题库' : `第${source}组`
-   }
-
-   // 动态获取当前选中项目中的说明部分内容
-   const currentDescription = computed(() => {
-     const descItem = selectedList.value.find(item => item.isDescription)
-     return descItem?.q.text || null
-   })
-  
-  // 已移除复制导出按钮：导出函数不再需要
-  
-  function clearSelected() {
-    selectedGlobal.splice(0, selectedGlobal.length)
-    ui.forEach(state => state.selected.splice(0, state.selected.length))
-    saveToLocalStorage() // 清空选择后保存状态
-  }
-
-  // ---------- 静态题库初始化与发送 ----------
-  const authStore = useAuthStore()
-
-  // 本地存储相关
-  const getStorageKey = () => {
-    const user = authStore.currentUser
-    if (!user || !user.groupNo || !user.studentNo) return null
-    return `activity2_${user.groupNo}_${user.studentNo}`
-  }
-
-  // 保存到本地存储
-  const saveToLocalStorage = () => {
-    const key = getStorageKey()
-    if (!key) return
+  try {
+    console.log('[Activity6] 开始向AI提问，观点:', selectedViewpoint.value)
     
-    const data = {
-      selectedGlobal: selectedGlobal,
-      ui: Object.fromEntries(ui.entries()),
-      store: Object.fromEntries(store.entries()),
-      timestamp: Date.now()
-    }
-    localStorage.setItem(key, JSON.stringify(data))
-  }
-
-  // 从本地存储恢复
-  const loadFromLocalStorage = () => {
-    const key = getStorageKey()
-    if (!key) return
+    const viewpointText = getViewpointMeaning(selectedViewpoint.value)
     
-    try {
-      const stored = localStorage.getItem(key)
-      if (stored) {
-        const data = JSON.parse(stored)
-        
-        // 恢复选择状态
-        if (data.selectedGlobal) {
-          selectedGlobal.splice(0, selectedGlobal.length, ...data.selectedGlobal)
-        }
-        
-        // 恢复UI状态
-        if (data.ui) {
-          ui.clear()
-          Object.entries(data.ui).forEach(([key, value]) => {
-            ui.set(key, value as UIState)
-          })
-        }
-        
-        // 恢复问卷数据
-        if (data.store) {
-          store.clear()
-          Object.entries(data.store).forEach(([key, value]) => {
-            store.set(key, value as SurveyPayload)
-          })
-        }
-        
-        console.log('Activity2 数据已从本地存储恢复')
+    // 调用问一问工作流
+    const payload = {
+      workflow_id: ASK_WORKFLOW_ID,
+      parameters: {
+        input_type: viewpointText
       }
-    } catch (error) {
-      console.warn('恢复Activity2本地数据失败:', error)
     }
-  }
-
-  // 已移除未使用的clearLocalStorage函数
-
-  function rid(prefix = 'q'): string {
-    return `${prefix}_${Math.random().toString(36).slice(2, 8)}`
-  }
-
-  // 将所选题目生成文本格式，供复制与发送中的 formattedText 复用
-  function buildFormattedFromSelected(): string {
-    if (!selectedList.value.length) return ''
-    const lines: string[] = []
-    selectedList.value.forEach((item) => {
-      const q: any = item.q
-      const topic = (getByKey(item.key) as any)?.data?.topic || ''
-      const topicTag = topic ? ` [主题:${topic}]` : ''
-      lines.push(`${q.text || ''} ${typeTag(q.type)}${topicTag}`.trim())
-      if (Array.isArray(q.options)) {
-        (q.options as string[]).forEach((opt: string, oi: number) => {
-          lines.push(`${letter(oi)}.${opt || ''}`)
+    
+    console.log('[Activity6] 问一问请求参数:', payload)
+    
+    const response = await fetch(COZE_WORKFLOW_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${COZE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    })
+    
+    if (!response.ok) {
+      throw new Error('AI请求失败')
+    }
+    
+    const result = await response.json()
+    console.log('[Activity6] AI响应:', result)
+    
+    if (result.code === 0 && result.data) {
+      const analysisData = JSON.parse(result.data)
+      const outputArray = analysisData.output || []
+      
+      console.log('[Activity6] 解析到提示词:', outputArray)
+      
+      // 将新提示词添加到列表，限制为3个
+      if (Array.isArray(outputArray)) {
+        const limitedTips = outputArray.slice(0, 3) // 每次最多3个提示
+        limitedTips.forEach((tipText: string, index: number) => {
+          if (tipText && tipText.trim()) {
+            allTips.value.push({
+              id: `tip_${Date.now()}_${index}`,
+              viewpoint: selectedViewpoint.value!,
+              text: tipText.trim(),
+              timestamp: Date.now()
+            })
+          }
         })
+        
+        // 减少剩余机会
+        remainingQuestions.value--
+        
+        ElMessage.success(`获得${limitedTips.length}个AI提示！剩余${remainingQuestions.value}次机会`)
+        
+        // 保存到本地存储
+        saveToLocalStorage()
+      } else {
+        ElMessage.warning('AI没有返回有效提示')
       }
-      lines.push('')
+    } else {
+      throw new Error(result.msg || 'AI分析失败')
+    }
+    
+  } catch (error: any) {
+    console.error('[Activity6] AI提问失败:', error)
+    ElMessage.error('AI提问失败，请稍后重试')
+  } finally {
+    isAsking.value = false
+  }
+}
+
+// 初始化摄像头
+const initCamera = async () => {
+  console.log('[Activity6] 开始初始化摄像头')
+  isLoading.value = true
+  cameraError.value = ''
+  
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('浏览器不支持摄像头功能')
+    }
+    
+    if (mediaStream.value) {
+      mediaStream.value.getTracks().forEach(track => track.stop())
+    }
+    
+    const constraints = { 
+      video: { 
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        facingMode: 'environment'
+      } 
+    }
+    
+    const stream = await navigator.mediaDevices.getUserMedia(constraints)
+    mediaStream.value = stream
+    
+    if (videoRef.value) {
+      videoRef.value.srcObject = stream
+    }
+    
+    isCameraReady.value = true
+    ElMessage.success('摄像头启动成功')
+  } catch (error: any) {
+    console.error('[Activity6] 摄像头启动失败:', error)
+    
+    if (error.name === 'NotAllowedError') {
+      cameraError.value = '摄像头权限被拒绝，请允许访问'
+    } else if (error.name === 'NotFoundError') {
+      cameraError.value = '未找到摄像头设备'
+    } else {
+      cameraError.value = `摄像头启动失败: ${error.message}`
+    }
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const onVideoLoaded = () => {
+  console.log('[Activity6] 视频流加载完成')
+}
+
+// 拍照上传功能
+const captureAndUpload = async () => {
+  if (!videoRef.value || !canvasRef.value || !isCameraReady.value) return
+  
+  isUploading.value = true
+  
+  try {
+    // 拍照
+    const video = videoRef.value
+    const canvas = canvasRef.value
+    const context = canvas.getContext('2d')
+    
+    if (!context) throw new Error('无法获取Canvas上下文')
+    
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+    
+    // 上传图片
+    const fileId = await uploadImage(dataUrl)
+    
+    if (fileId) {
+      // 上传成功，停止加载状态
+      isUploading.value = false
+      isAnalyzing.value = true
+      
+      ElMessage.success('图片上传成功！正在分析...')
+      
+      // 分析图片
+      await analyzeUploadedImage(fileId)
+    } else {
+      ElMessage.error('图片上传失败，请重试')
+    }
+    
+  } catch (error: any) {
+    console.error('[Activity6] 上传失败:', error)
+    ElMessage.error('上传失败，请重试')
+  } finally {
+    isUploading.value = false
+    isAnalyzing.value = false
+  }
+}
+
+// 上传图片
+const uploadImage = async (dataUrl: string): Promise<string | null> => {
+  try {
+    const filename = `activity6_${Date.now()}.jpg`
+    const file = dataURLtoFile(dataUrl, filename)
+    
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const uploadResponse = await fetch(COZE_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${COZE_API_TOKEN}`
+      },
+      body: formData
     })
-    return lines.join('\n')
-  }
-
-  async function sendSelectedToTeacher() {
-    if (!questionOnlyList.value.length) return
-    const user = authStore.currentUser
-    if (!user || !user.groupNo || !user.studentNo) {
-      console.warn('未获取到学生身份，无法发送')
-      return
+    
+    if (!uploadResponse.ok) {
+      throw new Error('图片上传失败')
     }
+    
+    const uploadResult = await uploadResponse.json()
+    console.log('[Activity6] 上传响应:', uploadResult)
+    
+    if (uploadResult.code !== 0 || !uploadResult.data?.id) {
+      throw new Error('上传响应异常')
+    }
+    
+    return uploadResult.data.id
+    
+  } catch (error: any) {
+    console.error('[Activity6] 图片上传失败:', error)
+    return null
+  }
+}
 
-     // 分离说明部分和问题部分
-     const descriptionItems = selectedList.value.filter(item => item.isDescription)
-     
-     // 组合描述（按选择顺序）
-     const descriptions = descriptionItems.map((item, idx) => {
-       const src: any = item.q
-       return {
-         id: src.id || rid('desc'),
-         type: 'description',
-         text: src.text,
-         source: src.source || 0,
-         index: idx + 1,
-         createdAt: Date.now()
-       }
-     })
-     
-     // 组合题目（按选择顺序，仅包含问题部分）
-     const questions = questionOnlyList.value.map((item, idx) => {
-       const src: any = item.q
-       return {
-         id: src.id || rid('sel'),
-         type: src.type,
-         text: src.text,
-         options: Array.isArray(src.options) ? [...src.options] : undefined,
-         source: src.source || 0,
-         index: idx + 1,
-         createdAt: Date.now()
-       }
-     })
-
-     const payload = {
-       type: 'survey',
-       from: {
-         groupNo: String(user.groupNo!),
-         studentNo: String(user.studentNo!)
-       },
-       data: {
-         title: '数字设备对学习的利与弊调查问卷',
-         topic: '课堂练习',
-         formattedText: buildFormattedFromSelected(),
-         descriptions,
-         questions
-       },
-       at: Date.now()
-     }
-
-    try {
-      const ack = await socketService.submit(payload as any)
-      if (ack.code !== 200) {
-        throw new Error(ack.message || '发送失败')
+// 分析上传的图片
+const analyzeUploadedImage = async (fileId: string) => {
+  try {
+    const payload = {
+      workflow_id: UPLOAD_WORKFLOW_ID,
+      parameters: {
+        input_img: {
+          file_id: fileId
+        },
+        input_index: 1 // 使用input_index为1
       }
-      ElMessage.success('问卷发送成功！')
-      saveToLocalStorage() // 发送成功后保存状态
-      // 保留右侧选中列表，不清空，便于继续查看与修改
-    } catch (error: any) {
-      console.error('发送失败', error)
-      ElMessage.error(error.message || '发送失败，请重试')
+    }
+    
+    console.log('[Activity6] 开始分析上传图片:', payload)
+    
+    const response = await fetch(COZE_WORKFLOW_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${COZE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    })
+    
+    if (!response.ok) {
+      throw new Error('分析请求失败')
+    }
+    
+    const result = await response.json()
+    console.log('[Activity6] 分析响应:', result)
+    
+    if (result.code === 0 && result.data) {
+      const workflowData = JSON.parse(result.data)
+      console.log('[Activity6] 解析分析数据:', workflowData)
+      
+      // 获取output2的q1和q2数据
+      if (workflowData.output2 && typeof workflowData.output2 === 'object') {
+        const q1 = workflowData.output2.q1 || ''
+        const q2 = workflowData.output2.q2 || ''
+        
+        if (q1 && q2) {
+          // 设置原始数据和编辑数据
+          originalData.value = { q1, q2 }
+          analysisData.value = { q1, q2 }
+          
+          // 隐藏上传卡片，显示编辑卡片
+          showUploadCard.value = false
+          showEditCard.value = true
+          
+          // 清理摄像头资源
+          cleanup()
+          
+          ElMessage.success('分析完成！请完善分析内容')
+          saveToLocalStorage()
+        } else {
+          throw new Error('分析结果中缺少q1或q2数据')
+        }
+      } else {
+        throw new Error('未找到output2数据或格式错误')
+      }
+    } else {
+      throw new Error(result.msg || '分析失败')
+    }
+    
+  } catch (error: any) {
+    console.error('[Activity6] 分析失败:', error)
+    ElMessage.error('分析失败，请重试')
+  } finally {
+    isAnalyzing.value = false
+  }
+}
+
+// 发送结果给教师
+const sendResultToTeacher = async () => {
+  if (selectedResultIndex.value === -1 || hasSentResult.value || uploadResults.value.length === 0) return
+  
+  const selectedResult = uploadResults.value[selectedResultIndex.value]
+  if (!selectedResult) return
+  
+  const g = groupNo.value
+  if (!g) return
+  
+  try {
+    console.log('[Activity2] 📤 发送分析结果给教师')
+    
+    socket.submit({
+      mode: EntityMode.GROUP,
+      messageType: 'upload',
+      activityIndex: '2',
+      data: { 
+        analysisResult: selectedResult.result,
+        analysisCount: uploadResults.value.length,
+        selectedIndex: selectedResultIndex.value + 1,
+        timestamp: selectedResult.timestamp
+      },
+      from: {
+        id: g,
+        groupNo: g
+      },
+      to: null
+    })
+    
+    hasSentResult.value = true
+    ElMessage.success(`第${selectedResultIndex.value + 1}次分析结果已发送给教师！`)
+    saveToLocalStorage()
+    
+  } catch (error: any) {
+    console.error('[Activity6] 发送结果失败:', error)
+    ElMessage.error('发送失败，请重试')
+  }
+}
+
+// 时间格式化
+const formatTime = (timestamp: number): string => {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMinutes = Math.floor(diffMs / (1000 * 60))
+  
+  if (diffMinutes < 1) return '刚刚'
+  if (diffMinutes < 60) return `${diffMinutes}分钟前`
+  
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours}小时前`
+  
+  return date.toLocaleDateString('zh-CN')
+}
+
+// 从Activity5获取观点选择
+const loadViewpointFromActivity5 = () => {
+  const g = groupNo.value
+  if (!g) return
+  
+  const activity5Key = `activity5_vote_${g}`
+  try {
+    const stored = localStorage.getItem(activity5Key)
+    if (stored) {
+      const data = JSON.parse(stored)
+      if (data.voteChoice) {
+        selectedViewpoint.value = data.voteChoice
+        console.log('[Activity6] 从Activity5加载观点:', data.voteChoice)
+        ElMessage.info(`已自动加载您在活动五中的选择：观点${data.voteChoice}`)
+      }
+    }
+  } catch (error) {
+    console.warn('从Activity5加载观点失败:', error)
+  }
+}
+
+// 转换base64为File对象
+const dataURLtoFile = (dataurl: string, filename: string): File => {
+  const arr = dataurl.split(',')
+  const mime = arr[0].match(/:(.*?);/)![1]
+  const bstr = atob(arr[1])
+  let n = bstr.length
+  const u8arr = new Uint8Array(n)
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n)
+  }
+  return new File([u8arr], filename, { type: mime })
+}
+
+// 清理摄像头资源
+const cleanup = () => {
+  if (mediaStream.value) {
+    mediaStream.value.getTracks().forEach(track => track.stop())
+    mediaStream.value = null
+  }
+  isCameraReady.value = false
+}
+
+// 提交编辑后的数据
+const submitEditedData = async () => {
+  if (!analysisData.value.q1.trim() || !analysisData.value.q2.trim() || hasSubmittedEdit.value) return
+  
+  const g = groupNo.value
+  if (!g) return
+  
+  try {
+    console.log('[Activity2] 📤 发送编辑结果给教师和同学')
+    
+    // 发送给教师端
+    socket.submit({
+      mode: EntityMode.GROUP,
+      messageType: 'edit_result',
+      activityIndex: '2',
+      data: { 
+        q1: analysisData.value.q1.trim(),
+        q2: analysisData.value.q2.trim(),
+        originalQ1: originalData.value.q1,
+        originalQ2: originalData.value.q2,
+        timestamp: Date.now()
+      },
+      from: {
+        id: g,
+        groupNo: g
+      },
+      to: null
+    })
+    
+    // 发送给其他学生 (discuss)
+    socket.discuss({
+      mode: EntityMode.GROUP,
+      messageType: 'discuss',
+      activityIndex: '2',
+      data: { 
+        q1: analysisData.value.q1.trim(),
+        q2: analysisData.value.q2.trim(),
+        groupNo: g,
+        timestamp: Date.now()
+      },
+      from: {
+        id: g,
+        groupNo: g
+      },
+      to: {
+        groupNo: [g]
+      }
+    })
+    
+    hasSubmittedEdit.value = true
+    showEditCard.value = false
+    showViewCard.value = true
+    
+    ElMessage.success('数据已提交给教师和同学！')
+    saveToLocalStorage()
+    
+  } catch (error: any) {
+    console.error('[Activity6] 提交编辑数据失败:', error)
+    ElMessage.error('提交失败，请重试')
+  }
+}
+
+// 初始化词云图
+const initWordCloud = () => {
+  if (!wordCloudRef.value) return
+  
+  if (wordCloudChart.value) {
+    wordCloudChart.value.dispose()
+  }
+  
+  wordCloudChart.value = echarts.init(wordCloudRef.value)
+  
+  // 设置响应式
+  window.addEventListener('resize', () => {
+    if (wordCloudChart.value) {
+      wordCloudChart.value.resize()
+    }
+  })
+  
+  updateWordCloud()
+}
+
+// 更新词云图数据
+const updateWordCloud = () => {
+  if (!wordCloudChart.value || wordCloudData.value.length === 0) return
+  
+  // 获取词云数据
+  const wordData = getWordCloudData()
+  
+  const option = {
+    backgroundColor: '#ffffff',
+    tooltip: {
+      show: true,
+      formatter: (params: any) => {
+        return `${params.name}: 第${params.data.groupNo}组`
+      }
+    },
+    series: [{
+      type: 'wordCloud',
+      sizeRange: [16, 60],
+      rotationRange: [-45, 45],
+      rotationStep: 15,
+      gridSize: 8,
+      shape: 'circle',
+      width: '100%',
+      height: '100%',
+      drawOutOfBound: false,
+      layoutAnimation: true,
+      textStyle: {
+        fontFamily: 'Microsoft YaHei, Arial, sans-serif',
+        fontWeight: 'bold',
+        color: () => {
+          const colors = [
+            '#3b82f6', '#ef4444', '#10b981', '#f59e0b', 
+            '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'
+          ]
+          return colors[Math.floor(Math.random() * colors.length)]
+        }
+      },
+      emphasis: {
+        focus: 'self',
+        textStyle: {
+          shadowBlur: 10,
+          shadowColor: '#333'
+        }
+      },
+      data: wordData
+    }]
+  }
+  
+  wordCloudChart.value.setOption(option, true)
+}
+
+// 获取词云图数据
+const getWordCloudData = () => {
+  const wordFreq: Record<string, {value: number, groupNo: string}> = {}
+  
+  wordCloudData.value.forEach(item => {
+    if (item.q1 && item.q1.trim()) {
+      const word = item.q1.trim()
+      if (wordFreq[word]) {
+        wordFreq[word].value++
+      } else {
+        wordFreq[word] = { value: 1, groupNo: item.groupNo }
+      }
+    }
+    
+    if (item.q2 && item.q2.trim()) {
+      const word = item.q2.trim()
+      if (wordFreq[word]) {
+        wordFreq[word].value++
+      } else {
+        wordFreq[word] = { value: 1, groupNo: item.groupNo }
+      }
+    }
+  })
+  
+  return Object.entries(wordFreq).map(([name, data]) => ({
+    name,
+    value: data.value * 10 + 20, // 调整大小权重
+    groupNo: data.groupNo
+  }))
+}
+
+// 刷新词云图数据
+const refreshWordCloud = () => {
+  updateWordCloud()
+  ElMessage.info('词云图数据已刷新')
+}
+
+// 生成测试数据
+const generateTestData = () => {
+  const testData = [
+    { groupNo: '1', q1: '是否监管', q2: '使用频率' },
+    { groupNo: '2', q1: '安全性', q2: '学习效果' },
+    { groupNo: '3', q1: '隐私保护', q2: '使用时长' },
+    { groupNo: '4', q1: '内容质量', q2: '是否监管' },
+    { groupNo: '5', q1: '学习效果', q2: '安全性' },
+    { groupNo: '6', q1: '使用频率', q2: '隐私保护' },
+    { groupNo: '7', q1: '技术依赖', q2: '内容质量' },
+    { groupNo: '8', q1: '网络成瘾', q2: '技术依赖' }
+  ]
+  
+  wordCloudData.value = testData
+  saveToLocalStorage()
+  
+  // 初始化词云图
+  setTimeout(() => {
+    initWordCloud()
+  }, 100)
+  
+  ElMessage.success('测试数据已生成，词云图已更新！')
+}
+
+
+// 处理教师端消息
+const handleDistribute = (payload: any) => {
+  if (!payload) return
+  
+  if (payload.type === 'show_upload_card') {
+    console.log('[Activity6] 收到显示上传卡片消息')
+    showUploadCard.value = true
+    uploadEnabled.value = true
+    showEditCard.value = false
+    showViewCard.value = false
+    // 自动启动摄像头
+    setTimeout(() => {
+      initCamera()
+    }, 500)
+    ElMessage.info('教师已开启上传功能')
+  } else if (payload.type === 'hide_upload_card') {
+    console.log('[Activity6] 收到关闭上传卡片消息')
+    uploadEnabled.value = false
+    cleanup() // 清理摄像头资源
+    ElMessage.warning('教师已关闭上传功能')
+  } else if (payload.type === 'show_ask_card') {
+    console.log('[Activity6] 收到显示问一问卡片消息')
+    showUploadCard.value = false
+    showEditCard.value = false
+    showViewCard.value = false
+    cleanup() // 清理摄像头资源
+    ElMessage.info('教师已切换到问一问功能')
+  } else if (payload.type === 'show_view_card') {
+    console.log('[Activity6] 收到显示查看卡片消息')
+    showUploadCard.value = false
+    showEditCard.value = false
+    showViewCard.value = true
+    cleanup() // 清理摄像头资源
+    ElMessage.info('教师已切换到查看功能')
+    
+    // 初始化词云图
+    setTimeout(() => {
+      initWordCloud()
+    }, 100)
+  }
+}
+
+// 处理discuss消息
+const handleDiscuss = (payload: any) => {
+  if (!payload || payload.type !== 'activity6_discuss') return
+  
+  const from = payload.from || {}
+  const data = payload.data || {}
+  const groupNo = String(from.groupNo ?? '').trim()
+  const q1 = data.q1 || ''
+  const q2 = data.q2 || ''
+  
+  if (groupNo && q1 && q2) {
+    // 检查是否已存在该组的数据
+    const existingIndex = wordCloudData.value.findIndex(item => item.groupNo === groupNo)
+    
+    const newData = { groupNo, q1, q2 }
+    
+    if (existingIndex >= 0) {
+      wordCloudData.value[existingIndex] = newData
+    } else {
+      wordCloudData.value.push(newData)
+    }
+    
+    console.log(`[Activity6] 收到第${groupNo}组的讨论数据`)
+    saveToLocalStorage()
+    
+    // 更新词云图
+    if (showViewCard.value && wordCloudChart.value) {
+      updateWordCloud()
     }
   }
+}
 
-   // 预置若干静态问卷模板，供左侧卡片浏览与选择题目
-   function seedStaticSurveys() {
-     const now = Date.now()
-     const samples: SurveyPayload[] = [
-       {
-         type: 'survey',
-         from: { groupNo: '0', studentNo: '0' },
-         at: now,
-         data: {
-           title: '数字设备对学习的利与弊调查',
-           topic: '数字设备',
-           descriptions: [
-             { id: rid('desc'), type: 'description', text: '为了更好地了解同学们使用数字设备的情况，用于分析，得出合理建议，提示使用数字设备自我管理意识，特设计此问卷。希望同学们如实填写，感谢大家的积极参与。', source: 0 }
-           ],
-           questions: [
-             { id: rid(), type: 'single', text: '你的性别？', options: ['男','女'], source: 0 },
-             { id: rid(), type: 'text', text: '你的年级________', source: 0 },
-             { id: rid(), type: 'single', text: '你的年级', options: ['一年级','二年级','三年级','四年级','五年级','六年级'], source: 0 },
-             { id: rid(), type: 'text', text: '你周六周日使用数字设备的时间？（分钟）', source: 0 },
-             { id: rid(), type: 'single', text: '你周六周日使用数字设备时间的长短？', options: ['长','短','不用'], source: 0 },
-             { id: rid(), type: 'multi', text: '你平常会使用哪些数字设备【多选题】', options: ['智能手机','平板电脑','笔记本电脑','智能手表','智能电视','其他_____'], source: 0 },
-             { id: rid(), type: 'single', text: '当你不知道怎么使用数字设备的某个功能时，你会问谁', options: ['爸爸','妈妈','老师','同学','自己摸索'], source: 0 },
-             { id: rid(), type: 'single', text: '你觉得使用数字设备对你认识新朋友有帮助吗？', options: ['没有帮助','一般','有帮助','很有帮助'], source: 0 },
-             { id: rid(), type: 'single', text: '你用数字设备玩游戏的频率是', options: ['几乎每天','每周3-4次','每月1-2次','每月几次','很少'], source: 0 }
-           ]
-         }
-       }
-     ]
+// 本地存储
+const getStorageKey = () => {
+  const g = groupNo.value
+  return g ? `activity6_data_${g}` : null
+}
 
-     samples.forEach(p => {
-       const key = `${p.from.groupNo}-${p.from.studentNo}`
-       store.set(key, p)
-     })
-   }
+const saveToLocalStorage = () => {
+  const key = getStorageKey()
+  if (!key) return
+  
+  const data = {
+    selectedViewpoint: selectedViewpoint.value,
+    remainingQuestions: remainingQuestions.value,
+    allTips: allTips.value,
+    showUploadCard: showUploadCard.value,
+    showEditCard: showEditCard.value,
+    showViewCard: showViewCard.value,
+    uploadResults: uploadResults.value,
+    selectedResultIndex: selectedResultIndex.value,
+    hasSentResult: hasSentResult.value,
+    analysisData: analysisData.value,
+    originalData: originalData.value,
+    hasSubmittedEdit: hasSubmittedEdit.value,
+    wordCloudData: wordCloudData.value,
+    uploadEnabled: uploadEnabled.value,
+    isAnalyzing: isAnalyzing.value,
+    timestamp: Date.now()
+  }
+  localStorage.setItem(key, JSON.stringify(data))
+}
 
-  onMounted(() => {
-    seedStaticSurveys()
-    // 在静态数据加载后恢复用户数据
-    setTimeout(() => {
-      loadFromLocalStorage()
-    }, 100)
-  })
+const loadFromLocalStorage = () => {
+  const key = getStorageKey()
+  if (!key) return
+  
+  try {
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      const data = JSON.parse(stored)
+      // 不从本地存储恢复 selectedViewpoint，因为要从Activity5获取
+      remainingQuestions.value = data.remainingQuestions ?? 2
+      allTips.value = data.allTips || []
+      showUploadCard.value = data.showUploadCard || false
+      showEditCard.value = data.showEditCard || false
+      showViewCard.value = data.showViewCard || false
+      uploadResults.value = data.uploadResults || []
+      selectedResultIndex.value = data.selectedResultIndex ?? -1
+      hasSentResult.value = data.hasSentResult || false
+      analysisData.value = data.analysisData || {q1: '', q2: ''}
+      originalData.value = data.originalData || {q1: '', q2: ''}
+      hasSubmittedEdit.value = data.hasSubmittedEdit || false
+      wordCloudData.value = data.wordCloudData || []
+      uploadEnabled.value = data.uploadEnabled || false
+      isAnalyzing.value = data.isAnalyzing || false
+      console.log('Activity6 学生端数据已从本地存储恢复')
+    }
+  } catch (error) {
+    console.warn('恢复Activity6本地数据失败:', error)
+  }
+}
 
-  // 监听数据变化，自动保存
-  watch([selectedGlobal, ui, store], () => {
-    saveToLocalStorage()
-  }, { deep: true })
+// 组件生命周期
+onMounted(() => {
+  console.log('[Activity2] 🟢 组件已挂载，开始监听消息')
+  loadFromLocalStorage()
+  loadViewpointFromActivity5() // 从Activity5加载观点选择
+  socket.on('dispatch', handleDistribute)
+  socket.on('discuss', handleDiscuss)
+})
+
+onUnmounted(() => {
+  console.log('[Activity2] 🔴 组件卸载，清理监听器和资源')
+  socket.off('dispatch', handleDistribute)
+  socket.off('discuss', handleDiscuss)
+  cleanup()
+  
+  // 销毁词云图实例
+  if (wordCloudChart.value) {
+    wordCloudChart.value.dispose()
+    wordCloudChart.value = null
+  }
+})
 </script>
+
+<style scoped>
+.page {
+  padding: 20px;
+  width: 1240px;
+  max-width: 100%;
+  margin: 0 auto;
+  background: #F5F5F0;
+}
+
+/* 活动说明区域 */
+.activity-description {
+  background: #f0f9ff;
+  border: 1px solid #0ea5e9;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  color: #0c4a6e;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* 主要内容区域 */
+.main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 卡片通用样式 */
+.ask-ai-card,
+.upload-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+/* 问一问卡片样式 */
+.header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.viewpoint-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.viewpoint-badge {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 16px;
+  color: white;
+}
+
+.viewpoint-badge.badge-a {
+  background: #ef4444;
+}
+
+.viewpoint-badge.badge-b {
+  background: #3b82f6;
+}
+
+.questions-remaining {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.remaining-label {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.remaining-count {
+  font-size: 16px;
+  font-weight: 700;
+  color: #059669;
+  background: #d1fae5;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+/* 观点选择器 */
+.viewpoint-selector {
+  margin-bottom: 20px;
+}
+
+.selector-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 12px;
+}
+
+.viewpoint-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.viewpoint-btn {
+  flex: 1;
+  min-width: 200px;
+  height: 48px;
+  font-size: 14px;
+  border-radius: 12px;
+}
+
+/* 问一问按钮 */
+.ask-button-container {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.ask-button {
+  min-width: 250px;
+  height: 56px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  border: none;
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+  transition: all 0.3s ease;
+}
+
+.ask-button:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(139, 92, 246, 0.4);
+}
+
+/* AI生成动画 */
+.generating-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.ai-dots .dot {
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 50%;
+  animation: dot-pulse 1.4s infinite ease-in-out;
+}
+
+.ai-dots .dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.ai-dots .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.ai-dots .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dot-pulse {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 提示词展示区域 */
+.tips-container {
+  margin-top: 20px;
+}
+
+.tips-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.tips-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.tips-count {
+  font-size: 14px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+/* 观点分组 */
+.viewpoint-group {
+  margin-bottom: 20px;
+}
+
+.group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.viewpoint-label {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 12px;
+  color: white;
+}
+
+.viewpoint-label.viewpoint-a {
+  background: #ef4444;
+}
+
+.viewpoint-label.viewpoint-b {
+  background: #3b82f6;
+}
+
+.group-count {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* 提示词气泡网格 */
+.tips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.tip-bubble {
+  position: relative;
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.tip-bubble:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.bubble-a {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  border: 1px solid #fca5a5;
+}
+
+.bubble-b {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 1px solid #93c5fd;
+}
+
+.tip-number {
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  width: 24px;
+  height: 24px;
+  background: #374151;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tip-text {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.5;
+  padding-top: 8px;
+}
+
+/* 上传功能卡片样式 */
+.upload-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-active {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.status-completed {
+  color: #059669;
+  font-weight: 600;
+}
+
+/* 摄像头预览区域 */
+.camera-preview-wrapper {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  background: #1f2937;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.camera-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #000000;
+}
+
+/* 加载和错误状态 */
+.loading-overlay,
+.error-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #ffffff;
+  text-align: center;
+}
+
+.loading-overlay {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.error-overlay {
+  background: rgba(239, 68, 68, 0.8);
+}
+
+.loading-icon {
+  font-size: 32px;
+  animation: spin 1s linear infinite;
+}
+
+.error-icon {
+  font-size: 32px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 上传控制按钮 */
+.upload-controls {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.upload-button {
+  min-width: 200px;
+  height: 56px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none;
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+  transition: all 0.3s ease;
+}
+
+.upload-button:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(16, 185, 129, 0.4);
+}
+
+/* 分析进度样式 */
+.analysis-progress {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f0f9ff;
+  border: 1px solid #0ea5e9;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.progress-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.progress-icon {
+  font-size: 20px;
+  color: #0ea5e9;
+  animation: spin 1s linear infinite;
+}
+
+.progress-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0c4a6e;
+}
+
+/* 分析结果容器 */
+.results-container {
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.results-header {
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.results-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #374151;
+  margin: 0 0 8px 0;
+}
+
+.results-hint {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.result-item {
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.result-item:hover {
+  border-color: #3b82f6;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.result-item.selected {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.result-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.result-number {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.result-time {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.selected-icon {
+  color: #10b981;
+  font-size: 18px;
+}
+
+.result-item-content {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.5;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+/* 发送按钮 */
+.send-controls {
+  text-align: center;
+}
+
+.send-button {
+  min-width: 180px;
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .page {
+    padding: 16px;
+  }
   
-  <style scoped>
-  .survey-monitor { padding: 8px; max-width: 1268px; margin: 0 0; }
-  .task-block { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
-  .op-title { font-weight: 700; margin-bottom: 6px; color: #111827; }
-  .op-text { text-indent: 2em; color: #374151; font-size: 14px; margin-bottom: 6px; }
-  .op-link { color: #1d4ed8; text-decoration: underline; word-break: break-all; }
-  .header { margin-bottom: 8px; }
-  .header h3 { margin: 0 0 4px; }
-  .header .sub { color: #666; font-size: 12px; }
-  .layout { display: grid; grid-template-columns: 1fr 440px; column-gap: 24px; align-items: start; }
-  .main { min-width: 0; }
-  .side { min-width: 0; position: sticky; top: 8px; align-self: start; }
-  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 12px; }
-  .tb-item { margin-right: 4px; }
-  .card-grid { display: grid; grid-template-columns: repeat(2, 380px); gap: 8px 8px; justify-content: start; }
-  .survey-card { border-radius: 10px; width: 380px; height: 160px; }
-  .survey-card :deep(.el-card__body) { height: 100%; display: flex; flex-direction: column; min-height: 0; padding: 8px 10px; }
-  .pv-item { height: 100%; display: flex; flex-direction: column; position: relative; }
-  .pv-tags { display: flex; gap: 6px; margin-bottom: 8px; }
-  .source-tag { 
-    font-size: 11px; 
-    background: #e0e7ff; 
-    color: #3730a3; 
-    padding: 2px 8px; 
-    border-radius: 10px; 
-    font-weight: 500; 
+  .viewpoint-buttons {
+    flex-direction: column;
   }
-  .type-tag { 
-    font-size: 11px; 
-    padding: 2px 8px; 
-    border-radius: 10px; 
-    font-weight: 500; 
-  }
-  .desc-tag { 
-    background: #fef3c7; 
-    color: #92400e; 
-  }
-  .question-tag { 
-    background: #dcfce7; 
-    color: #166534; 
-  }
-  .pv-row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px; flex: 1; }
-  .pv-content { overflow: hidden; flex: 1 1 auto; min-width: 0; }
-  .pv-check { flex: 0 0 auto; }
-  .card-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
-  .meta { display: flex; gap: 6px; align-items: center; }
-  .meta .time { color: #888; font-size: 12px; margin-left: auto; }
-  .title { font-weight: 700; color: #333; }
-  .pv-q { margin-bottom: 6px; font-weight: 600; white-space: normal; overflow: visible; text-overflow: clip; }
-  .pv-q.desc-only { 
-    font-weight: 400; 
-    color: #666; 
-    line-height: 1.5; 
-    text-indent: 2em; 
-    font-size: 13px;
-    margin-bottom: 0;
-  }
-  .pv-index { margin-right: 6px; color: #2b6aa6; }
-  .pv-blank { height: 18px; border-bottom: 2px solid #bbb; width: 60%; margin-top: 8px; }
-  .fmt-wrap { margin-top: 10px; }
-  .fmt-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-  .fmt-title { font-weight: 700; color: #333; }
   
-  /* 选中预览卡片固定高度并内部滚动 */
-  .selected-card { width: 100%; height: 500px; display: flex; flex-direction: column; }
-  .sel-head { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 12px; }
-  .sel-actions { 
-    display: flex; 
-    gap: 8px; 
-    justify-content: flex-end; 
-    margin-bottom: 8px;
+  .viewpoint-btn {
+    min-width: auto;
   }
-  .selected-card :deep(.el-card__body) { flex: 1 1 auto; overflow: auto; padding-right: 6px; }
-  .sel-body { padding-right: 2px; }
-  .preview-head { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0; }
-  .pv-title { font-size: 24px; font-weight: 900; color: #1677ff; margin-bottom: 6px; text-align: center; letter-spacing: 0.5px; }
-  .pv-desc { text-indent: 2em;font-size: 14px; color: #444; text-align: left; }
-  .sel-footer { display: flex; gap: 8px; justify-content: center; padding-top: 8px; }
-  /* 放大复选框，增强可见性 */
-  :deep(.pv-check .el-checkbox .el-checkbox__inner) { transform: scale(1.4); }
-  :deep(.pv-check .el-checkbox.is-checked .el-checkbox__inner) { border-color: #409EFF; background-color: #409EFF; }
-  .sel-item { padding: 10px 0; border-bottom: 1px dashed #eee; }
-  .q-block { display: flex; flex-direction: column; gap: 6px; }
-  .q-head { display: flex; align-items: baseline; gap: 0; }
-  .q-index { margin-right: 6px; color: #2b6aa6; }
-  .q-text { font-weight: 600; color: #222; flex: 1 1 auto; }
-  .q-type { font-size: 12px; color: #999; margin-left: 0; }
-  .q-opts { display: grid; grid-template-columns: 1fr; gap: 4px; margin-left: 0; color: #333; }
-  .q-opt { padding-left: 2px; }
-  </style>
   
+  .tips-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .camera-preview-wrapper {
+    height: 250px;
+  }
+}
+
+/* 编辑功能卡片样式 */
+.edit-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.edit-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-active {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.status-completed {
+  color: #059669;
+  font-weight: 600;
+}
+
+.edit-content {
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.edit-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edit-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.original-text {
+  font-size: 14px;
+  color: #6b7280;
+  background: #f9fafb;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.edit-input {
+  margin-top: 8px;
+}
+
+.edit-controls {
+  text-align: center;
+}
+
+.submit-button {
+  min-width: 250px;
+  height: 56px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 16px;
+}
+
+/* 查看功能卡片样式 */
+.view-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.view-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-info {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.wordcloud-container {
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.wordcloud-section {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #374151;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+.wordcloud-display {
+  min-height: 400px;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  position: relative;
+  border: 1px solid #e5e7eb;
+}
+
+.echarts-wordcloud {
+  width: 100%;
+  height: 360px;
+}
+
+.empty-wordcloud {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #9ca3af;
+}
+
+.empty-wordcloud .empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #d1d5db;
+}
+
+.empty-wordcloud p {
+  margin: 0;
+  font-size: 16px;
+}
+
+.view-controls {
+  text-align: center;
+}
+
+.refresh-button,
+.test-button {
+  min-width: 180px;
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+  margin: 0 8px;
+}
+
+/* 上传关闭提示卡片样式 */
+.upload-disabled-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.status-disabled {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.disabled-content {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+}
+
+.disabled-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #ef4444;
+}
+</style>
