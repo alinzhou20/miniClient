@@ -2,8 +2,8 @@
   <div class="page">
     <div class="card">
       <div class="header">
-        <h1>教师登录</h1>
-        <p>信息科技课堂 · 管理端</p>
+        <h1>信息科技课堂 · 管理端</h1>
+        <p>教师登录</p>
         <el-tag :type="connectionStatusType" size="small" effect="plain">
           {{ connectionStatusText }}
         </el-tag>
@@ -40,26 +40,23 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useStatus } from '@/store/status'
-import { useSocket } from '@/utils/socket'
+import { useSocket } from '@/store/socket'
 
 const router = useRouter()
 const status = useStatus()
-const socket = useSocket()
+const {socket, connect} = useSocket()
 
 const formRef = ref<FormInstance>()
 const isLogging = ref(false)
 const form = ref({ password: '' })
 
 const connectionStatusType = computed(() => {
-  if (status.socketStatus.isConnected) return 'success'
-  if (status.socketStatus.isConnecting) return 'warning'
+  if (socket !== null) return 'success'
   return 'danger'
 })
 
 const connectionStatusText = computed(() => {
-  if (status.socketStatus.isConnected) return '已连接'
-  if (status.socketStatus.isConnecting) return '连接中...'
-  if (status.socketStatus.error) return status.socketStatus.error
+  if (socket !== null) return '已连接'
   return '未连接'
 })
 
@@ -85,10 +82,9 @@ const handleLogin = async () => {
     
     isLogging.value = true
     
-    await socket.connect({ type: 'teacher' })
+    await connect({ type: 'teacher' })
     
     status.userStatus = { type: 'teacher' }
-    localStorage.setItem('user', JSON.stringify(status.userStatus))
     
     ElMessage.success('登录成功')
     router.push('/teacher')

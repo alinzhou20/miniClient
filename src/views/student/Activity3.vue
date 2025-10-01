@@ -347,7 +347,7 @@
 <script setup lang="ts">
 import { reactive, computed, onMounted, onUnmounted, ref, nextTick } from 'vue'
 import { useStatus } from '@/store/status'
-import { useSocket } from '@/utils/socket'
+import { useSocket } from '@/store/socket'
 import { EntityMode } from '@/types'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete, Camera, Key, Star, Loading, Tools, Warning, User, ChatDotRound } from '@element-plus/icons-vue'
@@ -575,9 +575,7 @@ async function submitDesign() {
     designForm.options = ['', '']
     designForm.type = 'single'
     
-    // 保存到本地存储
-    saveToLocalStorage()
-    console.log('[Activity3] 问题设计已保存到本地存储')
+    console.log('[Activity3] 问题设计已保存')
     
   } catch (error: any) {
     console.error('[Activity3] ❌ 提交设计失败', error)
@@ -816,9 +814,6 @@ async function analyzeUploadedImage(fileId: string) {
         parsedQuestion.value = null
         ElMessage.warning('AI分析完成，但解析问题格式失败')
       }
-      
-      // 保存分析结果到本地存储
-      saveToLocalStorage()
     } else {
       throw new Error('分析结果为空')
     }
@@ -1023,59 +1018,9 @@ const getStorageKey = () => {
   return `activity7_${user.groupNo}`
 }
 
-const saveToLocalStorage = () => {
-  const key = getStorageKey()
-  if (!key) return
-  
-  const data = {
-    designedQuestions: designedQuestions,
-    analysisResult: analysisResult.value,
-    parsedQuestion: parsedQuestion.value,
-    chatMessages: chatMessages,
-    timestamp: Date.now()
-  }
-  localStorage.setItem(key, JSON.stringify(data))
-}
-
-const loadFromLocalStorage = () => {
-  const key = getStorageKey()
-  if (!key) return
-  
-  try {
-    const stored = localStorage.getItem(key)
-    if (stored) {
-      const data = JSON.parse(stored)
-      
-      if (data.designedQuestions) {
-        designedQuestions.splice(0, designedQuestions.length, ...data.designedQuestions)
-      }
-      
-      if (data.analysisResult) {
-        analysisResult.value = data.analysisResult
-      }
-      
-      if (data.parsedQuestion) {
-        parsedQuestion.value = data.parsedQuestion
-      }
-      
-      if (data.chatMessages && Array.isArray(data.chatMessages)) {
-        chatMessages.splice(0, chatMessages.length, ...data.chatMessages)
-      }
-      
-      console.log('Activity7 数据已从本地存储恢复', {
-        questions: data.designedQuestions?.length || 0,
-        hasAnalysis: !!data.analysisResult,
-        hasParsedQuestion: !!data.parsedQuestion,
-        chatHistory: data.chatMessages?.length || 0
-      })
-    }
-  } catch (error) {
-    console.warn('恢复Activity7本地数据失败:', error)
-  }
-}
 
 onMounted(() => {
-  loadFromLocalStorage()
+  // 组件已挂载
 })
 
 onUnmounted(() => {

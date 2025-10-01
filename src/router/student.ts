@@ -18,7 +18,7 @@ export const studentRoutes: RouteRecordRaw[] = [
     children: [
       {
         path: '',
-        redirect: '/student/activity1'
+        redirect: '/student/activity0'
       },
       {
         path: 'activity0',

@@ -102,7 +102,7 @@
 
 <script setup lang="ts">
 import { reactive, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useSocket } from '@/utils/socket'
+import { useSocket } from '@/store/socket'
 import { ElMessage } from 'element-plus'
 import { Download, Document, Refresh } from '@element-plus/icons-vue'
 
@@ -284,7 +284,6 @@ function exportByDirection() {
 
 function clearData() {
   designStore.clear()
-  saveToLocalStorage()
   ElMessage.warning('数据已清空')
 }
 
@@ -334,9 +333,6 @@ function handleDesignSubmission(payload: any) {
     at: payload.at || Date.now()
   })
   
-  // 保存到本地存储
-  saveToLocalStorage()
-  
   if (isFirstSubmission) {
     console.log(`[Activity7 Teacher] 收到问题设计: 第${groupNo}组-${studentNo}号 (首次提交)`)
     ElMessage.success(`第${groupNo}组提交了问题设计`)
@@ -347,43 +343,8 @@ function handleDesignSubmission(payload: any) {
 }
 
 // 本地存储
-const getStorageKey = () => 'activity7_teacher_data'
-
-const saveToLocalStorage = () => {
-  const key = getStorageKey()
-  const data = {
-    designs: Array.from(designStore.entries()),
-    timestamp: Date.now()
-  }
-  localStorage.setItem(key, JSON.stringify(data))
-}
-
-const loadFromLocalStorage = () => {
-  const key = getStorageKey()
-  
-  try {
-    const stored = localStorage.getItem(key)
-    if (stored) {
-      const data = JSON.parse(stored)
-      
-      if (data.designs) {
-        designStore.clear()
-        data.designs.forEach(([key, value]: [string, DesignPayload]) => {
-          designStore.set(key, value)
-        })
-      }
-      
-      console.log('[Activity7 Teacher] 已恢复本地存储数据')
-    }
-  } catch (error) {
-    console.warn('恢复Activity7本地数据失败:', error)
-  }
-}
 
 onMounted(() => {
-  // 恢复本地存储的数据
-  loadFromLocalStorage()
-  
   console.log('[Activity3 Teacher] 🟢 组件已挂载，开始监听 submit 事件')
   
   // 监听submit事件

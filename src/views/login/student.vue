@@ -44,12 +44,11 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useStatus } from '@/store/status'
 import { useCamera } from '@/utils/camera'
-import { useSocket } from '@/utils/socket'
-import { EntityMode } from '@/types'
+import { useSocket } from '@/store/socket'
 
 const router = useRouter()
 const status = useStatus()
-const socket = useSocket()
+const {socket, connect} = useSocket()
 const camera = useCamera()
 
 const formRef = ref<FormInstance>()
@@ -65,15 +64,12 @@ const rules: FormRules = {
 }
 
 const connectionStatusType = computed(() => {
-  if (status.socketStatus.isConnected) return 'success'
-  if (status.socketStatus.isConnecting) return 'warning'
+  if (socket !== null) return 'success'
   return 'danger'
 })
 
 const connectionStatusText = computed(() => {
-  if (status.socketStatus.isConnected) return '已连接'
-  if (status.socketStatus.isConnecting) return '连接中...'
-  if (status.socketStatus.error) return status.socketStatus.error
+  if (socket !== null) return '已连接'
   return '未连接'
 })
 
@@ -94,14 +90,13 @@ const confirmLogin = async () => {
   isLogging.value = true
   
   try {
-    await socket.connect({
+    await connect({
       type: 'student',
-      mode: EntityMode.GROUP,
+      mode: status.mode,
       groupNo: form.value.groupNo
     })
     
     status.userStatus = { type: 'student', groupNo: form.value.groupNo }
-    localStorage.setItem('user', JSON.stringify(status.userStatus))
     
     ElMessage.success('登录成功')
     router.push('/student')

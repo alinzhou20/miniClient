@@ -67,7 +67,7 @@
     </div>
 
     <!-- 照片展示卡片 -->
-    <div v-if="hasPhoto && !activity0.voteResult" class="photo-section">
+    <div v-if="hasPhoto && !activity.ac0_voteResult" class="photo-section">
       <div class="photo-card">
         <div class="photo-header">
           <h3 class="photo-title">📷 拍摄照片</h3>
@@ -80,7 +80,7 @@
     </div>
 
     <!-- 结果展示卡片 -->
-    <div v-if="activity0.voteResult" class="stats-section">
+    <div v-if="activity.ac0_voteResult" class="stats-section">
       <div class="stats-card">
         <div class="stats-header">
           <h3 class="stats-title">📊 分析结果</h3>
@@ -93,15 +93,15 @@
         <div class="result-display">
           <div class="result-header">
             <div class="result-label">AI 分析结果:</div>
-            <div class="result-badge" :class="'result-' + activity0.voteResult.result.toLowerCase()">
-              观点{{ activity0.voteResult.result }}：{{ getViewpointMeaning(activity0.voteResult.result) }}
+            <div class="result-badge" :class="'result-' + activity.ac0_voteResult.result.toLowerCase()">
+              观点{{ activity.ac0_voteResult.result }}：{{ getViewpointMeaning(activity.ac0_voteResult.result) }}
             </div>
           </div>
           <div class="result-details">
-            <p><strong>观点A计数:</strong> {{ activity0.voteResult.countA }}</p>
-            <p><strong>观点B计数:</strong> {{ activity0.voteResult.countB }}</p>
+            <p><strong>观点A计数:</strong> {{ activity.ac0_voteResult.countA }}</p>
+            <p><strong>观点B计数:</strong> {{ activity.ac0_voteResult.countB }}</p>
             <p><strong>总计数:</strong> {{ totalCount }}</p>
-            <p><strong>分析时间:</strong> {{ formatTimestamp(activity0.voteResult.timestamp) }}</p>
+            <p><strong>分析时间:</strong> {{ formatTimestamp(activity.ac0_voteResult.timestamp) }}</p>
           </div>
         </div>
 
@@ -110,7 +110,7 @@
           <div class="option-section option-a">
             <div class="option-header">
               <div class="option-label">观点A：使用数字设备利大于弊</div>
-              <div class="option-count">{{ activity0.voteResult.countA }}</div>
+              <div class="option-count">{{ activity.ac0_voteResult.countA }}</div>
             </div>
             <div class="option-bar">
               <div 
@@ -128,7 +128,7 @@
           <div class="option-section option-b">
             <div class="option-header">
               <div class="option-label">观点B：使用数字设备弊大于利</div>
-              <div class="option-count">{{ activity0.voteResult.countB }}</div>
+              <div class="option-count">{{ activity.ac0_voteResult.countB }}</div>
             </div>
             <div class="option-bar">
               <div 
@@ -169,12 +169,12 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Camera, VideoCamera, Loading, Warning, Refresh } from '@element-plus/icons-vue'
-import { useSocket } from '@/utils/socket'
-import { useActivity0 } from '@/store/activity'
-import { EntityMode } from '@/types'
+import { useSocket } from '@/store/socket'
+import { useActivity } from '@/store/activity'
+import { EntityMode, EventType } from '@/types'
 
 const socket = useSocket()
-const activity0 = useActivity0()
+const activity = useActivity()
 
 // 拍摄状态
 const hasPhoto = ref(false)
@@ -202,18 +202,18 @@ const WORKFLOW_ID = '7553827536788193322' // 使用相同的工作流ID
 
 // 计算属性
 const totalCount = computed(() => {
-  if (!activity0.voteResult) return 0
-  return activity0.voteResult.countA + activity0.voteResult.countB
+  if (!activity.ac0_voteResult) return 0
+  return activity.ac0_voteResult.countA + activity.ac0_voteResult.countB
 })
 
 const optionAPercentage = computed(() => {
-  if (!activity0.voteResult || totalCount.value === 0) return 0
-  return Math.round((activity0.voteResult.countA / totalCount.value) * 100)
+  if (!activity.ac0_voteResult || totalCount.value === 0) return 0
+  return Math.round((activity.ac0_voteResult.countA / totalCount.value) * 100)
 })
 
 const optionBPercentage = computed(() => {
-  if (!activity0.voteResult || totalCount.value === 0) return 0
-  return Math.round((activity0.voteResult.countB / totalCount.value) * 100)
+  if (!activity.ac0_voteResult || totalCount.value === 0) return 0
+  return Math.round((activity.ac0_voteResult.countB / totalCount.value) * 100)
 })
 
 // 获取观点含义
@@ -375,6 +375,7 @@ const broadcastPhoto = (photoBase64: string) => {
     
     socket.dispatch({
       mode: EntityMode.GROUP,
+      eventType: EventType.DISPATCH,
       messageType: 'vote_photo',
       activityIndex: '0',
       data: {
@@ -417,7 +418,7 @@ const startAnalysis = async (dataUrl: string) => {
       countB: 0,
       timestamp: Date.now()
     }
-    activity0.voteResult = fallbackResult
+    activity.ac0_voteResult = fallbackResult
     broadcastResult()
   } finally {
     isAnalyzing.value = false
@@ -523,7 +524,7 @@ const analyzeImage = async (fileId: string) => {
     }
     
     // 更新 store
-    activity0.voteResult = {
+    activity.ac0_voteResult = {
       result: choice,
       countA: countA.value,
       countB: countB.value,
@@ -543,7 +544,7 @@ const analyzeImage = async (fileId: string) => {
     countA.value = fallbackChoice === 'A' ? 1 : 0
     countB.value = fallbackChoice === 'B' ? 1 : 0
     
-    activity0.voteResult = {
+    activity.ac0_voteResult = {
       result: fallbackChoice,
       countA: countA.value,
       countB: countB.value,
@@ -571,15 +572,16 @@ const dataURLtoFile = (dataurl: string, filename: string): File => {
 // 广播结果给所有学生
 const broadcastResult = () => {
   try {
-    if (!activity0.voteResult) return
+    if (!activity.ac0_voteResult) return
     
     console.log('[Activity0] 广播投票结果给所有学生')
     
     socket.dispatch({
       mode: EntityMode.GROUP,
+      eventType: EventType.DISPATCH,
       messageType: 'vote_result',
       activityIndex: '0',
-      data: activity0.voteResult,
+      data: activity.ac0_voteResult,
       from: null,
       to: {}
     })
@@ -597,8 +599,8 @@ const resetDemo = () => {
   hasPhoto.value = false
   isAnalyzing.value = false
   capturedPhotoUrl.value = ''
-  activity0.voteResult = null
-  activity0.photo = null
+  activity.ac0_voteResult = null
+  activity.ac0_photo = ''
   countA.value = 0
   countB.value = 0
   rawAnalysisResult.value = ''

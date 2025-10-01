@@ -1,46 +1,70 @@
 /**
- * 全局状态管理 - 只提供状态变量
+ * 全局状态管理 - 用户状态和活动状态
  */
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Socket } from 'socket.io-client'
+import { EntityMode } from '@/types'
 
-/**
- * 用户认证状态
- */
+// 用户状态管理
+export interface UserStatus {
+  type: 'student' | 'teacher'
+  mode?: EntityMode
+  groupNo?: string
+  studentNo?: string
+  studentRole?: string
+}
+
+// 活动状态管理
+export interface Activity {
+  id: number,
+  title: string,
+  isActive: boolean
+}
+export interface ActivityStatus {
+  now: number,
+  all: Activity[]
+}
+
 export const useStatus = defineStore('status', () => {
 
   // 用户状态
-  const userStatus = ref<{
-    type: 'student' | 'teacher'
-    groupNo?: string
-    studentNo?: string
-    studentRole?: string
-  } | null>(null)
+  const userStatus = ref<UserStatus | null>(null)
 
-  // Socket 连接状态
-  const socketStatus = ref({
-    // Socket 客户端实例
-    socket: null as Socket | null,
-    eventHandlers: new Map<string, Set<Function>>(),
-    isConnected: false,
-    isConnecting: false,
-    error: ''
-  })
+  const mode = EntityMode.GROUP
 
   // 活动状态
-  const activityStatus = ref({
-    now: 0,
-    0: true,
-    1: false,
-    2: false,
-    3: false
-  })
+  const activityStatus = ref<ActivityStatus>(
+    {
+      now: 0,
+      all: [
+        { id: 0, title: '投票', isActive: true },
+        { id: 1, title: '活动一', isActive: false },
+        { id: 2, title: '活动二', isActive: false },
+        { id: 3, title: '活动三', isActive: false },
+      ]
+    }
+  )
+
+  const reset = () => {
+    userStatus.value = null
+    activityStatus.value = {
+      now: 0,
+      all: [
+        { id: 0, title: '投票', isActive: true },
+        { id: 1, title: '活动一', isActive: false },
+        { id: 2, title: '活动二', isActive: false },
+        { id: 3, title: '活动三', isActive: false },
+      ]
+    }
+  }
 
   return {
     userStatus,
     activityStatus,
-    socketStatus
+    mode,
+    reset
   }
+}, {
+  persist: true
 })

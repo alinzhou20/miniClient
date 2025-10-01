@@ -1,4 +1,5 @@
 <template>
+  <message />
   <div class="page">
     <!-- 顶部标题横幅 + 活动按钮 -->
     <div class="banner">
@@ -9,13 +10,13 @@
         <!-- 活动按钮区 -->
         <div class="activity-btns">
           <button 
-            v-for="activity in activities" 
+            v-for="activity in status.activityStatus.all" 
             :key="activity.id"
             class="activity-btn"
-            :class="{ active: currentActivity === activity.id.toString() }"
+            :class="{ active: router.currentRoute.value.path.match(/activity(\d+)/)?.[1] === activity.id.toString() }"
             @click="selectActivity(activity.id)"
           >
-            {{ activity.name }}
+            {{ activity.title }}
           </button>
         </div>
         
@@ -36,38 +37,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { useStatus } from '@/store/status'
-import { useSocket } from '@/utils/socket'
+import { onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
+import { useStatus, useSocket, useActivity } from '@/store'
 import { ElMessage } from 'element-plus'
 import { Fold } from '@element-plus/icons-vue'
+import message from './message.vue'
 
 const router = useRouter()
-const route = useRoute()
 const socket = useSocket()
 const status = useStatus()
-
-// 根据激活状态过滤活动列表
-const activities = computed(() => {
-  const allActivities = [
-    { id: 0, name: '投票' },
-    { id: 1, name: '活动一' },
-    { id: 2, name: '活动二' },
-    { id: 3, name: '活动三' }
-  ]
-  // 只显示已激活的活动
-  return allActivities.filter(activity => (status.activityStatus as any)[activity.id])
-})
-
-const currentActivity = computed(() => {
-  const p = String(route.path || '')
-  if (p.includes('activity3')) return '3'
-  if (p.includes('activity2')) return '2'
-  if (p.includes('activity1')) return '1'
-  if (p.includes('activity0')) return '0'
-  return '0'
-})
+const activity = useActivity()
 
 const selectActivity = (id: number) => {
   router.push(`/student/activity${id}`)
@@ -75,55 +55,18 @@ const selectActivity = (id: number) => {
 
 const handleLogout = () => {
   socket.disconnect()
-  status.userStatus = null
-  localStorage.removeItem('user')
+  status.reset()
+  activity.reset()
   router.push('/login')
   ElMessage.success('已退出登录')
 }
 
-function onDispatch(payload: any) {
-  if (!payload) return
-  const messageType = String(payload.messageType || '')
-  const data = payload.data || {}
-  
-  // 处理活动状态变更
-  if (messageType === 'change_activity') {
-    const activityStatus = data.activityStatus
-    if (!activityStatus) return
-    
-    console.log('[Student] 收到活动状态:', activityStatus)
-    
-    // 更新活动状态
-    status.activityStatus.now = activityStatus.now
-    ;(status.activityStatus as any)[0] = activityStatus[0]
-    ;(status.activityStatus as any)[1] = activityStatus[1]
-    ;(status.activityStatus as any)[2] = activityStatus[2]
-    ;(status.activityStatus as any)[3] = activityStatus[3]
-    
-    // 跳转到教师指定的活动
-    const targetActivity = activityStatus.now
-    router.push(`/student/activity${targetActivity}`)
-    
-    const activityName = targetActivity === 0 ? '投票' : targetActivity === 1 ? '活动一' : targetActivity === 2 ? '活动二' : '活动三'
-    ElMessage.info(`教师已切换到${activityName}`)
-  }
-  
-  // 保留原有的导航功能（兼容）
-  if (messageType === 'navigate') {
-    const targetRoute = String((data as any).route || '')
-    if (['activity1', 'activity2', 'activity3'].includes(targetRoute)) {
-      router.push(`/student/${targetRoute}`)
-      ElMessage.info(`教师已通知前往${targetRoute === 'activity1' ? '活动一' : targetRoute === 'activity2' ? '活动二' : '活动三'}`)
-    }
-  }
-}
-
 onMounted(() => {
-  socket.on('dispatch', onDispatch)
-})
-
-onBeforeUnmount(() => {
-  socket.off('dispatch', onDispatch)
+  // 路由和状态同步：从 URL 中恢复当前活动
+  const match = router.currentRoute.value.path.match(/activity(\d+)/)
+  if (match) {
+    status.activityStatus.now = Number(match[1])
+  }
 })
 </script>
 

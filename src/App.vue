@@ -7,56 +7,27 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useStatus } from '@/store/status'
-import { useSocket } from '@/utils/socket'
-import { ElMessage } from 'element-plus'
-import { EntityMode } from '@/types'
+import { useStatus, useSocket } from '@/store'
 
 const router = useRouter()
-const status = useStatus()
-const socket = useSocket()
+const {userStatus, activityStatus, mode} = useStatus()
+const {socket, connect} = useSocket()
 
 // 自动登录
 onMounted(async () => {
-  const currentPath = router.currentRoute.value.path
-  const isInLoginPage = currentPath.includes('/login')
   
-  if (!isInLoginPage) {
+  if (socket == null && userStatus !== null) {
     try {
-      const savedUser = localStorage.getItem('user')
-      if (!savedUser) {
-        router.push('/login')
-        return
-      }
-
-      const user = JSON.parse(savedUser)
-
-      if (user.type === 'student') {
-        await socket.connect({
-          type: 'student',
-          mode: EntityMode.GROUP,
-          groupNo: user.groupNo
-        })
-      } else {
-        await socket.connect({ type: 'teacher' })
-      }
-
-      status.userStatus = user
-      console.log('[App] 自动登录成功')
+      connect({
+        type: userStatus.type,
+        mode: mode,
+        groupNo: userStatus.groupNo
+      })
+      router.push(`/${userStatus.type}/activity${activityStatus?.now ?? 0}`)
     } catch (error) {
-      console.error('[App] 自动登录失败:', error)
-      localStorage.removeItem('user')
       router.push('/login')
     }
   }
-
-  // 监听被踢下线
-  socket.on('off_line', (data: any) => {
-    ElMessage.warning(data?.message || '您的账号在其他地方登录')
-    status.userStatus = null
-    localStorage.removeItem('user')
-    setTimeout(() => router.push('/login'), 1500)
-  })
 })
 </script>
 

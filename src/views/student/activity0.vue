@@ -16,7 +16,7 @@
     </div>
 
     <!-- 照片展示卡片 -->
-    <div v-if="hasReceivedPhoto && !activity0.voteResult" class="photo-section">
+    <div v-if="hasReceivedPhoto && !activity.ac0_voteResult" class="photo-section">
       <div class="photo-card">
         <div class="photo-header">
           <h3 class="photo-title">📷 教师拍摄的照片</h3>
@@ -29,12 +29,12 @@
     </div>
 
     <!-- 投票结果展示 -->
-    <div v-if="activity0.voteResult" class="result-section">
+    <div v-if="activity.ac0_voteResult" class="result-section">
       <div class="result-card">
         <div class="result-header">
           <h3 class="result-title">📊 教师示例投票结果</h3>
           <div class="result-info">
-            <span class="result-time">{{ formatTimestamp(activity0.voteResult.timestamp) }}</span>
+            <span class="result-time">{{ formatTimestamp(activity.ac0_voteResult.timestamp) }}</span>
           </div>
         </div>
 
@@ -42,8 +42,8 @@
         <div class="vote-result-display">
           <div class="result-badge-container">
             <div class="result-label">投票结果:</div>
-            <div class="result-badge" :class="'result-' + activity0.voteResult.result.toLowerCase()">
-              观点{{ activity0.voteResult.result }}：{{ getViewpointMeaning(activity0.voteResult.result) }}
+            <div class="result-badge" :class="'result-' + activity.ac0_voteResult.result.toLowerCase()">
+              观点{{ activity.ac0_voteResult.result }}：{{ getViewpointMeaning(activity.ac0_voteResult.result) }}
             </div>
           </div>
         </div>
@@ -53,7 +53,7 @@
           <div class="option-section option-a">
             <div class="option-header">
               <div class="option-label">观点A：使用数字设备利大于弊</div>
-              <div class="option-count">{{ activity0.voteResult.countA }}</div>
+              <div class="option-count">{{ activity.ac0_voteResult.countA }}</div>
             </div>
             <div class="option-bar">
               <div 
@@ -71,7 +71,7 @@
           <div class="option-section option-b">
             <div class="option-header">
               <div class="option-label">观点B：使用数字设备弊大于利</div>
-              <div class="option-count">{{ activity0.voteResult.countB }}</div>
+              <div class="option-count">{{ activity.ac0_voteResult.countB }}</div>
             </div>
             <div class="option-bar">
               <div 
@@ -96,7 +96,7 @@
           </div>
           <div class="detail-item">
             <span class="detail-label">分析时间：</span>
-            <span class="detail-value">{{ formatTimestamp(activity0.voteResult.timestamp) }}</span>
+            <span class="detail-value">{{ formatTimestamp(activity.ac0_voteResult.timestamp) }}</span>
           </div>
         </div>
       </div>
@@ -106,13 +106,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useSocket } from '@/utils/socket'
-import { useActivity0 } from '@/store/activity'
+import { useSocket } from '@/store/socket'
+import { useActivity } from '@/store/activity'
 import { ElMessage } from 'element-plus'
 import { Clock } from '@element-plus/icons-vue'
 
 const socket = useSocket()
-const activity0 = useActivity0()
+const activity = useActivity()
 
 // 接收状态
 const hasReceivedPhoto = ref(false)
@@ -120,18 +120,18 @@ const photoUrl = ref<string>('')
 
 // 计算属性
 const totalCount = computed(() => {
-  if (!activity0.voteResult) return 0
-  return activity0.voteResult.countA + activity0.voteResult.countB
+  if (!activity.ac0_voteResult) return 0
+  return activity.ac0_voteResult.countA + activity.ac0_voteResult.countB
 })
 
 const optionAPercentage = computed(() => {
-  if (!activity0.voteResult || totalCount.value === 0) return 0
-  return Math.round((activity0.voteResult.countA / totalCount.value) * 100)
+  if (!activity.ac0_voteResult || totalCount.value === 0) return 0
+  return Math.round((activity.ac0_voteResult.countA / totalCount.value) * 100)
 })
 
 const optionBPercentage = computed(() => {
-  if (!activity0.voteResult || totalCount.value === 0) return 0
-  return Math.round((activity0.voteResult.countB / totalCount.value) * 100)
+  if (!activity.ac0_voteResult || totalCount.value === 0) return 0
+  return Math.round((activity.ac0_voteResult.countB / totalCount.value) * 100)
 })
 
 // 获取观点含义
@@ -173,7 +173,7 @@ const handleDispatch = (payload: any) => {
   // 处理投票结果
   if (messageType === 'vote_result') {
     console.log('[Activity0 Student] 收到投票结果:', data)
-    activity0.voteResult = {
+    activity.ac0_voteResult = {
       result: data.result || 'A',
       countA: data.countA || 0,
       countB: data.countB || 0,
