@@ -591,7 +591,7 @@ const submit = async () => {
     
     // 发送到教师端
     socket.submit({
-      mode: EntityMode.GROUP,
+      mode: EntityMode.STUDENT_GROUP_ROLE,
       messageType: 'activity1',
       activityIndex: '1',
       data,

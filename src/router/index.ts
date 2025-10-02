@@ -6,6 +6,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { studentRoutes } from './student'
 import { teacherRoutes } from './teacher'
+import { useStatus } from '@/store/status'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -33,16 +34,14 @@ const router = createRouter({
 
 // 路由守卫：检查登录状态
 router.beforeEach((to, _, next) => {
-  import('@/store/status').then(({ useStatus }) => {
-    const status = useStatus()
-    
-    if (to.meta.requiresAuth && !status.userStatus) {
-      next('/login')
-      return
-    }
-    
-    next()
-  })
+  const status = useStatus()
+  
+  if (to.meta.requiresAuth && !status.userStatus) {
+    next('/login')
+    return
+  }
+  
+  next()
 })
 
 export default router

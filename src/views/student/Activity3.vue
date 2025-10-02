@@ -550,7 +550,7 @@ async function submitDesign() {
     
     // 提交到教师端
     socket.submit({
-      mode: EntityMode.GROUP,
+      mode: EntityMode.STUDENT_GROUP_ROLE,
       messageType: 'design',
       activityIndex: '3',
       data: {

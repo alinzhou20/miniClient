@@ -4,7 +4,6 @@
 
 import type { RouteRecordRaw } from 'vue-router'
 import StudentHome from '@/views/student/index.vue'
-import Activity0 from '@/views/student/activity0.vue'
 import Activity1 from '@/views/student/activity1.vue'
 import Activity2 from '@/views/student/activity2.vue'
 import Activity3 from '@/views/student/activity3.vue'
@@ -18,13 +17,7 @@ export const studentRoutes: RouteRecordRaw[] = [
     children: [
       {
         path: '',
-        redirect: '/student/activity0'
-      },
-      {
-        path: 'activity0',
-        name: 'StudentActivity0',
-        component: Activity0,
-        meta: { requiresAuth: true }
+        redirect: '/student/activity1'
       },
       {
         path: 'activity1',

@@ -1,5 +1,5 @@
 <template>
-  <message />
+  <Listener />
   <div class="page">
     <!-- 顶部标题横幅 + 活动按钮 -->
     <div class="banner">
@@ -37,12 +37,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStatus, useSocket, useActivity } from '@/store'
 import { ElMessage } from 'element-plus'
 import { Fold } from '@element-plus/icons-vue'
-import message from './message.vue'
+import Listener from './listener.vue'
 
 const router = useRouter()
 const socket = useSocket()
@@ -60,14 +59,6 @@ const handleLogout = () => {
   router.push('/login')
   ElMessage.success('已退出登录')
 }
-
-onMounted(() => {
-  // 路由和状态同步：从 URL 中恢复当前活动
-  const match = router.currentRoute.value.path.match(/activity(\d+)/)
-  if (match) {
-    status.activityStatus.now = Number(match[1])
-  }
-})
 </script>
 
 <style scoped>

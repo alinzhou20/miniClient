@@ -21,7 +21,9 @@ onMounted(async () => {
       connect({
         type: userStatus.type,
         mode: mode,
-        groupNo: userStatus.groupNo
+        studentRole: userStatus.studentRole,
+        groupNo: userStatus.groupNo,
+        studentNo: userStatus.studentNo
       })
       router.push(`/${userStatus.type}/activity${activityStatus?.now ?? 0}`)
     } catch (error) {

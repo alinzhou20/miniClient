@@ -31,14 +31,19 @@ export const useStatus = defineStore('status', () => {
   // 用户状态
   const userStatus = ref<UserStatus | null>(null)
 
-  const mode = EntityMode.GROUP
+  const mode = EntityMode.STUDENT_GROUP_ROLE
+
+  // 存储拍摄的照片（base64 格式，包含 data:image/jpeg;base64, 前缀）
+  const takePhoto = ref<string | null>(null)
+
+  // 存储最新一次上传的数据到云平台的
+  const fileId = ref<string | null>(null)
 
   // 活动状态
   const activityStatus = ref<ActivityStatus>(
     {
-      now: 0,
+      now: 1,
       all: [
-        { id: 0, title: '投票', isActive: true },
         { id: 1, title: '活动一', isActive: false },
         { id: 2, title: '活动二', isActive: false },
         { id: 3, title: '活动三', isActive: false },
@@ -49,20 +54,24 @@ export const useStatus = defineStore('status', () => {
   const reset = () => {
     userStatus.value = null
     activityStatus.value = {
-      now: 0,
+      now: 1,
       all: [
-        { id: 0, title: '投票', isActive: true },
         { id: 1, title: '活动一', isActive: false },
         { id: 2, title: '活动二', isActive: false },
         { id: 3, title: '活动三', isActive: false },
       ]
     }
+    takePhoto.value = null
+    fileId.value = null
+    
   }
 
   return {
     userStatus,
     activityStatus,
     mode,
+    takePhoto,
+    fileId,
     reset
   }
 }, {

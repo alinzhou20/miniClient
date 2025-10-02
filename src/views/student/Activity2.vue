@@ -380,7 +380,7 @@ const submitQuestionnaire = () => {
 
   try {
     socket.submit({
-      mode: EntityMode.GROUP,
+      mode: EntityMode.STUDENT_GROUP_ROLE,
       messageType: 'activity2_questionnaire',
       activityIndex: '2',
       data: { 

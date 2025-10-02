@@ -12,10 +12,24 @@
         </div>
 
         <el-form ref="formRef" :model="form" :rules="rules" class="form">
-          <el-form-item prop="groupNo">
-            <label>选择小组</label>
-            <el-input v-model="form.groupNo" placeholder="输入小组号（1-20）" :disabled="isLogging" />
-          </el-form-item>
+          <div class="form-row">
+            <el-form-item prop="groupNo" class="form-item-half">
+              <label>选择小组</label>
+              <el-input v-model="form.groupNo" placeholder="输入小组号（1-12）" :disabled="isLogging" />
+            </el-form-item>
+
+            <el-form-item prop="role" class="form-item-half">
+              <label>选择角色</label>
+              <el-select v-model="form.role" placeholder="请选择角色" :disabled="isLogging">
+                <el-option label="操作员" value="operator">
+                  <span>操作员</span>
+                </el-option>
+                <el-option label="记录员" value="recorder">
+                  <span>记录员</span>
+                </el-option>
+              </el-select>
+            </el-form-item>
+          </div>
           
           <el-button type="primary" :loading="isLogging" @click="handleLogin" class="btn">
             {{ isLogging ? '登录中...' : '进入课堂' }}
@@ -30,8 +44,8 @@
       <!-- 摄像头检查 -->
       <div v-else class="camera">
         <h2>📷 摄像头检查</h2>
-        <video :ref="el => { if (el) camera.videoRef.value = el as HTMLVideoElement }" autoplay playsinline muted class="video" />
-        <el-button @click="confirmLogin" type="primary" class="btn">确认</el-button>
+        <StudentCamera />
+        <el-button @click="confirmLogin" type="primary" class="btn-confirm">确认登录</el-button>
       </div>
     </div>
   </div>
@@ -43,25 +57,49 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useStatus } from '@/store/status'
-import { useCamera } from '@/utils/camera'
 import { useSocket } from '@/store/socket'
+import StudentCamera from '@/views/components/StudentCamera.vue'
 
 const router = useRouter()
 const status = useStatus()
 const {socket, connect} = useSocket()
-const camera = useCamera()
 
 const formRef = ref<FormInstance>()
 const showCameraCheck = ref(false)
 const isLogging = ref(false)
-const form = ref({ groupNo: '' })
+const form = ref({ 
+  groupNo: '', 
+  role: 'operator' as 'operator' | 'recorder'
+})
 
 const rules: FormRules = {
   groupNo: [
     { required: true, message: '请输入小组号', trigger: 'blur' },
     { pattern: /^([1-9]|1\d|20)$/, message: '请输入1-20的数字', trigger: 'blur' }
+  ],
+  role: [
+    { required: true, message: '请选择角色', trigger: 'change' }
   ]
 }
+
+// 计算学号
+const operatorStudentNo = computed(() => {
+  const groupNo = parseInt(form.value.groupNo)
+  if (isNaN(groupNo) || groupNo < 1 || groupNo > 20) return '-'
+  return groupNo * 2 - 1
+})
+
+const recorderStudentNo = computed(() => {
+  const groupNo = parseInt(form.value.groupNo)
+  if (isNaN(groupNo) || groupNo < 1 || groupNo > 20) return '-'
+  return groupNo * 2
+})
+
+// 当前选中角色的学号
+const currentStudentNo = computed(() => {
+  if (form.value.role === 'operator') return operatorStudentNo.value
+  return recorderStudentNo.value
+})
 
 const connectionStatusType = computed(() => {
   if (socket !== null) return 'success'
@@ -79,26 +117,34 @@ const handleLogin = async () => {
   try {
     await formRef.value.validate()
     showCameraCheck.value = true
-    await camera.initCamera()
   } catch {}
 }
 
 // 确认登录，连接Socket
 const confirmLogin = async () => {
   showCameraCheck.value = false
-  camera.cleanup()
   isLogging.value = true
   
   try {
+    const studentNo = currentStudentNo.value.toString()
+    const roleName = form.value.role === 'operator' ? '操作员' : '记录员'
+    
     await connect({
       type: 'student',
       mode: status.mode,
-      groupNo: form.value.groupNo
+      studentRole: form.value.role,
+      groupNo: form.value.groupNo,
+      studentNo: studentNo
     })
     
-    status.userStatus = { type: 'student', groupNo: form.value.groupNo }
+    status.userStatus = { 
+      type: 'student', 
+      groupNo: form.value.groupNo,
+      studentRole: form.value.role,
+      studentNo: studentNo
+    }
     
-    ElMessage.success('登录成功')
+    ElMessage.success(`登录成功！${roleName} - 学号: ${studentNo}`)
     router.push('/student')
   } catch (error: any) {
     console.error('[Login] 登录失败:', error)
@@ -133,6 +179,9 @@ const goToTeacher = () => router.push('/login/teacher')
 
 .card.wide {
   max-width: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .header {
@@ -157,12 +206,26 @@ const goToTeacher = () => router.push('/login/teacher')
   margin-bottom: 24px;
 }
 
+.form-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.form-item-half {
+  flex: 1;
+}
+
 .form label {
   display: block;
   font-size: 14px;
   font-weight: 500;
   color: #333;
   margin-bottom: 8px;
+}
+
+.form :deep(.el-select) {
+  width: 100%;
 }
 
 .btn {
@@ -185,22 +248,59 @@ const goToTeacher = () => router.push('/login/teacher')
 }
 
 .camera {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
 .camera h2 {
   font-size: 18px;
   font-weight: 600;
   color: #1976d2;
-  margin: 0 0 20px;
+  margin: 0;
 }
 
-.video {
-  width: 100%;
-  height: 300px;
-  background: #000;
+.camera-info {
+  width: 480px;
+  background: #f5f9ff;
+  border: 1px solid #bbdefb;
   border-radius: 8px;
-  object-fit: cover;
-  margin-bottom: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.info-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 15px;
+  color: #1976d2;
+  font-weight: 600;
+}
+
+.btn-confirm {
+  width: 480px;
+  height: 48px;
+  background: #1976d2;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.btn-confirm:hover {
+  background: #1565c0;
 }
 </style>

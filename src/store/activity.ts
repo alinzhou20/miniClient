@@ -7,7 +7,6 @@ import { ref } from 'vue'
 
 // ==================== Activity 0 - 现场投票 ====================
 export interface VoteResult {
-  result: 'A' | 'B'
   countA: number
   countB: number
   timestamp: number

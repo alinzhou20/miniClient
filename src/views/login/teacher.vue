@@ -87,7 +87,7 @@ const handleLogin = async () => {
     status.userStatus = { type: 'teacher' }
     
     ElMessage.success('登录成功')
-    router.push('/teacher')
+    router.push('/teacher/activity0')
   } catch (error: any) {
     console.error('[Login] 登录失败:', error)
     ElMessage.error(error.message || '连接失败')
