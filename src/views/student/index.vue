@@ -63,7 +63,6 @@ const handleLogout = () => {
 
 <style scoped>
 .page {
-  min-height: 100vh;
   padding: 10px;
   max-width: 1280px;
   margin: 0 auto;

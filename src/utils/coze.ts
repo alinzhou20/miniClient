@@ -26,26 +26,66 @@ export function useCoze() {
   /**
    * 转换 base64 为 File 对象
    */
-  const dataURLtoFile = (dataurl: string, filename: string): File => {
-    const arr = dataurl.split(',')
-    const mime = arr[0].match(/:(.*?);/)![1]
-    const bstr = atob(arr[1])
-    let n = bstr.length
-    const u8arr = new Uint8Array(n)
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n)
+  const dataURLtoFile = async (dataurl: string, filename: string, rotate90: boolean = false): Promise<File> => {
+    if (!rotate90) {
+      // 不旋转，直接转换
+      const arr = dataurl.split(',')
+      const mime = arr[0].match(/:(.*?);/)![1]
+      const bstr = atob(arr[1])
+      let n = bstr.length
+      const u8arr = new Uint8Array(n)
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n)
+      }
+      return new File([u8arr], filename, { type: mime })
     }
-    return new File([u8arr], filename, { type: mime })
+
+    // 需要旋转，使用 Canvas
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        
+        if (!ctx) {
+          reject(new Error('Canvas context not available'))
+          return
+        }
+
+        // 逆时针旋转90度（-90度）：宽高互换
+        canvas.width = img.height
+        canvas.height = img.width
+
+        // 旋转画布并绘制
+        ctx.translate(canvas.width / 2, canvas.height / 2)
+        ctx.rotate(-90 * Math.PI / 180)
+        ctx.drawImage(img, -img.width / 2, -img.height / 2)
+
+        // 转换为 Blob 再转为 File
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], filename, { type: blob.type })
+            resolve(file)
+          } else {
+            reject(new Error('Failed to create blob'))
+          }
+        }, 'image/jpeg', 0.95)
+      }
+      
+      img.onerror = () => reject(new Error('Failed to load image'))
+      img.src = dataurl
+    })
   }
+
 
   /**
    * 上传文件获取 file_id
    */
-  const uploadFile = async (dataUrl: string, filename?: string): Promise<string | null> => {
+  const uploadFile = async (dataUrl: string, filename?: string, rotate90: boolean = false): Promise<string | null> => {
     isUploading.value = true
     
     try {
-      const file = dataURLtoFile(dataUrl, filename || `coze_${Date.now()}.png`)
+      const file = await dataURLtoFile(dataUrl, filename || `coze_${Date.now()}.jpg`, rotate90) 
       const formData = new FormData()
       formData.append('file', file)
       
@@ -109,6 +149,6 @@ export function useCoze() {
     isAnalyzing,
     uploadFile,
     runWorkflow,
-    dataURLtoFile
+    dataURLtoFile,
   }
 }

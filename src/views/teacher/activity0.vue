@@ -157,7 +157,7 @@ const startAnalysis = async (dataUrl: string) => {
     if (!fileId) throw new Error('图片上传失败')
     
     // 使用 coze.ts 的 runWorkflow 分析图片
-    const workflowResult = await runWorkflow(WORKFLOW.GET_PICTURE, {input_img: { file_id: fileId }, input_index: 0})
+    const workflowResult = await runWorkflow(WORKFLOW.GET_PICTURE, {img: { file_id: fileId }, index: 0})
     const { countA, countB } = parseAnalysisResult(workflowResult)
 
     // 设置投票结果
@@ -184,7 +184,6 @@ const setFallbackResult = () => {
     countB: 0,
     timestamp: Date.now()
   }
-  broadcastResult()
 }
 
 // 解析分析结果
@@ -213,21 +212,6 @@ const parseAnalysisResult = (data: string): { countA: number, countB: number, ch
   }
   
   return { countA, countB, choice }
-}
-
-// 广播结果给所有学生
-const broadcastResult = () => {
-  if (!activity.ac0_voteResult) return
-  
-  socket.dispatch({
-    mode: EntityMode.STUDENT_GROUP_ROLE,
-    eventType: EventType.DISPATCH,
-    messageType: 'vote_result',
-    activityIndex: '0',
-    data: activity.ac0_voteResult,
-    from: null,
-    to: {}
-  })
 }
 </script>
 

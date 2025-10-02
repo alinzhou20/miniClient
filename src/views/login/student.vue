@@ -1,53 +1,48 @@
 <template>
   <div class="page">
-    <div class="card" :class="{ wide: showCameraCheck }">
-      <!-- 登录表单 -->
-      <div v-if="!showCameraCheck">
-        <div class="header">
-          <h1>信息科技课堂</h1>
-          <p>小组登录</p>
-          <el-tag :type="connectionStatusType" size="small" effect="plain">
-          {{ connectionStatusText }}
-          </el-tag>
-        </div>
-
-        <el-form ref="formRef" :model="form" :rules="rules" class="form">
-          <div class="form-row">
-            <el-form-item prop="groupNo" class="form-item-half">
-              <label>选择小组</label>
-              <el-input v-model="form.groupNo" placeholder="输入小组号（1-12）" :disabled="isLogging" />
-            </el-form-item>
-
-            <el-form-item prop="role" class="form-item-half">
-              <label>选择角色</label>
-              <el-select v-model="form.role" placeholder="请选择角色" :disabled="isLogging">
-                <el-option label="操作员" value="operator">
-                  <span>操作员</span>
-                </el-option>
-                <el-option label="记录员" value="recorder">
-                  <span>记录员</span>
-                </el-option>
-              </el-select>
-            </el-form-item>
-          </div>
-          
-          <el-button type="primary" :loading="isLogging" @click="handleLogin" class="btn">
-            {{ isLogging ? '登录中...' : '进入课堂' }}
-          </el-button>
-        </el-form>
-
-        <div class="switch">
-          <el-button @click="goToTeacher" link>切换到教师登录</el-button>
-        </div>
+    <div class="card">
+      <div class="header">
+        <h1>信息科技课堂</h1>
+        <p>小组登录</p>
+        <el-tag :type="connectionStatusType" size="small" effect="plain">
+        {{ connectionStatusText }}
+        </el-tag>
       </div>
 
-      <!-- 摄像头检查 -->
-      <div v-else class="camera">
-        <h2>📷 摄像头检查</h2>
-        <StudentCamera />
-        <el-button @click="confirmLogin" type="primary" class="btn-confirm">确认登录</el-button>
+      <el-form ref="formRef" :model="form" :rules="rules" class="form">
+        <div class="form-row">
+          <el-form-item prop="groupNo" class="form-item-half">
+            <label>选择小组</label>
+            <el-input v-model="form.groupNo" placeholder="输入小组号（1-12）" :disabled="isLogging" />
+          </el-form-item>
+
+          <el-form-item prop="role" class="form-item-half">
+            <label>选择角色</label>
+            <el-select v-model="form.role" placeholder="请选择角色" :disabled="isLogging">
+              <el-option label="操作员" value="operator">
+                <span>操作员</span>
+              </el-option>
+              <el-option label="记录员" value="recorder">
+                <span>记录员</span>
+              </el-option>
+            </el-select>
+          </el-form-item>
+        </div>
+        
+        <el-button type="primary" :loading="isLogging" @click="handleLogin" class="btn">
+          {{ isLogging ? '登录中...' : '进入课堂' }}
+        </el-button>
+      </el-form>
+
+      <div class="switch">
+        <el-button @click="showCameraDialog = true" link>检查摄像头</el-button>
+        <span class="divider">|</span>
+        <el-button @click="goToTeacher" link>切换到教师登录</el-button>
       </div>
     </div>
+
+    <!-- 摄像头弹窗 -->
+    <StudentCamera v-model="showCameraDialog" />
   </div>
 </template>
 
@@ -65,7 +60,7 @@ const status = useStatus()
 const {socket, connect} = useSocket()
 
 const formRef = ref<FormInstance>()
-const showCameraCheck = ref(false)
+const showCameraDialog = ref(false)
 const isLogging = ref(false)
 const form = ref({ 
   groupNo: '', 
@@ -111,18 +106,16 @@ const connectionStatusText = computed(() => {
   return '未连接'
 })
 
-// 登录按钮，打开摄像头检查
+// 登录按钮，直接登录
 const handleLogin = async () => {
   if (!formRef.value) return
+  
   try {
     await formRef.value.validate()
-    showCameraCheck.value = true
-  } catch {}
-}
-
-// 确认登录，连接Socket
-const confirmLogin = async () => {
-  showCameraCheck.value = false
+  } catch {
+    return
+  }
+  
   isLogging.value = true
   
   try {
@@ -174,14 +167,6 @@ const goToTeacher = () => router.push('/login/teacher')
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
   width: 100%;
   max-width: 400px;
-  transition: max-width 0.3s;
-}
-
-.card.wide {
-  max-width: 600px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .header {
@@ -247,60 +232,8 @@ const goToTeacher = () => router.push('/login/teacher')
   border-top: 1px solid #eee;
 }
 
-.camera {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-.camera h2 {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1976d2;
-  margin: 0;
-}
-
-.camera-info {
-  width: 480px;
-  background: #f5f9ff;
-  border: 1px solid #bbdefb;
-  border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.info-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 0;
-}
-
-.info-label {
-  font-size: 14px;
-  color: #666;
-  font-weight: 500;
-}
-
-.info-value {
-  font-size: 15px;
-  color: #1976d2;
-  font-weight: 600;
-}
-
-.btn-confirm {
-  width: 480px;
-  height: 48px;
-  background: #1976d2;
-  border: none;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.btn-confirm:hover {
-  background: #1565c0;
+.divider {
+  color: #ddd;
+  margin: 0 8px;
 }
 </style>
