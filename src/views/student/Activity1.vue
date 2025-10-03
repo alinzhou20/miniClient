@@ -303,7 +303,6 @@ const handleCameraExit = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
 }
 
 .card-header .card-title {
@@ -322,6 +321,7 @@ const handleCameraExit = () => {
   flex-direction: column;
   gap: 20px;
   padding: 24px;
+  margin-top: 16px;
   background: #f9fafb;
   border-radius: 12px;
   border: 2px dashed #d1d5db;
@@ -429,7 +429,7 @@ const handleCameraExit = () => {
 }
 
 .criterion-item .star {
-  font-size: 20px;
+  font-size: 14px;
   flex-shrink: 0;
 }
 

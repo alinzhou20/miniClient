@@ -10,11 +10,13 @@
     <div class="ai-body" ref="messagesRef">
       <div v-for="msg in messages" :key="msg.id" :class="['msg', msg.type]">
         <template v-if="msg.type === 'ai'">
-          <div class="msg-content">{{ msg.content }}</div>
-          <div class="suggestions">
+          <div class="msg-content">
+            {{ msg.content }}<span v-if="isTyping && msg.id === messages[messages.length - 1].id" class="typing-cursor">|</span>
+          </div>
+          <div v-if="!isTyping || msg.id !== messages[messages.length - 1].id" class="suggestions">
             💡 猜你想问
-            <button @click="ask('观点A的论据有哪些？')">观点A</button>
-            <button @click="ask('观点B的论据有哪些？')">观点B</button>
+            <button @click="ask('我认为使用数字设备利大于弊')">利大于弊</button>
+            <button @click="ask('我认为使用数字设备弊大于利')">弊大于利</button>
           </div>
         </template>
         <div v-else class="msg-content">{{ msg.content }}</div>
@@ -33,10 +35,10 @@
         v-model="input" 
         placeholder="输入你的问题..." 
         @keyup.enter="send"
-        :disabled="isAsking"
+        :disabled="isAsking || isTyping"
       >
         <template #append>
-          <el-button @click="send" :disabled="!input.trim() || isAsking">
+          <el-button @click="send" :disabled="!input.trim() || isAsking || isTyping">
             发送
           </el-button>
         </template>
@@ -46,11 +48,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted } from 'vue'
 
 const WORKFLOW_ID = '7554010166815899682'
 const API_TOKEN = 'sat_3NtHyM2cY3Un8anULY7pAp9bLwLMdW9sVH4CRcfZC8G378M5OrT4dS2TzeAZQ2vg'
-const WELCOME = '你好！我是小敏老师，你的AI学习助手。\n\n我可以帮你分析观点、提供论据建议。有什么问题随时问我！'
+const WELCOME = '你好！我是小敏老师，你的AI学习助手。\n我可以帮你分析观点、提供论据建议。有什么问题随时问我！'
 
 interface Message {
   id: string
@@ -58,19 +60,82 @@ interface Message {
   content: string
 }
 
-const messages = ref<Message[]>([{ id: 'w', type: 'ai', content: WELCOME }])
+const messages = ref<Message[]>([])
 const isAsking = ref(false)
+const isTyping = ref(false)
 const input = ref('')
 const messagesRef = ref<HTMLElement>()
+let typingTimer: number | null = null
 
-const scroll = () => nextTick(() => {
-  if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight
+// 组件挂载后显示欢迎词的打字机效果
+onMounted(() => {
+  typeWriter(WELCOME, 'welcome')
 })
+
+const scroll = () => {
+  nextTick(() => {
+    if (messagesRef.value) {
+      messagesRef.value.scrollTop = messagesRef.value.scrollHeight
+    }
+  })
+}
 
 const send = () => ask(input.value.trim())
 
+// 打字机效果函数 - 使用 setInterval 逐字显示
+const typeWriter = (text: string, messageId: string): Promise<void> => {
+  return new Promise((resolve) => {
+    isTyping.value = true
+    
+    // 创建一个空的 AI 消息
+    const aiMessage: Message = { id: messageId, type: 'ai', content: '' }
+    messages.value.push(aiMessage)
+    scroll()
+    
+    let currentIndex = 0
+    const chars = Array.from(text) // 使用 Array.from 正确处理 emoji 等特殊字符
+    let displayedContent = '' // 累积显示的内容
+    
+    // 使用 setInterval 逐字添加
+    typingTimer = window.setInterval(() => {
+      if (currentIndex < chars.length) {
+        // 累积内容
+        displayedContent += chars[currentIndex]
+        
+        // 找到消息并更新（强制触发响应式）
+        const msgIndex = messages.value.findIndex(m => m.id === messageId)
+        if (msgIndex !== -1) {
+          // 创建新数组以强制触发 Vue 响应式更新
+          const newMessages = [...messages.value]
+          newMessages[msgIndex] = {
+            ...newMessages[msgIndex],
+            content: displayedContent
+          }
+          messages.value = newMessages
+        }
+        
+        currentIndex++
+        
+        // 每几个字符滚动一次
+        if (currentIndex % 5 === 0) {
+          scroll()
+        }
+      } else {
+        // 打字完成
+        if (typingTimer) {
+          clearInterval(typingTimer)
+          typingTimer = null
+        }
+        scroll()
+        isTyping.value = false
+        resolve()
+      }
+    }, 50) // 每 50ms 添加一个字符
+  })
+}
+
 const ask = async (q: string) => {
-  if (!q || isAsking.value) return
+  if (!q || isAsking.value || isTyping.value) return
   
   input.value = ''
   messages.value.push({ id: `u${Date.now()}`, type: 'user', content: q })
@@ -92,21 +157,29 @@ const ask = async (q: string) => {
     
     const result = await res.json()
     const data = result.code === 0 && result.data ? JSON.parse(result.data) : {}
-    const reply = (data.output || []).slice(0, 3).filter((t: string) => t?.trim()).join('\n\n') || '抱歉，我遇到了一些问题。'
+    const reply = (data.output || []).slice(0, 5).filter((t: string) => t?.trim()).join('\n\n') || '抱歉，我遇到了一些问题。'
     
-    messages.value.push({ id: `a${Date.now()}`, type: 'ai', content: reply })
-    scroll()
-  } catch (err) {
-    messages.value.push({ id: `e${Date.now()}`, type: 'ai', content: '抱歉，请求失败，请稍后再试。' })
-    scroll()
-  } finally {
     isAsking.value = false
+    
+    // 使用打字机效果显示回复
+    await typeWriter(reply, `a${Date.now()}`)
+  } catch (err) {
+    isAsking.value = false
+    await typeWriter('抱歉，请求失败，请稍后再试。', `e${Date.now()}`)
   }
 }
 
 const clearChat = () => {
-  messages.value = [{ id: 'w', type: 'ai', content: WELCOME }]
+  // 清除可能正在进行的打字动画
+  if (typingTimer) {
+    clearInterval(typingTimer)
+    typingTimer = null
+  }
+  isTyping.value = false
+  messages.value = []
   input.value = ''
+  // 重新显示欢迎词的打字机效果
+  typeWriter(WELCOME, 'welcome')
 }
 </script>
 
@@ -160,6 +233,7 @@ const clearChat = () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  scroll-behavior: smooth;
 }
 
 .msg {
@@ -182,7 +256,7 @@ const clearChat = () => {
   background: white;
   color: #374151;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  max-width: 80%;
+  max-width: 90%;
 }
 
 .msg.user .msg-content {
@@ -201,6 +275,18 @@ const clearChat = () => {
   font-size: 12px;
   color: #0369a1;
   font-weight: 500;
+  animation: fadeInSuggestions 0.4s ease;
+}
+
+@keyframes fadeInSuggestions {
+  from { 
+    opacity: 0; 
+    transform: translateY(-8px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
 }
 
 .suggestions button {
@@ -244,6 +330,20 @@ const clearChat = () => {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* 打字光标 */
+.typing-cursor {
+  display: inline-block;
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+  color: #3b82f6;
+  font-weight: bold;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
 .ai-footer {

@@ -11,12 +11,24 @@ const COZE_API_TOKEN = 'sat_3NtHyM2cY3Un8anULY7pAp9bLwLMdW9sVH4CRcfZC8G378M5OrT4
 export const WORKFLOW = {
   // 获取图片的工作流
   GET_PICTURE: '7553827536788193322',
+  GET_QUESTION: '7554084463832858639',
+  GET_TARGET: '7556966995050070056',
 }
 
 export interface PictureWorkflow {
   input_img?: { file_id: string }
   input_index?: number
   [key: string]: any
+}
+
+export interface QuestionWorkflow {
+  input_index?: string
+  [key: string]: any
+}
+
+export interface TargetWorkflow {
+  index: number
+  input: string
 }
 
 export function useCoze() {
@@ -113,7 +125,7 @@ export function useCoze() {
   /**
    * 运行特定工作流
    */
-  const runWorkflow = async (workflowId: string, parameters: PictureWorkflow): Promise<any> => {
+  const runWorkflow = async (workflowId: string, parameters: any): Promise<any> => {
     isAnalyzing.value = true
     
     try {
