@@ -26,6 +26,25 @@ export interface ActivityStatus {
   all: Activity[]
 }
 
+// 小组活动得分
+export interface GroupActivityScores {
+  activity1: number      // 活动一得分 (最高1分)
+  activity2_1: number    // 活动二-选择 (最高2分)
+  activity2_2: number    // 活动二-设计 (最高3分)
+  activity3: number      // 活动三-问卷 (最高1分，提交即得分)
+  activity4: number      // 活动四得分 (最高1分)
+}
+
+// 小组状态（教师端使用）
+export interface GroupStatus {
+  groupNo: string         // 小组编号 (1-12)
+  isOnline: boolean       // 是否登录（只看操作员）
+  operatorNo?: string     // 操作员学号
+  loginTime?: number      // 登录时间
+  scores: GroupActivityScores  // 各活动得分
+  totalScore: number      // 总分（最高8分：1+2+3+1+1）
+}
+
 export const useStatus = defineStore('status', () => {
 
   // 用户状态
@@ -44,35 +63,77 @@ export const useStatus = defineStore('status', () => {
     {
       now: 1,
       all: [
-        { id: 0, title: '活动零', isActive: false },
+        { id: 0, title: '投票', isActive: false },
         { id: 1, title: '活动一', isActive: true },
         { id: 2, title: '活动二', isActive: false },
         { id: 3, title: '活动三', isActive: false },
-        { id: 4, title: '活动四', isActive: false },
+        { id: 4, title: '梳理', isActive: false },
       ]
     }
   )
+
+  // 小组状态（教师端主要使用）- 12个组
+  const groupStatus = ref<Record<string, GroupStatus>>({})
+  
+  // 初始化小组状态
+  for (let i = 1; i <= 12; i++) {
+    const groupNo = String(i)
+    groupStatus.value[groupNo] = {
+      groupNo,
+      isOnline: false,
+      operatorNo: undefined,
+      loginTime: undefined,
+      scores: {
+        activity1: 0,
+        activity2_1: 0,
+        activity2_2: 0,
+        activity3: 0,
+        activity4: 0
+      },
+      totalScore: 0
+    }
+  }
 
   const reset = () => {
     userStatus.value = null
     activityStatus.value = {
       now: 1,
       all: [
-        { id: 0, title: '活动零', isActive: false },
+        { id: 0, title: '投票', isActive: false },
         { id: 1, title: '活动一', isActive: true },
         { id: 2, title: '活动二', isActive: false },
         { id: 3, title: '活动三', isActive: false },
-        { id: 4, title: '活动四', isActive: false },
+        { id: 4, title: '梳理', isActive: false },
       ]
     }
     takePhoto.value = null
     fileId.value = null
     
+    // 重置小组状态
+    groupStatus.value = {}
+    for (let i = 1; i <= 12; i++) {
+      const groupNo = String(i)
+      groupStatus.value[groupNo] = {
+        groupNo,
+        isOnline: false,
+        operatorNo: undefined,
+        loginTime: undefined,
+        scores: {
+          activity1: 0,
+          activity2_1: 0,
+          activity2_2: 0,
+          activity3: 0,
+          activity4: 0
+        },
+        totalScore: 0
+      }
+    }
   }
 
   return {
     userStatus,
     activityStatus,
+    groupStatus,
     mode,
     takePhoto,
     fileId,

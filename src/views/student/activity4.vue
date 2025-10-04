@@ -18,93 +18,75 @@
       </div>
     </div>
 
-    <!-- 底部区域：左右分栏 -->
-    <div class="bottom-section">
-      <!-- 左侧任务区 -->
-      <div class="left-panel">
-        <!-- 任务说明卡片 -->
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">1. 了解数据获取方式及场景</h3>
-          </div>
-          <div class="task-content">
-            <p class="task-text">
-              打开<span class="highlight">"近视率"</span>网页，<span class="highlight">找一找</span>2024年全国儿童青少年总体近视率是多少？
-            </p>
-            <a
-              class="task-link"
-              href="https://mp.weixin.qq.com/s/wy7cgUqfgRBDsUoCXyAcGw?click_id=2"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              📌 点击访问近视率数据网页
-            </a>
-          </div>
-        </div>
-
-        <!-- 拖拽任务卡片 -->
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">2. 试一试</h3>
-            <el-button type="danger" size="small" @click="onResetAll" :disabled="!hasAnySelection">
-              <el-icon><RefreshLeft /></el-icon> 重置全部
-            </el-button>
-          </div>
-          <div class="task-content">
-            <p class="task-text">
-              <span class="highlight">拖动</span>不同场景，放入对应的数据获取方式中
-            </p>
-            
-            <!-- 待拖拽元素 -->
-            <div class="draggable-area">
-              <div class="area-label">待分类场景</div>
-              <div class="elements-container">
-                <div
-                  v-for="e in availableElements"
-                  :key="e.id"
-                  class="draggable-item"
-                  :class="{ 'dragging': isDragging && draggingElement === e.id }"
-                  @mousedown="onMouseDown(e.id, $event)"
-                >
-                  {{ e.title }}
-                </div>
-                <div v-if="availableElements.length === 0" class="empty-hint">
-                  🎉 所有场景都已分类！
-                </div>
-              </div>
-            </div>
-
-            <!-- 拖放区域 -->
-            <div class="drop-zones">
-              <div
-                v-for="b in boxes"
-                :key="b"
-                class="drop-box"
-                :class="['tone-' + b, { pulse: pulseBox === b }]"
-                :ref="el => setBoxRef(b, el as HTMLDivElement | null)"
-              >
-                <div class="box-header">{{ boxLabels[b] }}</div>
-                <div class="box-items">
-                  <span
-                    v-for="itm in elementsInBox(b)"
-                    :key="itm.id"
-                    class="item-tag"
-                  >
-                    {{ itm.title }}
-                  </span>
-                  <div v-if="elementsInBox(b).length === 0" class="box-empty">
-                    拖动到此处
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <!-- 任务区域 -->
+    <div class="task-section">
+      <div class="section-header">
+        <h3>试一试</h3>
+        <el-button type="success" @click="onResetAll" :disabled="!hasAnySelection">
+          <el-icon><RefreshLeft /></el-icon> 重置全部
+        </el-button>
       </div>
+      
+      <div class="task-content">
+        <p class="task-text">
+          <span class="highlight">拖动</span>数据获取方式，放入对应的场景中（每个场景可以放入多个方式）
+        </p>
+        
+        <!-- 数据获取方式（可拖拽） -->
+        <div class="methods-area">
+          <div class="area-label">数据获取方式</div>
+          <div class="methods-container">
+            <div
+              v-for="b in boxes"
+              :key="b"
+              class="method-item"
+              :class="['method-' + b, { 'dragging': isDragging && draggingBox === b }]"
+              @mousedown="onMouseDown(b, $event)"
+            >
+              {{ boxLabels[b] }}
+            </div>
+          </div>
+        </div>
 
-      <!-- 右侧AI助手 -->
-      <div class="right-panel">
-        <AIChatCard />
+        <!-- 场景卡片（拖放区域） -->
+        <div class="scenarios-grid">
+          <div
+            v-for="element in elements"
+            :key="element.id"
+            class="scenario-card"
+            :class="{ 'pulse': pulseElement === element.id }"
+            :ref="el => setElementRef(element.id, el as HTMLDivElement | null)"
+          >
+            <div class="scenario-header">{{ element.title }}</div>
+            <div class="scenario-body">
+              <div v-if="getBoxesInElement(element.id).length > 0" class="selected-methods">
+                <span
+                  v-for="boxId in getBoxesInElement(element.id)"
+                  :key="boxId"
+                  class="method-tag"
+                  :class="['tag-' + boxId, { 'dragging': isDragging && draggingBox === boxId && draggingFrom === element.id }]"
+                  @mousedown="onMouseDownFromTag(boxId, element.id, $event)"
+                >
+                  {{ boxLabels[boxId] }}
+                </span>
+              </div>
+              <div v-else class="scenario-empty">
+                拖动数据获取方式到此处
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="submit-area">
+          <el-button 
+            type="primary" 
+            size="large" 
+            @click="submitResult" 
+            :disabled="!canSubmit"
+          >
+            提交分类结果
+          </el-button>
+        </div>
       </div>
     </div>
 
@@ -112,13 +94,13 @@
     <div
       v-if="isDragging"
       class="floating-element"
-      :class="{ 'snapping': snapping }"
+      :class="['floating-' + draggingBox, { 'snapping': snapping }]"
       :style="{ 
         left: (snapping ? snapPos.x : dragPos.x) + 'px', 
         top: (snapping ? snapPos.y : dragPos.y) + 'px' 
       }"
     >
-      {{ elementTitle(draggingElement) }}
+      {{ draggingBox ? boxLabels[draggingBox] : '' }}
     </div>
   </div>
 </template>
@@ -130,14 +112,13 @@ import { useStatus } from '@/store/status'
 import { useSocket } from '@/store/socket'
 import { ElMessage } from 'element-plus'
 import { RefreshLeft } from '@element-plus/icons-vue'
-import AIChatCard from '../components/AIChatCard.vue'
 import { EntityMode, EventType } from '@/types'
 
 const activity = useActivity()
 const status = useStatus()
 const socket = useSocket()
 
-// 区域定义
+// 数据获取方式（可拖拽）
 const boxes = ['A', 'B', 'C', 'D'] as const
 const boxLabels: Record<BoxId, string> = {
   A: '现场记录',
@@ -146,7 +127,7 @@ const boxLabels: Record<BoxId, string> = {
   D: '设备采集'
 }
 
-// 元素定义
+// 场景定义（拖放区域）
 type ElementItem = { id: ElementId; title: string }
 const elements: Readonly<ElementItem[]> = [
   { id: 'check_vision', title: '测量新生身高数据' },
@@ -159,46 +140,61 @@ const elements: Readonly<ElementItem[]> = [
 
 // 拖拽状态
 const isDragging = ref(false)
-const draggingElement = ref<ElementId | ''>('')
+const draggingBox = ref<BoxId | ''>('')
+const draggingFrom = ref<ElementId | ''>('')  // 记录拖动来源场景
 const dragPos = ref<{ x: number; y: number }>({ x: 0, y: 0 })
 const snapping = ref(false)
 const snapPos = ref<{ x: number; y: number }>({ x: 0, y: 0 })
-const pulseBox = ref<BoxId | ''>('')
-const boxRefs = ref<Record<BoxId, HTMLDivElement | null>>({ A: null, B: null, C: null, D: null })
+const pulseElement = ref<ElementId | ''>('')
+const elementRefs = ref<Record<ElementId, HTMLDivElement | null>>({
+  check_vision: null,
+  register_vision: null,
+  bad_habits: null,
+  usage_duration: null,
+  common_devices: null,
+  survey_all_devices: null
+})
 
-// 设置 box 引用
-function setBoxRef(b: BoxId, el: HTMLDivElement | null) {
-  boxRefs.value[b] = el
+// 设置元素引用
+function setElementRef(elementId: ElementId, el: HTMLDivElement | null) {
+  elementRefs.value[elementId] = el
 }
 
 // 获取当前选择状态
 const selections = computed(() => activity.ac4_stuResult?.selections || {})
 
-// 尚未放置的元素
-const availableElements = computed(() => 
-  elements.filter(it => !selections.value[it.id])
-)
-
 // 是否有任何选择
 const hasAnySelection = computed(() => 
-  elements.some(it => selections.value[it.id])
+  elements.some(el => selections.value[el.id]?.length > 0)
 )
 
-// 获取在指定 box 中的元素
-function elementsInBox(b: BoxId): ElementItem[] {
-  return elements.filter(it => selections.value[it.id] === b)
+// 是否可以提交
+const canSubmit = computed(() => 
+  elements.every(el => selections.value[el.id]?.length > 0)
+)
+
+// 获取场景中的方块
+function getBoxesInElement(elementId: ElementId): BoxId[] {
+  return selections.value[elementId] || []
 }
 
-// 获取元素标题
-function elementTitle(id: ElementId | ''): string {
-  const it = elements.find(x => x.id === id)
-  return it ? it.title : ''
-}
-
-// 鼠标按下
-function onMouseDown(e: ElementId, ev: MouseEvent) {
+// 鼠标按下（从数据获取方式区域）
+function onMouseDown(boxId: BoxId, ev: MouseEvent) {
   ev.preventDefault()
-  draggingElement.value = e
+  draggingBox.value = boxId
+  draggingFrom.value = ''  // 从方式区域拖动，没有来源场景
+  isDragging.value = true
+  dragPos.value = { x: ev.clientX, y: ev.clientY }
+  window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('mouseup', onMouseUp)
+}
+
+// 鼠标按下（从场景标签）
+function onMouseDownFromTag(boxId: BoxId, fromElementId: ElementId, ev: MouseEvent) {
+  ev.preventDefault()
+  ev.stopPropagation()  // 阻止事件冒泡
+  draggingBox.value = boxId
+  draggingFrom.value = fromElementId  // 记录来源场景
   isDragging.value = true
   dragPos.value = { x: ev.clientX, y: ev.clientY }
   window.addEventListener('mousemove', onMouseMove)
@@ -219,15 +215,24 @@ async function onMouseUp(ev: MouseEvent) {
   window.removeEventListener('mouseup', onMouseUp)
   
   const hit = hitTest(ev.clientX, ev.clientY)
-  const e = draggingElement.value as ElementId
+  const boxId = draggingBox.value as BoxId
+  const fromElementId = draggingFrom.value
   
+  // 情况1: 没有命中任何场景
   if (!hit) {
-    draggingElement.value = ''
+    // 如果是从某个场景拖出来的，则从该场景移除
+    if (fromElementId && activity.ac4_stuResult) {
+      const currentBoxes = activity.ac4_stuResult.selections[fromElementId] || []
+      activity.ac4_stuResult.selections[fromElementId] = currentBoxes.filter(b => b !== boxId)
+    }
+    draggingBox.value = ''
+    draggingFrom.value = ''
     return
   }
 
+  // 情况2: 命中了某个场景
   // 计算目标中心点，执行吸附动画
-  const target = boxRefs.value[hit]
+  const target = elementRefs.value[hit]
   if (target) {
     const rect = target.getBoundingClientRect()
     snapPos.value = { 
@@ -235,38 +240,39 @@ async function onMouseUp(ev: MouseEvent) {
       y: Math.round(rect.top + rect.height / 2) 
     }
     snapping.value = true
-    pulseBox.value = hit
+    pulseElement.value = hit
   }
 
   // 动画结束后更新状态
-  setTimeout(async () => {
+  setTimeout(() => {
     if (activity.ac4_stuResult) {
-      activity.ac4_stuResult.selections[e] = hit
+      const currentBoxes = activity.ac4_stuResult.selections[hit] || []
       
-      // 检查是否全部完成
-      const allPlaced = elements.every(it => activity.ac4_stuResult!.selections[it.id] !== '')
+      // 如果有来源场景且与目标场景不同，先从来源场景移除
+      if (fromElementId && fromElementId !== hit) {
+        const sourceBoxes = activity.ac4_stuResult.selections[fromElementId] || []
+        activity.ac4_stuResult.selections[fromElementId] = sourceBoxes.filter(b => b !== boxId)
+      }
       
-      if (allPlaced && !activity.ac4_stuResult.hasSubmittedAll) {
-        // 自动打分并提交
-        autoScore()
-        submitResult()
+      // 如果目标场景还没有这个分类，才添加
+      if (!currentBoxes.includes(boxId)) {
+        activity.ac4_stuResult.selections[hit] = [...currentBoxes, boxId]
       }
     }
     
-    draggingElement.value = ''
+    draggingBox.value = ''
+    draggingFrom.value = ''
     snapping.value = false
-    setTimeout(() => { if (pulseBox.value === hit) pulseBox.value = '' }, 250)
+    setTimeout(() => { if (pulseElement.value === hit) pulseElement.value = '' }, 250)
   }, 180)
 }
 
 // 命中测试
-function hitTest(cx: number, cy: number): BoxId | '' {
-  const entries: Array<[BoxId, HTMLDivElement | null]> = [
-    ['A', boxRefs.value.A],
-    ['B', boxRefs.value.B],
-    ['C', boxRefs.value.C],
-    ['D', boxRefs.value.D]
-  ]
+function hitTest(cx: number, cy: number): ElementId | '' {
+  const entries: Array<[ElementId, HTMLDivElement | null]> = elements.map(
+    el => [el.id, elementRefs.value[el.id]]
+  )
+  
   for (const [id, el] of entries) {
     if (!el) continue
     const rect = el.getBoundingClientRect()
@@ -282,24 +288,34 @@ const autoScore = () => {
   if (!activity.ac4_stuResult) return
   
   // 正确答案映射
-  const correctAnswers: Record<ElementId, BoxId> = {
-    check_vision: 'A',      // 测量新生身高数据 -> 现场记录
-    register_vision: 'C',   // 获取保护视力的方法 -> 网络获取
-    survey_all_devices: 'B', // 调查全校学生数字设备使用情况 -> 问卷调查
-    bad_habits: 'A',        // 记录课堂重点知识 -> 现场记录
-    usage_duration: 'C',    // 了解当天天气数据 -> 网络获取
-    common_devices: 'C'     // 2024年全国出生人口 -> 网络获取
+  const correctAnswers: Record<ElementId, BoxId[]> = {
+    check_vision: ['A'],          // 测量新生身高数据 -> 现场记录
+    register_vision: ['C'],        // 获取保护视力的方法 -> 网络获取
+    survey_all_devices: ['B'],     // 调查全校学生数字设备使用情况 -> 问卷调查
+    bad_habits: ['A'],             // 记录课堂重点知识 -> 现场记录
+    usage_duration: ['C'],         // 了解当天天气数据 -> 网络获取
+    common_devices: ['C']          // 2024年全国出生人口 -> 网络获取
   }
   
+  // 计算有多少个场景有选择
+  const scenariosWithSelection = elements.filter(
+    el => selections.value[el.id]?.length > 0
+  ).length
+  
+  // 计算有多少个场景完全正确
   let correctCount = 0
   elements.forEach(({ id }) => {
-    if (activity.ac4_stuResult!.selections[id] === correctAnswers[id]) {
+    const selected = selections.value[id] || []
+    const correct = correctAnswers[id]
+    // 检查是否完全匹配（数量相同且包含所有正确答案）
+    if (selected.length === correct.length && 
+        correct.every(box => selected.includes(box))) {
       correctCount++
     }
   })
   
-  // 根据正确数量打分
-  if (correctCount >= 4) {
+  // 根据标准打分
+  if (scenariosWithSelection >= 4) {
     activity.ac4_stuResult.rating[0].score = 1
   }
   if (correctCount === 6) {
@@ -309,6 +325,7 @@ const autoScore = () => {
 
 // 提交结果
 const submitResult = () => {
+  autoScore()
   try {
     const user = status.userStatus
     socket.submit({
@@ -334,7 +351,7 @@ const submitResult = () => {
       activity.ac4_stuResult.hasSubmittedAll = true
     }
     
-    ElMessage.success('所有场景分类提交成功！')
+    ElMessage.success('分类结果提交成功！')
   } catch (error: any) {
     console.error('[Activity4] 提交失败:', error)
     ElMessage.error(`提交失败: ${error.message}`)
@@ -347,7 +364,7 @@ async function onResetAll() {
   
   // 重置状态
   elements.forEach(({ id }) => {
-    activity.ac4_stuResult!.selections[id] = ''
+    activity.ac4_stuResult!.selections[id] = []
   })
   activity.ac4_stuResult.hasSubmittedAll = false
   activity.ac4_stuResult.rating[0].score = 0
@@ -368,64 +385,53 @@ onBeforeUnmount(() => {
 .main-content {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-}
-
-.bottom-section {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 24px;
-  align-items: start;
-}
-
-.left-panel {
-  display: flex;
-  flex-direction: column;
   gap: 20px;
 }
 
-.right-panel {
-  height: 600px;
-  overflow-y: auto;
-}
-
-/* 卡片样式 */
-.card {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
+/* 评价标准卡片 */
 .evaluation-card {
-  background: linear-gradient(135deg, #fff7ed, #fef3c7);
-  border: 2px solid #fbbf24;
-  padding: 10px 20px;
+  background: #fffbeb;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  padding: 15px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }
 
-.card-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0;
+/* 任务区域 */
+.task-section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  /* 保持与 activity3 相同的宽度比例（2/3），并居中显示 */
+  width: 66.67%;
+  margin: 0 auto;
 }
 
-/* 卡片头部 */
-.card-header {
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #f3f4f6;
+  gap: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 15px;
+}
+
+.section-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
 }
 
 /* 任务内容 */
 .task-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .task-text {
@@ -441,28 +447,8 @@ onBeforeUnmount(() => {
   color: #dc2626;
 }
 
-.task-link {
-  display: inline-flex;
-  align-items: center;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-  border: 1px solid #60a5fa;
-  border-radius: 8px;
-  color: #1e3a8a;
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.task-link:hover {
-  background: linear-gradient(135deg, #bfdbfe, #93c5fd);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-/* 拖拽区域 */
-.draggable-area {
+/* 数据获取方式区域 */
+.methods-area {
   background: #f9fafb;
   border: 2px dashed #d1d5db;
   border-radius: 12px;
@@ -476,146 +462,184 @@ onBeforeUnmount(() => {
   margin-bottom: 12px;
 }
 
-.elements-container {
+.methods-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  min-height: 60px;
-  align-items: center;
+  gap: 12px;
+  justify-content: center;
 }
 
-.draggable-item {
+.method-item {
   user-select: none;
   cursor: grab;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-  color: #0c4a6e;
-  border: 2px solid #7dd3fc;
+  padding: 12px 24px;
   border-radius: 10px;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.draggable-item:hover {
+.method-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);
-  border-color: #3b82f6;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-.draggable-item.dragging {
+.method-item.dragging {
   opacity: 0.5;
   transform: scale(0.95);
   cursor: grabbing;
 }
 
-.empty-hint {
-  width: 100%;
-  text-align: center;
-  padding: 20px;
-  color: #059669;
-  font-size: 16px;
-  font-weight: 600;
+/* 方式配色 */
+.method-A { 
+  background: #f0fdfa;
+  color: #047857;
+  border: 2px solid #d1fae5;
 }
 
-/* 拖放区域 */
-.drop-zones {
+.method-B { 
+  background: #fff7ed;
+  color: #92400e;
+  border: 2px solid #fed7aa;
+}
+
+.method-C { 
+  background: #eff6ff;
+  color: #1e40af;
+  border: 2px solid #dbeafe;
+}
+
+.method-D { 
+  background: #fef2f2;
+  color: #991b1b;
+  border: 2px solid #fecaca;
+}
+
+/* 场景卡片网格 */
+.scenarios-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 16px;
 }
 
-.drop-box {
+.scenario-card {
   min-height: 120px;
-  border: 3px dashed;
+  border: 2px solid #e5e7eb;
   border-radius: 12px;
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background: #fff;
   transition: all 0.3s ease;
+  cursor: pointer;
 }
 
-.box-header {
-  font-weight: 700;
-  font-size: 15px;
-  text-align: center;
-  padding: 6px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.8);
+.scenario-card:hover {
+  border-color: #60a5fa;
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.15);
 }
 
-.box-items {
-  flex: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-content: flex-start;
-  padding: 8px;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  min-height: 60px;
-}
-
-.item-tag {
-  display: inline-block;
-  padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-.box-empty {
-  width: 100%;
-  text-align: center;
-  color: rgba(0, 0, 0, 0.3);
-  font-size: 12px;
-  padding: 20px 0;
-}
-
-/* 区域配色 */
-.tone-A { 
-  border-color: #16a34a; 
-  background: #f0fdf4; 
-}
-.tone-A .box-header { color: #15803d; }
-
-.tone-B { 
-  border-color: #f59e0b; 
-  background: #fffbeb; 
-}
-.tone-B .box-header { color: #d97706; }
-
-.tone-C { 
-  border-color: #3b82f6; 
-  background: #eff6ff; 
-}
-.tone-C .box-header { color: #1e40af; }
-
-.tone-D { 
-  border-color: #ef4444; 
-  background: #fef2f2; 
-}
-.tone-D .box-header { color: #b91c1c; }
-
-/* 脉冲动画 */
-.drop-box.pulse {
+.scenario-card.pulse {
   animation: pulse 0.8s ease-out 1;
 }
 
 @keyframes pulse {
   0% { 
-    box-shadow: 0 0 0 0 currentColor; 
-    opacity: 0.7;
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.3); 
+    border-color: #60a5fa;
   }
   100% { 
-    box-shadow: 0 0 0 20px transparent; 
-    opacity: 1;
+    box-shadow: 0 0 0 20px rgba(96, 165, 250, 0); 
+    border-color: #e5e7eb;
   }
+}
+
+.scenario-header {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1f2937;
+  padding: 6px 8px;
+  background: #f9fafb;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.scenario-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: #fafafa;
+  border-radius: 8px;
+  min-height: 60px;
+}
+
+.selected-methods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.method-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.method-tag:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.method-tag.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  cursor: grabbing;
+}
+
+.tag-A { 
+  background: #d1fae5; 
+  color: #047857;
+  border: 1px solid #10b981;
+}
+.tag-B { 
+  background: #fed7aa; 
+  color: #92400e;
+  border: 1px solid #f97316;
+}
+.tag-C { 
+  background: #dbeafe; 
+  color: #1e40af;
+  border: 1px solid #3b82f6;
+}
+.tag-D { 
+  background: #fecaca; 
+  color: #991b1b;
+  border: 1px solid #ef4444;
+}
+
+.scenario-empty {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* 提交区域 */
+.submit-area {
+  display: flex;
+  justify-content: center;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
 }
 
 /* 浮动元素 */
@@ -626,60 +650,83 @@ onBeforeUnmount(() => {
   transform: translate(-50%, -50%);
   pointer-events: none;
   user-select: none;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-  color: #1e3a8a;
-  border: 2px solid #3b82f6;
+  padding: 12px 24px;
   border-radius: 10px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
   z-index: 9999;
+  border: 2px solid;
 }
 
 .floating-element.snapping {
   transition: left 0.18s ease, top 0.18s ease;
 }
 
+.floating-A { 
+  background: #f0fdfa;
+  color: #047857;
+  border-color: #d1fae5;
+}
+
+.floating-B { 
+  background: #fff7ed;
+  color: #92400e;
+  border-color: #fed7aa;
+}
+
+.floating-C { 
+  background: #eff6ff;
+  color: #1e40af;
+  border-color: #dbeafe;
+}
+
+.floating-D { 
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
 /* 评价标准 */
 .evaluation-header {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
+  width: 100%;
 }
 
 .evaluation-header .card-title {
+  font-size: 16px;
+  font-weight: 600;
   margin: 0;
   white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .criteria-grid {
   display: flex;
-  align-items: center;
-  gap: 20px;
+  gap: 15px;
   flex: 1;
 }
 
 .criterion-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  background: #f9fafb;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #fff;
   border: 1px solid #e5e7eb;
-  transition: all 0.3s ease;
+  font-size: 14px;
 }
 
 .criterion-item.completed {
-  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  background: #fef3c7;
   border-color: #fbbf24;
+  font-weight: 600;
 }
 
 .criterion-item .star {
   font-size: 14px;
-  flex-shrink: 0;
 }
 
 .criterion-item .criterion-text {
@@ -690,22 +737,27 @@ onBeforeUnmount(() => {
 }
 
 .criterion-item.completed .criterion-text {
-  color: #78350f;
+  color: #92400e;
   font-weight: 600;
 }
 
 /* 响应式 */
 @media (max-width: 1024px) {
-  .bottom-section {
+  .task-section {
+    max-width: 100%;
+  }
+  
+  .scenarios-grid {
     grid-template-columns: 1fr;
   }
   
-  .drop-zones {
-    grid-template-columns: 1fr;
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
   
-  .right-panel {
-    height: 400px;
+  .section-header h3 {
+    width: 100%;
   }
 }
 </style>

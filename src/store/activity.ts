@@ -80,7 +80,7 @@ export type ElementId =
   | 'survey_all_devices'
 
 export interface Activity4Result {
-  selections: Record<ElementId, BoxId | ''>
+  selections: Record<ElementId, BoxId[]>  // 每个场景可以有多个分类
   hasSubmittedAll: boolean
   rating: Rating[]
   submittedAt: number
@@ -246,7 +246,19 @@ export const useActivity = defineStore('activity', () => {
   })
   
   // Activity 1 - 教师接收提交结果
-  const ac1_allResult = ref<Record<string, Activity1Result> | null>(null)
+  const ac1_allResult = ref<Record<string, Activity1Result>>({})
+  
+  // Activity 2.1 - 教师接收所有学生的选择结果
+  const ac2_1_allSelectResult = ref<Record<string, Activity2_1_selectResult>>({})
+  
+  // Activity 2.2 - 教师接收所有学生的设计结果
+  const ac2_2_allDesignResult = ref<Record<string, Activity2_2_designResult>>({})
+  
+  // Activity 3 - 教师接收所有问卷提交
+  const ac3_allQuestionnaireResult = ref<Record<string, { questions: QuestionOption[], submittedAt: number }>>({})
+  
+  // Activity 4 - 教师接收所有分类结果
+  const ac4_allResult = ref<Record<string, Activity4Result>>({})
 
   // Activity 2.1 - 学生题目选择
   const ac2_1_stuSelectResult = ref<Activity2_1_selectResult | null>({
@@ -295,23 +307,23 @@ export const useActivity = defineStore('activity', () => {
   // Activity 4 - 数据获取方式
   const ac4_stuResult = ref<Activity4Result>({
     selections: {
-      check_vision: '',
-      register_vision: '',
-      bad_habits: '',
-      usage_duration: '',
-      common_devices: '',
-      survey_all_devices: ''
+      check_vision: [],
+      register_vision: [],
+      bad_habits: [],
+      usage_duration: [],
+      common_devices: [],
+      survey_all_devices: []
     },
     hasSubmittedAll: false,
     rating: [
       {
         index: 1,
-        criteria: '1.能够正确分类至少4个场景。',
+        criteria: '1.能够为至少4个场景选择数据获取方式。',
         score: 0,
       },
       {
         index: 2,
-        criteria: '2.能够正确分类所有6个场景。',
+        criteria: '2.能够正确匹配所有6个场景的数据获取方式。',
         score: 0,
       }
     ],
@@ -337,7 +349,11 @@ export const useActivity = defineStore('activity', () => {
       }],
       submittedAt: 0
     }
-    ac1_allResult.value = null
+    ac1_allResult.value = {}
+    ac2_1_allSelectResult.value = {}
+    ac2_2_allDesignResult.value = {}
+    ac3_allQuestionnaireResult.value = {}
+    ac4_allResult.value = {}
     ac2_1_stuSelectResult.value = {
       selectedDurationQuestion: null,
       selectedImpactQuestion: null,
@@ -380,23 +396,23 @@ export const useActivity = defineStore('activity', () => {
     }
     ac4_stuResult.value = {
       selections: {
-        check_vision: '',
-        register_vision: '',
-        bad_habits: '',
-        usage_duration: '',
-        common_devices: '',
-        survey_all_devices: ''
+        check_vision: [],
+        register_vision: [],
+        bad_habits: [],
+        usage_duration: [],
+        common_devices: [],
+        survey_all_devices: []
       },
       hasSubmittedAll: false,
       rating: [
         {
           index: 1,
-          criteria: '1.能够正确分类至少4个场景。',
+          criteria: '1.能够为至少4个场景选择数据获取方式。',
           score: 0,
         },
         {
           index: 2,
-          criteria: '2.能够正确分类所有6个场景。',
+          criteria: '2.能够正确匹配所有6个场景的数据获取方式。',
           score: 0,
         }
       ],
@@ -419,9 +435,15 @@ export const useActivity = defineStore('activity', () => {
     // Activity 2
     ac2_1_stuSelectResult,
     ac2_2_stuDesignResult,
+    ac2_1_allSelectResult,
+    ac2_2_allDesignResult,
+    
+    // Activity 3
+    ac3_allQuestionnaireResult,
 
     // Activity 4
     ac4_stuResult,
+    ac4_allResult,
 
     reset
   }

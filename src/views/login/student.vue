@@ -57,7 +57,8 @@ import StudentCamera from '@/views/components/StudentCamera.vue'
 
 const router = useRouter()
 const status = useStatus()
-const {socket, connect} = useSocket()
+const socketStore = useSocket()
+const { socket, connect } = socketStore
 
 const formRef = ref<FormInstance>()
 const showCameraDialog = ref(false)

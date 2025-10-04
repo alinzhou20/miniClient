@@ -1,4 +1,5 @@
 <template>
+  <Listener />
   <div class="page">
     <!-- 顶部标题横幅 + 活动按钮 -->
     <div class="banner">
@@ -16,6 +17,16 @@
             @click="selectActivity(activity.id)"
           >
             {{ activity.title }}
+          </button>
+          
+          <!-- 看板按钮 -->
+          <button 
+            class="activity-btn watch-btn"
+            :class="{ active: isWatchPage }"
+            @click="goToWatch"
+          >
+            <el-icon><Monitor /></el-icon>
+            看板
           </button>
         </div>
         
@@ -40,9 +51,10 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStatus, useSocket, useActivity} from '@/store'
 import { ElMessage } from 'element-plus'
-import { Fold } from '@element-plus/icons-vue'
+import { Fold, Monitor } from '@element-plus/icons-vue'
 import { EventType } from '@/types'
 import type { Activity } from '@/store/status'
+import Listener from './listener.vue'
 
 const router = useRouter()
 const socket = useSocket()
@@ -54,8 +66,17 @@ const teacherActivities = computed<Activity[]>(() => {
   return status.activityStatus.all
 })
 
+// 是否在看板页面
+const isWatchPage = computed(() => {
+  return router.currentRoute.value.path.includes('/teacher/watch')
+})
+
 // 当前活动 ID（根据路由判断）
 const currentActivityId = computed(() => {
+  // 如果在看板页面，返回 -1 避免激活任何活动按钮
+  if (isWatchPage.value) {
+    return -1
+  }
   const match = router.currentRoute.value.path.match(/activity(\d+)/)
   return match ? parseInt(match[1]) : 0
 })
@@ -88,6 +109,11 @@ const selectActivity = (id: number) => {
 
   const activityName = teacherActivities.value.find(a => a.id === id)?.title || '活动'
   ElMessage.success(`已切换到${activityName}`)
+}
+
+// 跳转到看板
+const goToWatch = () => {
+  router.push('/teacher/watch')
 }
 
 const handleLogout = () => {
@@ -169,6 +195,12 @@ const handleLogout = () => {
   color: #1976d2;
   border-color: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.activity-btn.watch-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .spacer {

@@ -9,6 +9,7 @@ import Activity1 from '@/views/teacher/activity1.vue'
 import Activity2 from '@/views/teacher/activity2.vue'
 import Activity3 from '@/views/teacher/activity3.vue'
 import Activity4 from '@/views/teacher/activity4.vue'
+import Watch from '@/views/teacher/watch.vue'
 
 export const teacherRoutes: RouteRecordRaw[] = [
   {
@@ -49,6 +50,12 @@ export const teacherRoutes: RouteRecordRaw[] = [
         path: 'activity4',
         name: 'TeacherActivity4',
         component: Activity4,
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'watch',
+        name: 'TeacherWatch',
+        component: Watch,
         meta: { requiresAuth: true }
       }
     ]
