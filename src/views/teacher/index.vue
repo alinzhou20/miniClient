@@ -90,7 +90,7 @@ const selectActivity = (id: number) => {
     })
   }
   
-  console.log('selectActivity', id)
+  // console.log('selectActivity', id)
   // 同步路由
   router.push(`/teacher/activity${id}`)
   

@@ -242,10 +242,10 @@ const callTargetWorkflow = async (index: number, userInput: string) => {
 // 调用 GET_QUESTION 工作流
 const callQuestionWorkflow = async (inputIndex: string, inputQuestion: string) => {
   try {
-    console.log('[AITwoCard] GET_QUESTION 调用:', {
-      input_index: inputIndex,
-      input_question: inputQuestion
-    })
+    // console.log('[AITwoCard] GET_QUESTION 调用:', {
+    //   input_index: inputIndex,
+    //   input_question: inputQuestion
+    // })
     const result = await runWorkflow(WORKFLOW.GET_QUESTION, {
       input_index: inputIndex,
       input_question: inputQuestion
@@ -267,7 +267,7 @@ const refreshSuggestions = async () => {
   try {
     // 调用工作流获取新的建议，传入空字符串
     const resultData = await callTargetWorkflow(2, '')
-    console.log('[AITwoCard] 刷新建议结果:', resultData)
+    // console.log('[AITwoCard] 刷新建议结果:', resultData)
     
     isAsking.value = false
     
@@ -339,7 +339,7 @@ const ask = async (q: string, skipWorkflow: boolean = false) => {
       } else {
         // 调用工作流
         const resultData = await callTargetWorkflow(1, q)
-        console.log('[AITwoCard] 状态1 结果:', resultData)
+        // console.log('[AITwoCard] 状态1 结果:', resultData)
         
         isAsking.value = false
         
@@ -363,7 +363,7 @@ const ask = async (q: string, skipWorkflow: boolean = false) => {
     } else if (conversationState.value === 2) {
       // 状态2：确定方向
       const resultData = await callTargetWorkflow(2, q)
-      console.log('[AITwoCard] 状态2 结果:', resultData)
+      // console.log('[AITwoCard] 状态2 结果:', resultData)
       
       isAsking.value = false
       
@@ -400,7 +400,7 @@ const proceedToDesign = async (selectedDirection: string) => {
   try {
     // 调用 GET_QUESTION 工作流
     const resultData = await callQuestionWorkflow(questionType.value, selectedDirection)
-    console.log('[AITwoCard] 设计结果:', resultData)
+    // console.log('[AITwoCard] 设计结果:', resultData)
     
     isAsking.value = false
     

@@ -245,8 +245,138 @@ export const useActivity = defineStore('activity', () => {
     submittedAt: 0
   })
   
-  // Activity 1 - 教师接收提交结果
-  const ac1_allResult = ref<Record<string, Activity1Result>>({})
+  // Activity 1 - 提炼后的观点集合
+  const ac1_allReason = ref<{
+    A: string[]
+    B: string[]
+  }>({
+    A: [],
+    B: []
+  })
+  
+  // Activity 1 - 教师接收提交结果（包含测试数据：12组，正方7组，反方5组）
+  const ac1_allResult = ref<Record<string, Activity1Result>>({
+    // 正方第1组
+    'test_1': {
+      viewpoint: 'A',
+      point: {
+        1: '数字设备可以快速获取学习资料，提高学习效率',
+        2: '在线教育平台提供了丰富的学习资源和互动工具'
+      },
+      rating: [{ index: 1, criteria: "1. 通过小组讨论，我们能够写出两条理由。", score: 1 }],
+      submittedAt: Date.now() - 660000
+    },
+    // 反方第1组
+    'test_2': {
+      viewpoint: 'B',
+      point: {
+        1: '长时间使用数字设备会影响视力健康',
+        2: '容易沉迷于游戏和短视频，影响学习专注力'
+      },
+      rating: [{ index: 1, criteria: "1. 通过小组讨论，我们能够写出两条理由。", score: 1 }],
+      submittedAt: Date.now() - 640000
+    },
+    // 正方第2组
+    'test_3': {
+      viewpoint: 'A',
+      point: {
+        1: '数字设备便于与老师和同学进行远程沟通交流',
+        2: '可以使用各种学习APP进行自主学习和练习'
+      },
+      rating: [{ index: 1, criteria: "1. 通过小组讨论，我们能够写出两条理由。", score: 1 }],
+      submittedAt: Date.now() - 620000
+    },
+    // 反方第2组
+    'test_4': {
+      viewpoint: 'B',
+      point: {
+        1: '过度依赖数字设备会削弱独立思考能力',
+        2: '减少了户外活动和面对面交流的时间'
+      },
+      rating: [{ index: 1, criteria: "1. 通过小组讨论，我们能够写出两条理由。", score: 1 }],
+      submittedAt: Date.now() - 600000
+    },
+    // 正方第3组
+    'test_5': {
+      viewpoint: 'A',
+      point: {
+        1: '数字设备支持多媒体学习，更容易理解抽象概念',
+        2: '可以记录学习笔记，方便复习和分享'
+      },
+      rating: [{ index: 1, criteria: "1. 通过小组讨论，我们能够写出两条理由。", score: 1 }],
+      submittedAt: Date.now() - 580000
+    },
+    // 反方第3组
+    'test_6': {
+      viewpoint: 'B',
+      point: {
+        1: '夜间使用电子屏幕会影响睡眠质量',
+        2: '网络信息良莠不齐，容易接触不良内容'
+      },
+      rating: [{ index: 1, criteria: "1. 通过小组讨论，我们能够写出两条理由。", score: 1 }],
+      submittedAt: Date.now() - 560000
+    },
+    // 正方第4组
+    'test_7': {
+      viewpoint: 'A',
+      point: {
+        1: '数字设备提供了个性化的学习方案和智能辅导',
+        2: '可以随时随地学习，突破时间和空间限制'
+      },
+      rating: [{ index: 1, criteria: "1. 通过小组讨论，我们能够写出两条理由。", score: 1 }],
+      submittedAt: Date.now() - 540000
+    },
+    // 反方第4组
+    'test_8': {
+      viewpoint: 'B',
+      point: {
+        1: '容易形成拖延习惯，总想着先玩一会儿再学习',
+        2: '长时间低头看屏幕会导致颈椎和腰椎问题'
+      },
+      rating: [{ index: 1, criteria: "1. 通过小组讨论，我们能够写出两条理由。", score: 1 }],
+      submittedAt: Date.now() - 520000
+    },
+    // 正方第5组
+    'test_9': {
+      viewpoint: 'A',
+      point: {
+        1: '数字设备让学习变得更有趣，提高学习积极性',
+        2: '可以通过在线课程学习课外知识，拓展视野'
+      },
+      rating: [{ index: 1, criteria: "1. 通过小组讨论，我们能够写出两条理由。", score: 1 }],
+      submittedAt: Date.now() - 500000
+    },
+    // 反方第5组
+    'test_10': {
+      viewpoint: 'B',
+      point: {
+        1: '过多使用数字设备会影响书写能力和记忆力',
+        2: '容易产生网络依赖，离开设备就感到焦虑'
+      },
+      rating: [{ index: 1, criteria: "1. 通过小组讨论，我们能够写出两条理由。", score: 1 }],
+      submittedAt: Date.now() - 480000
+    },
+    // 正方第6组
+    'test_11': {
+      viewpoint: 'A',
+      point: {
+        1: '数字设备可以帮助记录学习进度，进行数据分析',
+        2: '通过在线协作工具，可以更好地进行小组合作'
+      },
+      rating: [{ index: 1, criteria: "1. 通过小组讨论，我们能够写出两条理由。", score: 1 }],
+      submittedAt: Date.now() - 460000
+    },
+    // 正方第7组
+    'test_12': {
+      viewpoint: 'A',
+      point: {
+        1: '数字设备提供即时反馈，帮助我们及时纠正错误',
+        2: '可以培养信息素养和数字化时代的必备技能'
+      },
+      rating: [{ index: 1, criteria: "1. 通过小组讨论，我们能够写出两条理由。", score: 1 }],
+      submittedAt: Date.now() - 440000
+    }
+  })
   
   // Activity 2.1 - 教师接收所有学生的选择结果
   const ac2_1_allSelectResult = ref<Record<string, Activity2_1_selectResult>>({})
@@ -431,6 +561,7 @@ export const useActivity = defineStore('activity', () => {
     // Activity 1
     ac1_stuResult,
     ac1_allResult,
+    ac1_allReason,
 
     // Activity 2
     ac2_1_stuSelectResult,

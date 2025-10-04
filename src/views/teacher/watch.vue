@@ -1,53 +1,28 @@
 <template>
   <div class="watch-container">
-    <!-- 标题区域 -->
-    <div class="header-card">
-      <div class="header-top">
-        <h2 class="main-title">小组得分监控</h2>
-        <el-button @click="refreshScores" type="primary" size="small">
-          <el-icon><Refresh /></el-icon>
-          刷新数据
-        </el-button>
-      </div>
-      <div class="stats-row">
-        <div class="stat-item">
-          <span class="stat-label">在线小组</span>
-          <span class="stat-value">{{ onlineGroupsCount }}/12</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">平均得分</span>
-          <span class="stat-value">{{ averageScore.toFixed(1) }}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">最高得分</span>
-          <span class="stat-value">{{ maxScore }}</span>
-        </div>
-      </div>
-    </div>
-
     <!-- 图例 -->
     <div class="legend-card">
-      <div class="legend-title">活动得分图例 (总分最高8分)</div>
+      <div class="legend-title">活动得分</div>
       <div class="legend-items">
         <div class="legend-item">
           <span class="legend-color" style="background: #3b82f6;"></span>
-          <span class="legend-text">活动一 (最高1分)</span>
+          <span class="legend-text">活动一</span>
         </div>
         <div class="legend-item">
-          <span class="legend-color" style="background: #8b5cf6;"></span>
-          <span class="legend-text">活动二-选择 (最高2分)</span>
+          <span class="legend-color" style="background: #a78bfa;"></span>
+          <span class="legend-text">活动二</span>
         </div>
         <div class="legend-item">
-          <span class="legend-color" style="background: #ec4899;"></span>
-          <span class="legend-text">活动二-设计 (最高3分)</span>
+          <span class="legend-color" style="background: #7c3aed;"></span>
+          <span class="legend-text">活动二</span>
         </div>
         <div class="legend-item">
           <span class="legend-color" style="background: #10b981;"></span>
-          <span class="legend-text">活动三 (最高1分)</span>
+          <span class="legend-text">活动三</span>
         </div>
         <div class="legend-item">
           <span class="legend-color" style="background: #f59e0b;"></span>
-          <span class="legend-text">活动四 (最高1分)</span>
+          <span class="legend-text">活动四</span>
         </div>
       </div>
     </div>
@@ -63,33 +38,18 @@
         >
           <!-- 柱状图 -->
           <div class="bar-wrapper">
+            <!-- 总分标签（放在柱子上方） -->
+            <div v-if="group.totalScore > 0" class="total-score">{{ group.totalScore }}</div>
+            
             <div class="bar-stack" :style="{ height: getBarHeight(group.totalScore) }">
-              <!-- 活动4 -->
+              <!-- 活动1（最上面） -->
               <div 
-                v-if="group.scores.activity4 > 0"
-                class="bar-segment activity4"
-                :style="{ height: getSegmentHeight(group.scores.activity4, group.totalScore) }"
-                :title="`活动四: ${group.scores.activity4}分`"
+                v-if="group.scores.activity1 > 0"
+                class="bar-segment activity1"
+                :style="{ height: getSegmentHeight(group.scores.activity1, group.totalScore) }"
+                :title="`活动一: ${group.scores.activity1}分`"
               >
-                <span class="segment-label">{{ group.scores.activity4 }}</span>
-              </div>
-              <!-- 活动3 -->
-              <div 
-                v-if="group.scores.activity3 > 0"
-                class="bar-segment activity3"
-                :style="{ height: getSegmentHeight(group.scores.activity3, group.totalScore) }"
-                :title="`活动三: ${group.scores.activity3}分`"
-              >
-                <span class="segment-label">{{ group.scores.activity3 }}</span>
-              </div>
-              <!-- 活动2.2 -->
-              <div 
-                v-if="group.scores.activity2_2 > 0"
-                class="bar-segment activity2_2"
-                :style="{ height: getSegmentHeight(group.scores.activity2_2, group.totalScore) }"
-                :title="`活动二-设计: ${group.scores.activity2_2}分`"
-              >
-                <span class="segment-label">{{ group.scores.activity2_2 }}</span>
+                <span class="segment-label">{{ group.scores.activity1 }}</span>
               </div>
               <!-- 活动2.1 -->
               <div 
@@ -100,18 +60,34 @@
               >
                 <span class="segment-label">{{ group.scores.activity2_1 }}</span>
               </div>
-              <!-- 活动1 -->
+              <!-- 活动2.2 -->
               <div 
-                v-if="group.scores.activity1 > 0"
-                class="bar-segment activity1"
-                :style="{ height: getSegmentHeight(group.scores.activity1, group.totalScore) }"
-                :title="`活动一: ${group.scores.activity1}分`"
+                v-if="group.scores.activity2_2 > 0"
+                class="bar-segment activity2_2"
+                :style="{ height: getSegmentHeight(group.scores.activity2_2, group.totalScore) }"
+                :title="`活动二-设计: ${group.scores.activity2_2}分`"
               >
-                <span class="segment-label">{{ group.scores.activity1 }}</span>
+                <span class="segment-label">{{ group.scores.activity2_2 }}</span>
+              </div>
+              <!-- 活动3 -->
+              <div 
+                v-if="group.scores.activity3 > 0"
+                class="bar-segment activity3"
+                :style="{ height: getSegmentHeight(group.scores.activity3, group.totalScore) }"
+                :title="`活动三: ${group.scores.activity3}分`"
+              >
+                <span class="segment-label">{{ group.scores.activity3 }}</span>
+              </div>
+              <!-- 活动4（最下面） -->
+              <div 
+                v-if="group.scores.activity4 > 0"
+                class="bar-segment activity4"
+                :style="{ height: getSegmentHeight(group.scores.activity4, group.totalScore) }"
+                :title="`活动四: ${group.scores.activity4}分`"
+              >
+                <span class="segment-label">{{ group.scores.activity4 }}</span>
               </div>
             </div>
-            <!-- 总分标签 -->
-            <div v-if="group.totalScore > 0" class="total-score">{{ group.totalScore }}</div>
           </div>
           
           <!-- 小组标签 -->
@@ -121,87 +97,19 @@
         </div>
       </div>
     </div>
-
-    <!-- 详细得分表格 -->
-    <div class="detail-card">
-      <el-table :data="groupsList" stripe style="width: 100%">
-        <el-table-column prop="groupNo" label="小组" width="80" sortable>
-          <template #default="{ row }">
-            <el-tag :type="row.isOnline ? 'success' : 'info'" size="small">
-              {{ row.groupNo }}组
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="在线状态" width="100">
-          <template #default="{ row }">
-            <el-icon v-if="row.isOnline" color="#10b981" :size="18"><CircleCheckFilled /></el-icon>
-            <el-icon v-else color="#9ca3af" :size="18"><CircleCloseFilled /></el-icon>
-          </template>
-        </el-table-column>
-        <el-table-column prop="scores.activity1" label="活动一" width="90" sortable>
-          <template #default="{ row }">
-            <span :style="{ color: row.scores.activity1 > 0 ? '#3b82f6' : '#d1d5db', fontWeight: '600' }">
-              {{ row.scores.activity1 }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="scores.activity2_1" label="活动二-选择" width="120" sortable>
-          <template #default="{ row }">
-            <span :style="{ color: row.scores.activity2_1 > 0 ? '#8b5cf6' : '#d1d5db', fontWeight: '600' }">
-              {{ row.scores.activity2_1 }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="scores.activity2_2" label="活动二-设计" width="120" sortable>
-          <template #default="{ row }">
-            <span :style="{ color: row.scores.activity2_2 > 0 ? '#ec4899' : '#d1d5db', fontWeight: '600' }">
-              {{ row.scores.activity2_2 }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="scores.activity3" label="活动三" width="90" sortable>
-          <template #default="{ row }">
-            <span :style="{ color: row.scores.activity3 > 0 ? '#10b981' : '#d1d5db', fontWeight: '600' }">
-              {{ row.scores.activity3 }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="scores.activity4" label="活动四" width="90" sortable>
-          <template #default="{ row }">
-            <span :style="{ color: row.scores.activity4 > 0 ? '#f59e0b' : '#d1d5db', fontWeight: '600' }">
-              {{ row.scores.activity4 }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="totalScore" label="总分" width="90" sortable>
-          <template #default="{ row }">
-            <el-tag type="danger" size="large" effect="dark">
-              {{ row.totalScore }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作员学号" width="120">
-          <template #default="{ row }">
-            <span v-if="row.operatorNo">{{ row.operatorNo }}号</span>
-            <span v-else style="color: #9ca3af;">-</span>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useStatus } from '@/store/status'
-import { CircleCheckFilled, CircleCloseFilled, Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const status = useStatus()
 
 // 刷新所有小组的总分
 function refreshScores() {
-  console.log('[Watch] 手动刷新，重新计算所有小组总分')
+  // console.log('[Watch] 手动刷新，重新计算所有小组总分')
   let updatedCount = 0
   
   Object.values(status.groupStatus).forEach(group => {
@@ -213,7 +121,7 @@ function refreshScores() {
       group.scores.activity4
     
     if (group.totalScore !== calculatedTotal) {
-      console.log(`[Watch] 修正${group.groupNo}组总分: ${group.totalScore} -> ${calculatedTotal}`, group.scores)
+      // console.log(`[Watch] 修正${group.groupNo}组总分: ${group.totalScore} -> ${calculatedTotal}`, group.scores)
       group.totalScore = calculatedTotal
       updatedCount++
     }
@@ -251,20 +159,9 @@ const groupsList = computed(() => {
   )
 })
 
-// 在线小组数（只看操作员）
-const onlineGroupsCount = computed(() => {
-  return groupsList.value.filter(group => group.isOnline).length
-})
-
 // 最高得分
 const maxScore = computed(() => {
   return Math.max(...groupsList.value.map(g => g.totalScore), 0)
-})
-
-// 平均得分
-const averageScore = computed(() => {
-  const total = groupsList.value.reduce((sum, g) => sum + g.totalScore, 0)
-  return total / 12
 })
 
 // 计算柱状图高度（基于最大分数）
@@ -297,10 +194,7 @@ function getSegmentHeight(segmentScore: number, totalScore: number): string {
 .watch-container {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 20px;
-  min-height: 100vh;
-  background: #f5f7fa;
+  gap: 12px;
 }
 
 /* 标题卡片 */
@@ -348,6 +242,7 @@ function getSegmentHeight(segmentScore: number, totalScore: number): string {
 
 /* 图例卡片 */
 .legend-card {
+  display: flex;
   background: white;
   border-radius: 16px;
   padding: 20px 24px;
@@ -358,7 +253,7 @@ function getSegmentHeight(segmentScore: number, totalScore: number): string {
   font-size: 16px;
   font-weight: 600;
   color: #1f2937;
-  margin-bottom: 12px;
+  margin-right: 36px;
 }
 
 .legend-items {
@@ -388,7 +283,6 @@ function getSegmentHeight(segmentScore: number, totalScore: number): string {
 .chart-card {
   background: white;
   border-radius: 16px;
-  padding: 32px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
@@ -463,11 +357,11 @@ function getSegmentHeight(segmentScore: number, totalScore: number): string {
 }
 
 .bar-segment.activity2_1 {
-  background: #8b5cf6;
+  background: #a78bfa;
 }
 
 .bar-segment.activity2_2 {
-  background: #ec4899;
+  background: #7c3aed;
 }
 
 .bar-segment.activity3 {
@@ -520,6 +414,37 @@ function getSegmentHeight(segmentScore: number, totalScore: number): string {
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.table-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+/* 分数控制 */
+.score-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+}
+
+.score-value {
+  font-size: 18px;
+  font-weight: 700;
+  min-width: 24px;
+  text-align: center;
 }
 
 /* 响应式设计 */

@@ -122,7 +122,7 @@ const openCamera = () => {
 
 // 处理摄像头上传事件（参考 activity1.vue）
 const handlePhotoUpload = async () => {
-  console.log('[DesignCard] 收到上传照片')
+  // console.log('[DesignCard] 收到上传照片')
   showCamera.value = false
   
   if (!status.takePhoto) {
@@ -145,7 +145,7 @@ const handlePhotoUpload = async () => {
 
     // 3. 解析识别结果（使用 output2）
     const resultData = JSON.parse(result)
-    console.log('[DesignCard] 识别结果:', resultData)
+    // console.log('[DesignCard] 识别结果:', resultData)
  
     // 4. 存入 pinia - 保存单个题目
     if (resultData.output2 && activity.ac2_2_stuDesignResult) {
@@ -177,7 +177,7 @@ const handlePhotoUpload = async () => {
 
 // 处理摄像头退出事件
 const handleCameraExit = () => {
-  console.log('[DesignCard] 用户退出摄像头')
+  // console.log('[DesignCard] 用户退出摄像头')
   showCamera.value = false
 }
 
@@ -204,13 +204,13 @@ const submitChallenge = () => {
       // 如果已存在就替换，否则添加
       if (existingIndex !== -1) {
         activity.questionnaire.questions[existingIndex] = newQuestionForQuestionnaire
-        console.log('[DesignCard] 替换已存在的设计题目')
+        // console.log('[DesignCard] 替换已存在的设计题目')
       } else {
         activity.questionnaire.questions.push(newQuestionForQuestionnaire)
-        console.log('[DesignCard] 添加新的设计题目到问卷')
+        // console.log('[DesignCard] 添加新的设计题目到问卷')
       }
       
-      console.log('[DesignCard] 当前问卷题目:', activity.questionnaire.questions)
+      // console.log('[DesignCard] 当前问卷题目:', activity.questionnaire.questions)
       
       // 2. 更新评分 - 三星挑战完成
       const rating = activity.ac2_2_stuDesignResult.rating.find(r => r.index === 1)

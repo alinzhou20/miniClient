@@ -94,7 +94,7 @@ export function cameraUtils(config: CameraConfig = {}) {
               if (videoRef.value) {
                 videoWidth.value = videoRef.value.videoWidth
                 videoHeight.value = videoRef.value.videoHeight
-                console.log(`[Camera] 视频尺寸: ${videoWidth.value} x ${videoHeight.value}`)
+                // console.log(`[Camera] 视频尺寸: ${videoWidth.value} x ${videoHeight.value}`)
               }
               resolve()
             }

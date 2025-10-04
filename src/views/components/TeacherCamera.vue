@@ -36,7 +36,7 @@ const initCamera = async () => {
     if (videoRef.value) {
       videoRef.value.srcObject = stream.value
     }
-    console.log('尺寸为', videoRef.value?.videoWidth, videoRef.value?.videoHeight)
+    // console.log('尺寸为', videoRef.value?.videoWidth, videoRef.value?.videoHeight)
   } catch (error) {
     console.error('摄像头启动失败:', error)
   }

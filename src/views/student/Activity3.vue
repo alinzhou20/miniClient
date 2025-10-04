@@ -57,7 +57,7 @@ const canSubmit = computed(() => {
 // 提交问卷
 const submitQuestionnaire = () => {
   if (!canSubmit.value) {
-    ElMessage.warning('请完成所有题目后再提交')
+    // ElMessage.warning('请完成所有题目后再提交')
     return
   }
 
@@ -79,10 +79,10 @@ const submitQuestionnaire = () => {
       eventType: EventType.SUBMIT
     })
     
-    ElMessage.success('问卷提交成功！')
+    // ElMessage.success('问卷提交成功！')
   } catch (error: any) {
     console.error('[Activity3] 提交失败:', error)
-    ElMessage.error(`提交失败: ${error.message}`)
+    // ElMessage.error(`提交失败: ${error.message}`)
   }
 }
 </script>

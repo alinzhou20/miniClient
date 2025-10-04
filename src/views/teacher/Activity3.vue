@@ -334,10 +334,10 @@ function handleDesignSubmission(payload: any) {
   })
   
   if (isFirstSubmission) {
-    console.log(`[Activity7 Teacher] 收到问题设计: 第${groupNo}组-${studentNo}号 (首次提交)`)
+    // console.log(`[Activity7 Teacher] 收到问题设计: 第${groupNo}组-${studentNo}号 (首次提交)`)
     ElMessage.success(`第${groupNo}组提交了问题设计`)
   } else {
-    console.log(`[Activity7 Teacher] 更新问题设计: 第${groupNo}组-${studentNo}号 (覆盖之前的设计)`)
+    // console.log(`[Activity7 Teacher] 更新问题设计: 第${groupNo}组-${studentNo}号 (覆盖之前的设计)`)
     ElMessage.info(`第${groupNo}组更新了问题设计`)
   }
 }
@@ -345,14 +345,14 @@ function handleDesignSubmission(payload: any) {
 // 本地存储
 
 onMounted(() => {
-  console.log('[Activity3 Teacher] 🟢 组件已挂载，开始监听 submit 事件')
+  // console.log('[Activity3 Teacher] 🟢 组件已挂载，开始监听 submit 事件')
   
   // 监听submit事件
   socket.on('submit', handleDesignSubmission)
 })
 
 onBeforeUnmount(() => {
-  console.log('[Activity3 Teacher] 🔴 组件卸载，清理监听器')
+  // console.log('[Activity3 Teacher] 🔴 组件卸载，清理监听器')
   socket.off('submit', handleDesignSubmission)
 })
 </script>

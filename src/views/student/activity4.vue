@@ -351,10 +351,10 @@ const submitResult = () => {
       activity.ac4_stuResult.hasSubmittedAll = true
     }
     
-    ElMessage.success('分类结果提交成功！')
+    // ElMessage.success('分类结果提交成功！')
   } catch (error: any) {
     console.error('[Activity4] 提交失败:', error)
-    ElMessage.error(`提交失败: ${error.message}`)
+    // ElMessage.error(`提交失败: ${error.message}`)
   }
 }
 
@@ -370,7 +370,7 @@ async function onResetAll() {
   activity.ac4_stuResult.rating[0].score = 0
   activity.ac4_stuResult.rating[1].score = 0
   
-  ElMessage.success('已重置所有分类！')
+  // ElMessage.success('已重置所有分类！')
 }
 
 // 组件卸载时清理事件监听

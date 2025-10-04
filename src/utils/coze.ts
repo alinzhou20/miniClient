@@ -13,6 +13,7 @@ export const WORKFLOW = {
   GET_PICTURE: '7553827536788193322',
   GET_QUESTION: '7554084463832858639',
   GET_TARGET: '7556966995050070056',
+  GET_VIEWPOINT: '7556588720369156115',
 }
 
 export interface PictureWorkflow {
@@ -29,6 +30,11 @@ export interface QuestionWorkflow {
 export interface TargetWorkflow {
   index: number
   input: string
+}
+
+export interface ViewpointWorkflow {
+  index: number
+  input: string[]
 }
 
 export function useCoze() {
@@ -112,7 +118,7 @@ export function useCoze() {
       const result = await response.json()
       if (result.code !== 0 || !result.data?.id) throw new Error('上传响应异常')
       
-      console.log('[Coze] 文件上传成功:', result.data.id)
+      // console.log('[Coze] 文件上传成功:', result.data.id)
       return result.data.id
     } catch (error) {
       console.error('[Coze] 上传失败:', error)
@@ -146,7 +152,7 @@ export function useCoze() {
       const result = await response.json()
       if (result.code !== 0) throw new Error('工作流执行失败')
 
-      console.log('[Coze] 工作流执行成功')
+      // console.log('[Coze] 工作流执行成功')
       return result.data
     } catch (error) {
       console.error('[Coze] 工作流失败:', error)

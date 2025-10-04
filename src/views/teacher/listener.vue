@@ -29,13 +29,13 @@ function updateGroupTotalScore(groupNo: string) {
     
     group.totalScore = newTotal
     
-    console.log(`[得分更新] ${groupNo}组 总分: ${newTotal}`, {
-      activity1: group.scores.activity1,
-      activity2_1: group.scores.activity2_1,
-      activity2_2: group.scores.activity2_2,
-      activity3: group.scores.activity3,
-      activity4: group.scores.activity4
-    })
+    // console.log(`[得分更新] ${groupNo}组 总分: ${newTotal}`, {
+    //   activity1: group.scores.activity1,
+    //   activity2_1: group.scores.activity2_1,
+    //   activity2_2: group.scores.activity2_2,
+    //   activity3: group.scores.activity3,
+    //   activity4: group.scores.activity4
+    // })
   }
 }
 
@@ -66,7 +66,7 @@ function onStudentSubmit(payload: any) {
           }
           
           const roleName = studentRole === 'operator' ? '操作员' : '记录员'
-          ElMessage.success(`${groupNo}组 ${roleName}(${studentNo}号) 已登录`)
+          // ElMessage.success(`${groupNo}组 ${roleName}(${studentNo}号) 已登录`)
         }
         break
         
@@ -74,7 +74,7 @@ function onStudentSubmit(payload: any) {
         // 学生离线通知（只关心操作员）
         if (data && from) {
           const { groupNo, studentRole } = data
-          console.log('student_logout', data)
+          // console.log('student_logout', data)
           
           // 更新小组状态（只关心操作员）
           if (studentRole === 'operator' && status.groupStatus[groupNo]) {
@@ -82,7 +82,7 @@ function onStudentSubmit(payload: any) {
           }
           
           const roleName = studentRole === 'operator' ? '操作员' : '记录员'
-          ElMessage.warning(`${groupNo}组 ${roleName} 已离线`)
+          // ElMessage.warning(`${groupNo}组 ${roleName} 已离线`)
         }
         break
         
@@ -102,7 +102,7 @@ function onStudentSubmit(payload: any) {
             updateGroupTotalScore(groupNo)
           }
           
-          ElMessage.success(`${studentInfo} 提交了活动一`)
+          // ElMessage.success(`${studentInfo} 提交了活动一`)
         }
         break
         
@@ -124,7 +124,7 @@ function onStudentSubmit(payload: any) {
             updateGroupTotalScore(groupNo)
           }
           
-          ElMessage.success(`${studentInfo} 提交了活动二(选择题目)`)
+          // ElMessage.success(`${studentInfo} 提交了活动二(选择题目)`)
         }
         break
         
@@ -143,7 +143,7 @@ function onStudentSubmit(payload: any) {
             updateGroupTotalScore(groupNo)
           }
           
-          ElMessage.success(`${studentInfo} 提交了活动二(设计题目)`)
+          // ElMessage.success(`${studentInfo} 提交了活动二(设计题目)`)
         }
         break
         
@@ -161,7 +161,7 @@ function onStudentSubmit(payload: any) {
             updateGroupTotalScore(groupNo)
           }
           
-          ElMessage.success(`${studentInfo} 提交了问卷`)
+          // ElMessage.success(`${studentInfo} 提交了问卷`)
         }
         break
         
@@ -181,26 +181,26 @@ function onStudentSubmit(payload: any) {
             updateGroupTotalScore(groupNo)
           }
           
-          ElMessage.success(`${studentInfo} 提交了活动四`)
+          // ElMessage.success(`${studentInfo} 提交了活动四`)
         }
         break
         
       default:
-        console.log('[Teacher Listener] 未知的消息类型:', messageType)
+        // console.log('[Teacher Listener] 未知的消息类型:', messageType)
     }
   } catch (error) {
     console.error('[Teacher Listener] 处理学生提交失败:', error)
-    ElMessage.error(`处理 ${studentInfo} 的提交失败`)
+    // ElMessage.error(`处理 ${studentInfo} 的提交失败`)
   }
 }
 
 onMounted(() => {
-  console.log('[Teacher Listener] 开始监听学生提交')
+  // console.log('[Teacher Listener] 开始监听学生提交')
   socket.on('submit', onStudentSubmit)
 })
 
 onBeforeUnmount(() => {
-  console.log('[Teacher Listener] 停止监听学生提交')
+  // console.log('[Teacher Listener] 停止监听学生提交')
   socket.off('submit', onStudentSubmit)
 })
 </script>

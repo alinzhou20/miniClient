@@ -388,7 +388,7 @@ function handleSubmit(payload: any) {
   // 添加到完成统计
   completedGroups.add(g)
   
-  console.log(`[Activity4 Teacher] 收到提交: 第${g}组-${s}号`)
+  // console.log(`[Activity4 Teacher] 收到提交: 第${g}组-${s}号`)
   ElMessage.success(`第${g}组-${s}号 提交了场景分类`)
 }
 
@@ -503,12 +503,12 @@ function copyToClipboard(text: string) {
 
 // 生命周期
 onMounted(() => {
-  console.log('[Activity4 Teacher] 🟢 组件已挂载，开始监听 submit 事件')
+  // console.log('[Activity4 Teacher] 🟢 组件已挂载，开始监听 submit 事件')
   socket.on('submit', handleSubmit)
 })
 
 onBeforeUnmount(() => {
-  console.log('[Activity4 Teacher] 🔴 组件卸载，清理监听器')
+  // console.log('[Activity4 Teacher] 🔴 组件卸载，清理监听器')
   socket.off('submit', handleSubmit)
 })
 </script>

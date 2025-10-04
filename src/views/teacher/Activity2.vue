@@ -1,108 +1,103 @@
 <template>
-  <div class="activity-monitor">
-    <!-- 小组完成进度 -->
-    <div class="progress-section">
-      <div class="progress-header">
-        <span class="progress-label">Activity2 - 问卷设计，精研问题</span>
-        <span class="progress-count">提交问卷: {{ designItems.length }} | 完成小组: {{ completedGroups.size }}</span>
+  <div class="page">
+    <!-- 结果展示区域 -->
+    <div class="stats-section">
+      <!-- 活动标题 -->
+      <div class="activity-header">
+        <h2 class="activity-title">📊 问卷设计，精研问题</h2>
+      </div>
+
+      <!-- 题库统计区域 - 单列布局 -->
+      <div class="question-bank-section">
+        <!-- 使用时长题库 -->
+        <div class="bank-container">
+          <div class="bank-header">
+            <span class="bank-icon">⏱️</span>
+            <span class="bank-title">使用时长</span>
+          </div>
+          <div class="question-list">
+            <div 
+              v-for="question in durationQuestions" 
+              :key="question.id"
+              class="question-card"
+            >
+              <!-- 左侧：题目信息 -->
+              <div class="question-info">
+                <div class="question-header">
+                  <span class="question-number">题目{{ question.id }}</span>
+                  <span class="question-count">{{ getQuestionCount('duration', question.id) }}组</span>
+                </div>
+                <div class="question-text">{{ question.title }}</div>
+                <div v-if="question.options" class="question-options">
+                  <div v-for="(opt, idx) in question.options" :key="idx" class="option-item">
+                    {{ opt }}
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 右侧：选择的小组 -->
+              <div class="groups-section">
+                <div class="groups-label">选择此题的小组</div>
+                <div v-if="getGroupsByQuestion('duration', question.id).length > 0" class="groups-grid">
+                  <div 
+                    v-for="group in getGroupsByQuestion('duration', question.id)" 
+                    :key="group" 
+                    class="group-badge"
+                  >
+                    {{ group }}
+                  </div>
+                </div>
+                <div v-else class="no-groups">暂无小组选择</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 使用影响题库 -->
+        <div class="bank-container">
+          <div class="bank-header">
+            <span class="bank-icon">💡</span>
+            <span class="bank-title">使用影响</span>
+          </div>
+          <div class="question-list">
+            <div 
+              v-for="question in impactQuestions" 
+              :key="question.id"
+              class="question-card"
+            >
+              <!-- 左侧：题目信息 -->
+              <div class="question-info">
+                <div class="question-header">
+                  <span class="question-number">题目{{ question.id }}</span>
+                  <span class="question-count">{{ getQuestionCount('impact', question.id) }}组</span>
+                </div>
+                <div class="question-text">{{ question.title }}</div>
+                <div v-if="question.options" class="question-options">
+                  <div v-for="(opt, idx) in question.options" :key="idx" class="option-item">
+                    {{ opt }}
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 右侧：选择的小组 -->
+              <div class="groups-section">
+                <div class="groups-label">选择此题的小组</div>
+                <div v-if="getGroupsByQuestion('impact', question.id).length > 0" class="groups-grid">
+                  <div 
+                    v-for="group in getGroupsByQuestion('impact', question.id)" 
+                    :key="group" 
+                    class="group-badge"
+                  >
+                    {{ group }}
+                  </div>
+                </div>
+                <div v-else class="no-groups">暂无小组选择</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-      <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: progressPercentage + '%' }"></div>
-            </div>
-          </div>
-
-    <!-- 功能按钮区域 -->
-    <div class="action-section">
-              <el-button 
-                type="primary" 
-                size="large"
-        :icon="Download"
-        @click="exportAllDesigns"
-        :disabled="!designItems.length"
-      >
-        导出所有问卷
-              </el-button>
-              <el-button 
-        type="success" 
-                size="large"
-        :icon="Document"
-        @click="exportByGroup"
-        :disabled="!designItems.length"
-      >
-        按组别导出
-              </el-button>
-          <el-button 
-        type="warning" 
-        size="large"
-        :icon="Refresh"
-        @click="clearData"
-      >
-        清空数据
-          </el-button>
-      </div>
-
-    <!-- 问卷展示区域 -->
-    <div class="questionnaires-layout">
-      <!-- 按小组类型分组展示 -->
-      <div class="group-panel" v-for="groupType in groupTypes" :key="groupType.key">
-        <div class="group-header">
-          <h3 class="group-title">{{ groupType.name }}</h3>
-          <span class="group-count">{{ getGroupDesigns(groupType.key).length }} 个小组</span>
-        </div>
-        
-        <div class="designs-grid">
-          <el-empty v-if="!getGroupDesigns(groupType.key).length" :description="`暂无${groupType.name}提交`" />
-        <el-card 
-            v-for="item in getGroupDesigns(groupType.key)" 
-            :key="item.key" 
-            class="design-card" 
-          shadow="hover"
-        >
-            <!-- 左上角标签 -->
-            <div class="card-tags">
-              <span class="type-tag group-tag">第{{ item.from.groupNo }}组</span>
-              <span class="type-tag">{{ item.data.groupType }}</span>
-            </div>
-
-            <div class="card-content">
-              <div class="design-content">
-                <div class="design-section">
-                  <div class="section-title">调查目的：</div>
-                  <div class="section-text">{{ item.data.purpose }}</div>
-          </div>
-          
-                <div class="design-section">
-                  <div class="section-title">调查说明：</div>
-                  <div class="section-text">{{ item.data.description }}</div>
-          </div>
-          
-                <div class="design-section highlight">
-                  <div class="section-title">选择的题目：</div>
-                  <div class="selected-question">
-                    题目{{ item.data.selectedQuestion }}：{{ item.data.selectedQuestionText }}
-          </div>
-      </div>
-
-                <div class="design-section">
-                  <div class="section-title">选择理由：</div>
-                  <div class="section-text">{{ item.data.reason }}</div>
-        </div>
-        
-                <div class="design-meta">
-                  <span class="meta-time">{{ formatTime(item.at) }}</span>
-            </div>
-            </div>
-          </div>
-          
-            <div class="card-actions">
-              <el-button size="small" type="primary" @click="exportSingleDesign(item)">
-                导出问卷
-            </el-button>
-          </div>
-        </el-card>
-      </div>
-        </div>
-            </div>
   </div>
 </template>
 
@@ -110,7 +105,7 @@
 import { reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useSocket } from '@/store/socket'
 import { ElMessage } from 'element-plus'
-import { Download, Document, Refresh } from '@element-plus/icons-vue'
+import { bank } from '@/store/activity'
 
 const socket = useSocket()
 
@@ -129,15 +124,14 @@ interface DesignPayload {
     questionOptions: Array<{text: string, options: string}>
   }
   at: number
+  key?: string
 }
 
 const designStore = reactive(new Map<string, DesignPayload>())
 
-// 小组类型列表
-const groupTypes = [
-  { key: '选择题组', name: '选择题组（1-6组）' },
-  { key: '填空题组', name: '填空题组（7-12组）' }
-]
+// 题库数据
+const durationQuestions = bank.durationQuestions
+const impactQuestions = bank.impactQuestions
 
 // 问卷数据
 const designItems = computed(() => {
@@ -146,172 +140,35 @@ const designItems = computed(() => {
     .map(p => ({ ...p, key: p.from.groupNo }))
 })
 
-// 完成小组统计
-const completedGroups = computed(() => {
-  const groups = new Set<string>()
-  designItems.value.forEach(item => {
-    groups.add(item.from.groupNo)
-  })
-  return groups
-})
-
-// 进度百分比
-const progressPercentage = computed(() => {
-  return Math.round((completedGroups.value.size / 25) * 100)
-})
-
-// 根据组别类型获取问卷
-function getGroupDesigns(groupType: string) {
-  return designItems.value.filter(item => item.data.groupType === groupType)
-}
-
-// 时间格式化
-function formatTime(timestamp: number): string {
-  const date = new Date(timestamp)
-  return date.toLocaleString('zh-CN', { hour12: false })
-}
-
-// 导出单个问卷设计
-function exportSingleDesign(item: DesignPayload) {
-  const lines: string[] = []
-  
-  lines.push(`Activity2 问卷设计 - 第${item.from.groupNo}组`)
-  lines.push(`组别类型：${item.data.groupType}`)
-  lines.push(`提交时间：${formatTime(item.at)}`)
-  lines.push('')
-  
-  lines.push('一、调查目的：')
-  lines.push(item.data.purpose)
-  lines.push('')
-  
-  lines.push('二、调查说明：')
-  lines.push(item.data.description)
-  lines.push('')
-  
-  lines.push('三、使用时长题目选择：')
-  lines.push(`选择了题目${item.data.selectedQuestion}：`)
-  lines.push(item.data.selectedQuestionText)
-  lines.push('')
-  
-  lines.push('四、选择理由：')
-  lines.push(item.data.reason)
-  lines.push('')
-  
-  lines.push('五、题目选项：')
-  item.data.questionOptions.forEach((q, i) => {
-    lines.push(`题目${i + 1}：${q.text}`)
-    lines.push(`选项：${q.options}`)
-    lines.push('')
-  })
-  
-  copyToClipboard(lines.join('\n'))
-  ElMessage.success('问卷设计已复制到剪贴板')
-}
-
-// 导出所有问卷
-function exportAllDesigns() {
-  if (!designItems.value.length) return
-  
-  const lines: string[] = []
-  lines.push('--- Activity2 问卷设计 - 全部提交汇总 ---')
-  lines.push(`导出时间: ${new Date().toLocaleString('zh-CN', { hour12: false })}`)
-  lines.push(`共收到 ${designItems.value.length} 个小组的问卷设计`)
-  lines.push('')
-  
-  designItems.value.forEach((item) => {
-    lines.push(`=== 第${item.from.groupNo}组 (${item.data.groupType}) ===`)
-    lines.push(`提交时间: ${formatTime(item.at)}`)
-    lines.push('')
-    
-    lines.push('调查目的：')
-    lines.push(item.data.purpose)
-    lines.push('')
-    
-    lines.push('调查说明：')
-    lines.push(item.data.description)
-    lines.push('')
-    
-    lines.push(`选择题目${item.data.selectedQuestion}：${item.data.selectedQuestionText}`)
-    lines.push('')
-    
-    lines.push('选择理由：')
-    lines.push(item.data.reason)
-    lines.push('')
-    lines.push('----------------------------------------')
-    lines.push('')
-  })
-  
-  lines.push(`统计信息:`)
-  lines.push(`总提交数: ${designItems.value.length}`)
-  lines.push(`参与小组数: ${completedGroups.value.size}`)
-  lines.push(`完成率: ${progressPercentage.value}%`)
-  
-  copyToClipboard(lines.join('\n'))
-  ElMessage.success(`已导出 ${designItems.value.length} 个问卷设计到剪贴板`)
-}
-
-// 按组别导出
-function exportByGroup() {
-  if (!designItems.value.length) return
-  
-  const lines: string[] = []
-  lines.push('--- Activity2 问卷设计 - 按组别分类导出 ---')
-  lines.push(`导出时间: ${new Date().toLocaleString('zh-CN', { hour12: false })}`)
-  lines.push('')
-  
-  groupTypes.forEach(groupType => {
-    const groupDesigns = getGroupDesigns(groupType.key)
-    lines.push(`=== ${groupType.name} ===（${groupDesigns.length} 个小组）`)
-    lines.push('')
-    
-    if (groupDesigns.length === 0) {
-      lines.push('暂无提交')
-      lines.push('')
+// 获取选择某题目的小组数量
+function getQuestionCount(type: 'duration' | 'impact', questionId: number): number {
+  return designItems.value.filter(item => {
+    const selectedQ = item.data.selectedQuestion
+    if (type === 'duration') {
+      // 使用时长题目 ID 范围：1-4
+      return selectedQ === questionId && questionId >= 1 && questionId <= 4
     } else {
-      groupDesigns.forEach((item, index) => {
-        lines.push(`${index + 1}. 第${item.from.groupNo}组`)
-        lines.push(`   调查目的: ${item.data.purpose}`)
-        lines.push(`   调查说明: ${item.data.description}`)
-        lines.push(`   选择题目${item.data.selectedQuestion}: ${item.data.selectedQuestionText}`)
-        lines.push(`   理由: ${item.data.reason}`)
-        lines.push(`   提交时间: ${formatTime(item.at)}`)
-        lines.push('')
-      })
+      // 使用影响题目 ID 范围：1-4
+      return selectedQ === questionId && questionId >= 1 && questionId <= 4
     }
-    lines.push('----------------------------------------')
-    lines.push('')
-  })
-  
-  lines.push(`按组别统计:`)
-  groupTypes.forEach(groupType => {
-    const count = getGroupDesigns(groupType.key).length
-    lines.push(`${groupType.name}: ${count} 个小组`)
-  })
-  lines.push(`总计: ${designItems.value.length} 个小组`)
-  
-  copyToClipboard(lines.join('\n'))
-  ElMessage.success('已按组别导出所有问卷设计到剪贴板')
+  }).length
 }
 
-// 清空数据
-function clearData() {
-  designStore.clear()
-  ElMessage.warning('数据已清空')
-}
-
-// 复制到剪贴板
-function copyToClipboard(text: string) {
-  if (!text) return
-  if (navigator && (navigator as any).clipboard && (navigator as any).clipboard.writeText) {
-    ;(navigator as any).clipboard.writeText(text)
-  } else {
-    const ta = document.createElement('textarea')
-    ta.value = text
-    document.body.appendChild(ta)
-    ta.select()
-    document.execCommand('copy')
-    document.body.removeChild(ta)
-  }
+// 获取选择某题目的小组列表
+function getGroupsByQuestion(type: 'duration' | 'impact', questionId: number): string[] {
+  const groups = designItems.value
+    .filter(item => {
+      const selectedQ = item.data.selectedQuestion
+      if (type === 'duration') {
+        return selectedQ === questionId && questionId >= 1 && questionId <= 4
+      } else {
+        return selectedQ === questionId && questionId >= 1 && questionId <= 4
+      }
+    })
+    .map(item => item.from.groupNo)
+    .sort((a, b) => parseInt(a) - parseInt(b))
+  
+  return groups
 }
 
 // Socket事件处理
@@ -344,264 +201,286 @@ function handleDesignSubmission(payload: any) {
   })
   
   if (isFirstSubmission) {
-    console.log(`[Activity2 Teacher] 收到问卷设计: 第${groupNo}组 (首次提交)`)
+    // console.log(`[Activity2 Teacher] 收到问卷设计: 第${groupNo}组 (首次提交)`)
     ElMessage.success(`第${groupNo}组提交了问卷设计`)
-      } else {
-    console.log(`[Activity2 Teacher] 更新问卷设计: 第${groupNo}组 (覆盖之前的设计)`)
+  } else {
+    // console.log(`[Activity2 Teacher] 更新问卷设计: 第${groupNo}组 (覆盖之前的设计)`)
     ElMessage.info(`第${groupNo}组更新了问卷设计`)
   }
 }
 
 onMounted(() => {
-  console.log('[Activity2 Teacher] 🟢 组件已挂载，开始监听 submit 事件')
+  // console.log('[Activity2 Teacher] 🟢 组件已挂载，开始监听 submit 事件')
   socket.on('submit', handleDesignSubmission)
 })
 
 onBeforeUnmount(() => {
-  console.log('[Activity2 Teacher] 🔴 组件卸载，清理监听器')
+  // console.log('[Activity2 Teacher] 🔴 组件卸载，清理监听器')
   socket.off('submit', handleDesignSubmission)
 })
 </script>
 
 <style scoped>
-.activity-monitor {
-  padding: 12px;
+.page {
+  padding: 0;
   width: 1240px;
-  max-width: 100%;
   margin: 0 auto;
   background: #F5F5F0;
 }
 
-/* 进度条样式 */
-.progress-section {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
+.stats-section {
+  padding: 40px 0;
 }
 
-.progress-header {
+/* 活动标题 */
+.activity-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.activity-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+/* 题库统计区域 - 单列布局 */
+.question-bank-section {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* 题库容器 */
+.bank-container {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* 题库头部 */
+.bank-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+  border-bottom: 3px solid #f3f4f6;
+}
+
+.bank-icon {
+  font-size: 28px;
+}
+
+.bank-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+/* 题目列表 */
+.question-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 题目卡片 - 横向布局 */
+.question-card {
+  display: flex;
+  align-items: stretch;
+  background: #fafafa;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  gap: 24px;
+  transition: all 0.3s ease;
+}
+
+.question-card:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* 左侧：题目信息 */
+.question-info {
+  flex: 0 0 540px;
+  min-width: 0;
+}
+
+.question-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
 
-.progress-label {
-  font-size: 16px;
-  font-weight: 700;
-  color: #374151;
-}
-
-.progress-count {
+.question-number {
   font-size: 14px;
-  font-weight: 600;
-  color: #059669;
-}
-
-.progress-bar {
-  height: 8px;
-  background: #e5e7eb;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #10b981, #059669);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-/* 功能按钮区域 */
-.action-section {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding: 16px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-}
-
-/* 问卷展示布局 */
-.questionnaires-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.group-panel {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.group-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #f1f5f9;
-}
-
-.group-title {
-  font-size: 18px;
   font-weight: 700;
-  color: #1e293b;
-  margin: 0;
-}
-
-.group-count {
-  font-size: 14px;
-  font-weight: 600;
-  color: #64748b;
-  background: #f1f5f9;
-  padding: 4px 12px;
-  border-radius: 12px;
-}
-
-/* 问卷网格 */
-.designs-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 16px;
-}
-
-.design-card {
-  width: 100%;
-  min-height: 350px;
-  position: relative;
-}
-
-.design-card :deep(.el-card__body) {
-  height: 100%;
-  padding: 8px 10px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 左上角标签样式 */
-.card-tags {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
-  position: absolute;
-  top: 8px;
-  left: 10px;
-  z-index: 10;
-  flex-wrap: wrap;
-}
-
-.type-tag {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 500;
-}
-
-.group-tag {
+  color: #3b82f6;
   background: #dbeafe;
-  color: #1e40af;
-}
-
-.type-tag:not(.group-tag) {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-/* 卡片内容样式 */
-.card-content {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 4px;
-  min-height: 0;
-  margin-top: 32px;
-}
-
-.design-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.design-section {
-  padding: 10px;
-  background: #f9fafb;
+  padding: 4px 12px;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
 }
 
-.design-section.highlight {
-  background: #fef3c7;
-  border-color: #f59e0b;
+.question-count {
+  font-size: 18px;
+  font-weight: 900;
+  color: #10b981;
+  background: #d1fae5;
+  padding: 4px 12px;
+  border-radius: 8px;
 }
 
-.section-title {
-  font-size: 12px;
+.question-text {
+  font-size: 15px;
   font-weight: 600;
-  color: #6b7280;
-  margin-bottom: 6px;
+  color: #1f2937;
+  margin-bottom: 12px;
+  line-height: 1.5;
 }
 
-.section-text {
-  font-size: 13px;
-  color: #374151;
-  line-height: 1.6;
-  word-wrap: break-word;
-}
-
-.selected-question {
-  font-size: 13px;
-  font-weight: 600;
-  color: #92400e;
-  line-height: 1.6;
-}
-
-.design-meta {
+/* 题目选项 - 横向排布 */
+.question-options {
   display: flex;
-  justify-content: flex-end;
-  padding-top: 8px;
-  border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 12px;
 }
 
-.meta-time {
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.card-actions {
+.option-item {
   display: flex;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 0;
-  border-top: 1px solid #f1f5f9;
-  margin-top: auto;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.4;
+  padding: 4px 8px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.option-item:hover {
+  background: #e5e7eb;
+}
+
+.option-item::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border: 2px solid #9ca3af;
+  border-radius: 50%;
   flex-shrink: 0;
+  background: white;
 }
 
-/* 滚动条样式 */
-.card-content::-webkit-scrollbar {
-  width: 4px;
+/* 右侧：小组区域 */
+.groups-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-left: 2px solid #e5e7eb;
+  padding-left: 24px;
+  min-width: 0;
 }
 
-.card-content::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 2px;
+.groups-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b7280;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.card-content::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 2px;
+.groups-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-content: flex-start;
 }
 
-.card-content::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+.group-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 32px;
+  padding: 0 12px;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border: 2px solid #93c5fd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e40af;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.group-badge:hover {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-color: #1d4ed8;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.no-groups {
+  text-align: center;
+  padding: 20px 12px;
+  color: #9ca3af;
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* 响应式设计 */
+@media (max-width: 1240px) {
+  .page {
+    width: 100%;
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .question-card {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .question-info {
+    flex: 1 1 auto;
+  }
+  
+  .groups-section {
+    flex: 1 1 auto;
+    border-left: none;
+    border-top: 2px solid #e5e7eb;
+    padding-left: 0;
+    padding-top: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .activity-title {
+    font-size: 28px;
+  }
+  
+  .bank-title {
+    font-size: 18px;
+  }
+  
+  .bank-container {
+    padding: 20px;
+  }
+  
+  .question-card {
+    padding: 16px;
+  }
 }
 </style>

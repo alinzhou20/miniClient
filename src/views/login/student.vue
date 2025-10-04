@@ -138,11 +138,11 @@ const handleLogin = async () => {
       studentNo: studentNo
     }
     
-    ElMessage.success(`登录成功！${roleName} - 学号: ${studentNo}`)
+    // ElMessage.success(`登录成功！${roleName} - 学号: ${studentNo}`)
     router.push('/student')
   } catch (error: any) {
     console.error('[Login] 登录失败:', error)
-    ElMessage.error(error.message || '连接失败')
+    // ElMessage.error(error.message || '连接失败')
   } finally {
     isLogging.value = false
   }

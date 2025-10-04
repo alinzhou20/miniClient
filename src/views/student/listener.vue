@@ -26,7 +26,7 @@ function onChangeActivity(payload: any) {
   
   // 提示消息
   const activityTitle = status.activityStatus.all.find(a => a.id === activityStatus.now)?.title || '活动'
-  ElMessage.info(`教师已切换到${activityTitle}`)
+  // ElMessage.info(`教师已切换到${activityTitle}`)
 }
 
 // 监听教师拍摄的活动照片

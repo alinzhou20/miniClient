@@ -76,7 +76,7 @@ const handleLogin = async () => {
     
     // 前端验证密码
     if (form.value.password !== '12356') {
-      ElMessage.error('密码错误')
+      // ElMessage.error('密码错误')
       return
     }
     
@@ -86,11 +86,11 @@ const handleLogin = async () => {
     
     status.userStatus = { type: 'teacher' }
     
-    ElMessage.success('登录成功')
+    // ElMessage.success('登录成功')
     router.push('/teacher/activity0')
   } catch (error: any) {
     console.error('[Login] 登录失败:', error)
-    ElMessage.error(error.message || '连接失败')
+    // ElMessage.error(error.message || '连接失败')
   } finally {
     isLogging.value = false
   }

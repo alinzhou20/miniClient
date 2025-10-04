@@ -154,7 +154,7 @@ const startCamera = () => {
   
   // 启动摄像头
   showCamera.value = true
-  ElMessage.info('已重置数据，请重新拍摄')
+  // ElMessage.info('已重置数据，请重新拍摄')
 }
 
 // 提交结果
@@ -182,20 +182,20 @@ const submitResult = () => {
       to: null
     })
     
-    ElMessage.success('提交成功！')
+    // ElMessage.success('提交成功！')
   } catch (error: any) {
     console.error('[Activity1] 提交失败:', error)
-    ElMessage.error(`提交失败: ${error.message}`)
+    // ElMessage.error(`提交失败: ${error.message}`)
   }
 }
 
 // 处理摄像头上传事件
 const handlePhotoUpload = async () => {
-  console.log('[Activity1] 收到上传照片')
+  // console.log('[Activity1] 收到上传照片')
   showCamera.value = false
   
   if (!status.takePhoto) {
-    ElMessage.warning('照片未拍摄成功')
+    // ElMessage.warning('照片未拍摄成功')
     return
   }
 
@@ -242,7 +242,7 @@ const autoScore = () => {
 
 // 处理摄像头退出事件
 const handleCameraExit = () => {
-  console.log('[Activity1] 用户退出摄像头')
+  // console.log('[Activity1] 用户退出摄像头')
   showCamera.value = false
 }
 </script>
