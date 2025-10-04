@@ -69,6 +69,23 @@ export interface Activity2_2_designResult {
   submittedAt: number
 }
 
+// ==================== Activity 4 - 数据获取方式 ====================
+export type BoxId = 'A' | 'B' | 'C' | 'D'
+export type ElementId =
+  | 'check_vision'
+  | 'register_vision'
+  | 'bad_habits'
+  | 'usage_duration'
+  | 'common_devices'
+  | 'survey_all_devices'
+
+export interface Activity4Result {
+  selections: Record<ElementId, BoxId | ''>
+  hasSubmittedAll: boolean
+  rating: Rating[]
+  submittedAt: number
+}
+
 // ==================== Activity 2 数据常量 ====================
 // 问卷初始数据
 const questionnaireInitialData: Questionnaire = {
@@ -275,6 +292,32 @@ export const useActivity = defineStore('activity', () => {
     submittedAt: 0
   })
 
+  // Activity 4 - 数据获取方式
+  const ac4_stuResult = ref<Activity4Result>({
+    selections: {
+      check_vision: '',
+      register_vision: '',
+      bad_habits: '',
+      usage_duration: '',
+      common_devices: '',
+      survey_all_devices: ''
+    },
+    hasSubmittedAll: false,
+    rating: [
+      {
+        index: 1,
+        criteria: '1.能够正确分类至少4个场景。',
+        score: 0,
+      },
+      {
+        index: 2,
+        criteria: '2.能够正确分类所有6个场景。',
+        score: 0,
+      }
+    ],
+    submittedAt: 0
+  })
+
   const reset = () => {
     // 重置问卷
     questionnaire.value = JSON.parse(JSON.stringify(questionnaireInitialData))
@@ -335,6 +378,30 @@ export const useActivity = defineStore('activity', () => {
       ],
       submittedAt: 0
     }
+    ac4_stuResult.value = {
+      selections: {
+        check_vision: '',
+        register_vision: '',
+        bad_habits: '',
+        usage_duration: '',
+        common_devices: '',
+        survey_all_devices: ''
+      },
+      hasSubmittedAll: false,
+      rating: [
+        {
+          index: 1,
+          criteria: '1.能够正确分类至少4个场景。',
+          score: 0,
+        },
+        {
+          index: 2,
+          criteria: '2.能够正确分类所有6个场景。',
+          score: 0,
+        }
+      ],
+      submittedAt: 0
+    }
   }
   
   return {
@@ -352,6 +419,9 @@ export const useActivity = defineStore('activity', () => {
     // Activity 2
     ac2_1_stuSelectResult,
     ac2_2_stuDesignResult,
+
+    // Activity 4
+    ac4_stuResult,
 
     reset
   }

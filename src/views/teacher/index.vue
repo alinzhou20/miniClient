@@ -1,6 +1,5 @@
 <template>
   <div class="page">
-    <Listener />
     <!-- 顶部标题横幅 + 活动按钮 -->
     <div class="banner">
       <div class="banner-inner">
@@ -10,10 +9,10 @@
         <!-- 活动按钮区 -->
         <div class="activity-btns">
           <button 
-            v-for="activity in status.activityStatus.all" 
+            v-for="activity in teacherActivities" 
             :key="activity.id"
             class="activity-btn"
-            :class="{ active: status.activityStatus.now === activity.id }"
+            :class="{ active: currentActivityId === activity.id }"
             @click="selectActivity(activity.id)"
           >
             {{ activity.title }}
@@ -37,40 +36,58 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStatus, useSocket, useActivity} from '@/store'
 import { ElMessage } from 'element-plus'
 import { Fold } from '@element-plus/icons-vue'
 import { EventType } from '@/types'
+import type { Activity } from '@/store/status'
 
 const router = useRouter()
 const socket = useSocket()
 const status = useStatus()
 const activity = useActivity()
 
+// 教师端活动列表：直接使用 status 中的活动列表（包含 activity0-4）
+const teacherActivities = computed<Activity[]>(() => {
+  return status.activityStatus.all
+})
+
+// 当前活动 ID（根据路由判断）
+const currentActivityId = computed(() => {
+  const match = router.currentRoute.value.path.match(/activity(\d+)/)
+  return match ? parseInt(match[1]) : 0
+})
+
 const selectActivity = (id: number) => {
-  // 更新 status
-  status.activityStatus.now = id
-  status.activityStatus.all.forEach(a => {
-    if (a.id === id) a.isActive = true
-  })
+  // 更新 status（activity0 不同步给学生）
+  if (id > 0) {
+    status.activityStatus.now = id
+    status.activityStatus.all.forEach(a => {
+      a.isActive = (a.id === id)
+    })
+  }
   
   console.log('selectActivity', id)
   // 同步路由
   router.push(`/teacher/activity${id}`)
   
-  // 广播给学生
-  socket.dispatch({
-    mode: status.mode,
-    eventType: EventType.DISPATCH,
-    messageType: 'change_activity',
-    activityIndex: '-1',
-    data: { activityStatus: status.activityStatus },
-    from: null,
-    to: {}
-  })
+  // 广播给学生（activity0 是教师专用，不广播）
+  if (id > 0) {
+    socket.dispatch({
+      mode: status.mode,
+      eventType: EventType.DISPATCH,
+      messageType: 'change_activity',
+      activityIndex: '-1',
+      data: { activityStatus: status.activityStatus },
+      from: null,
+      to: {}
+    })
+  }
 
-  ElMessage.success(`已切换到${status.activityStatus.all.find(a => a.id === id)?.title || '活动'}`)
+  const activityName = teacherActivities.value.find(a => a.id === id)?.title || '活动'
+  ElMessage.success(`已切换到${activityName}`)
 }
 
 const handleLogout = () => {

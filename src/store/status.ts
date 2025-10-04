@@ -39,14 +39,16 @@ export const useStatus = defineStore('status', () => {
   // 存储最新一次上传的数据到云平台的
   const fileId = ref<string | null>(null)
 
-  // 活动状态
+  // 活动状态（通用，学生端使用 1-4，教师端使用 0-4）
   const activityStatus = ref<ActivityStatus>(
     {
       now: 1,
       all: [
-        { id: 1, title: '活动一', isActive: false },
+        { id: 0, title: '活动零', isActive: false },
+        { id: 1, title: '活动一', isActive: true },
         { id: 2, title: '活动二', isActive: false },
         { id: 3, title: '活动三', isActive: false },
+        { id: 4, title: '活动四', isActive: false },
       ]
     }
   )
@@ -56,9 +58,11 @@ export const useStatus = defineStore('status', () => {
     activityStatus.value = {
       now: 1,
       all: [
-        { id: 1, title: '活动一', isActive: false },
+        { id: 0, title: '活动零', isActive: false },
+        { id: 1, title: '活动一', isActive: true },
         { id: 2, title: '活动二', isActive: false },
         { id: 3, title: '活动三', isActive: false },
+        { id: 4, title: '活动四', isActive: false },
       ]
     }
     takePhoto.value = null

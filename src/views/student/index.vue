@@ -10,10 +10,10 @@
         <!-- 活动按钮区 -->
         <div class="activity-btns">
           <button 
-            v-for="activity in status.activityStatus.all" 
+            v-for="activity in studentActivities" 
             :key="activity.id"
             class="activity-btn"
-            :class="{ active: router.currentRoute.value.path.match(/activity(\d+)/)?.[1] === activity.id.toString() }"
+            :class="{ active: currentActivityId === activity.id }"
             @click="selectActivity(activity.id)"
           >
             {{ activity.title }}
@@ -37,19 +37,35 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStatus, useSocket, useActivity } from '@/store'
 import { ElMessage } from 'element-plus'
 import { Fold } from '@element-plus/icons-vue'
 import Listener from './listener.vue'
+import type { Activity } from '@/store/status'
 
 const router = useRouter()
 const socket = useSocket()
 const status = useStatus()
 const activity = useActivity()
 
+// 学生端活动列表：只包含 activity1-4（过滤掉不存在的 activity0）
+const studentActivities = computed<Activity[]>(() => {
+  return status.activityStatus.all.filter(a => a.id >= 1)
+})
+
+// 当前活动 ID（根据路由判断）
+const currentActivityId = computed(() => {
+  const match = router.currentRoute.value.path.match(/activity(\d+)/)
+  return match ? parseInt(match[1]) : 1
+})
+
 const selectActivity = (id: number) => {
-  router.push(`/student/activity${id}`)
+  // 学生端只能跳转到 activity1-4
+  if (id >= 1 && id <= 4) {
+    router.push(`/student/activity${id}`)
+  }
 }
 
 const handleLogout = () => {
