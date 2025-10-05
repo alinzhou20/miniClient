@@ -8,6 +8,7 @@ import Activity1 from '@/views/student/activity1.vue'
 import Activity2 from '@/views/student/activity2.vue'
 import Activity3 from '@/views/student/activity3.vue'
 import Activity4 from '@/views/student/activity4.vue'
+import Sleep from '@/views/student/sleep.vue'
 
 export const studentRoutes: RouteRecordRaw[] = [
   {
@@ -18,6 +19,7 @@ export const studentRoutes: RouteRecordRaw[] = [
     children: [
       {
         path: '',
+        name: 'StudentHome',
         redirect: '/student/activity1'
       },
       {
@@ -45,5 +47,11 @@ export const studentRoutes: RouteRecordRaw[] = [
         meta: { requiresAuth: true }
       }
     ]
+  },
+  {
+    path: '/student/sleep',
+    name: 'StudentSleep',
+    component: Sleep,
+    meta: { requiresAuth: true }
   }
 ]

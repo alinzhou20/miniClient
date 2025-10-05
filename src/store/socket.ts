@@ -49,25 +49,50 @@ export const useSocket = defineStore('socket', () => {
       }
 
       try {
-        // 获取 Socket.IO 服务器地址（从环境变量）
-        const baseUrl = import.meta.env.VITE_SOCKET_URL
+        // 在开发环境使用相对路径（通过 Vite 代理），生产环境使用环境变量
+        const isDev = import.meta.env.DEV
+        const baseUrl = isDev ? '' : (import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000')
+
+        console.log(`[Socket] 正在连接到: ${baseUrl || window.location.origin}/classroom`)
+        console.log(`[Socket] 模式: ${isDev ? '开发环境（使用 Vite 代理）' : '生产环境'}`)
 
         // 创建 Socket.IO 客户端实例
         socket.value = io(`${baseUrl}/classroom`, {
           auth: authInfo,
-          transports: ['websocket', 'polling']
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionAttempts: 5
         })
 
         const socketInstance = socket.value
 
         // 监听连接成功事件
         socketInstance.on('connect', () => {
+          console.log('[Socket] ✅ 连接成功')
           resolve()
+        })
+
+        // 监听连接错误
+        socketInstance.on('connect_error', (error) => {
+          console.error('[Socket] ❌ 连接失败:', error.message)
+          console.error(`[Socket] 请确保服务器运行在 ${baseUrl}`)
         })
 
         // 监听断开连接事件
         socketInstance.on('disconnect', (reason) => {
+          console.log('[Socket] 断开连接:', reason)
           trigger('disconnect', reason)
+        })
+
+        // 监听重连尝试
+        socketInstance.io.on('reconnect_attempt', (attempt) => {
+          console.log(`[Socket] 正在尝试重连... (第 ${attempt} 次)`)
+        })
+
+        // 监听重连成功
+        socketInstance.io.on('reconnect', (attempt) => {
+          console.log(`[Socket] ✅ 重连成功 (尝试了 ${attempt} 次)`)
         })
 
         // 监听业务事件（接收时反序列化 data 字段）

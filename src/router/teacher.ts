@@ -20,6 +20,7 @@ export const teacherRoutes: RouteRecordRaw[] = [
     children: [
       {
         path: '',
+        name: 'TeacherHome',
         redirect: '/teacher/activity0'
       },
       {

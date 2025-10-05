@@ -5,7 +5,7 @@
       <h3>评价标准</h3>
       <div class="criteria-grid">
         <div 
-          v-for="rating in activity.ac2_2_stuDesignResult?.rating" 
+          v-for="rating in activity.ac3_stuResult?.rating" 
           :key="rating.index" 
           class="criterion-item"
           :class="{ 'completed': rating.score === 1 }"
@@ -20,8 +20,8 @@
     <div class="questionnaire-section">
       <div class="section-header">
         <h3>3. 填写问卷</h3>
-        <el-button type="success" @click="submitQuestionnaire" :disabled="!canSubmit">
-          提交问卷
+        <el-button type="success" @click="submitQuestionnaire" :disabled="!canSubmit || hasSubmitted">
+          {{ hasSubmitted ? '已提交' : '提交问卷' }}
         </el-button>
       </div>
       <QuestionnairePreview :answerable="true" />
@@ -31,7 +31,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useActivity } from '@/store/activity'
 import { useSocket } from '@/store/socket'
 import { useStatus } from '@/store/status'
@@ -41,6 +41,11 @@ import QuestionnairePreview from '../components/QuestionnairePreviewCard.vue'
 const activity = useActivity()
 const socket = useSocket()
 const status = useStatus()
+
+// 判断是否已提交
+const hasSubmitted = computed(() => {
+  return activity.ac3_stuResult?.submittedAt && activity.ac3_stuResult.submittedAt > 0
+})
 
 // 判断是否可以提交
 const canSubmit = computed(() => {
@@ -56,34 +61,55 @@ const canSubmit = computed(() => {
 
 // 提交问卷
 const submitQuestionnaire = () => {
-  if (!canSubmit.value) {
-    // ElMessage.warning('请完成所有题目后再提交')
+  if (!canSubmit.value || hasSubmitted.value) {
     return
   }
 
-  try {
-    const user = status.userStatus
-    socket.submit({
-      mode: EntityMode.STUDENT_GROUP_ROLE,
-      messageType: 'questionnaire_submit',
-      activityIndex: '3',
-      data: {
-        questions: activity.questionnaire.questions,
-        submittedAt: Date.now()
-      },
-      from: {
-        id: String(user?.groupNo || ''),
-        groupNo: String(user?.groupNo || '')
-      },
-      to: null,
-      eventType: EventType.SUBMIT
+  ElMessageBox.confirm(
+    '确定要提交问卷吗？提交后将无法修改。',
+    '确认提交',
+    {
+      confirmButtonText: '确定提交',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(() => {
+      try {
+        const user = status.userStatus
+        socket.submit({
+          mode: EntityMode.STUDENT_GROUP_ROLE,
+          messageType: 'questionnaire_submit',
+          activityIndex: '3',
+          data: {
+            questions: activity.questionnaire.questions,
+            submittedAt: Date.now()
+          },
+          from: {
+            id: String(user?.studentNo || ''),
+            groupNo: String(user?.groupNo || ''),
+            studentNo: String(user?.studentNo || ''),
+            studentRole: String(user?.studentRole || '')
+          },
+          to: null,
+          eventType: EventType.SUBMIT
+        })
+        
+        // 自动评分：提交成功得1分
+        if (activity.ac3_stuResult) {
+          activity.ac3_stuResult.rating[0].score = 1
+          activity.ac3_stuResult.submittedAt = Date.now()
+        }
+        
+        ElMessage.success('问卷提交成功！恭喜你获得⭐')
+      } catch (error: any) {
+        console.error('[Activity3] 提交失败:', error)
+        ElMessage.error(`提交失败: ${error.message}`)
+      }
     })
-    
-    // ElMessage.success('问卷提交成功！')
-  } catch (error: any) {
-    console.error('[Activity3] 提交失败:', error)
-    // ElMessage.error(`提交失败: ${error.message}`)
-  }
+    .catch(() => {
+      // 用户取消
+    })
 }
 </script>
 

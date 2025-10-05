@@ -212,14 +212,7 @@ const submitChallenge = () => {
       
       // console.log('[DesignCard] 当前问卷题目:', activity.questionnaire.questions)
       
-      // 2. 更新评分 - 三星挑战完成
-      const rating = activity.ac2_2_stuDesignResult.rating.find(r => r.index === 1)
-      if (rating) rating.score = 1
-      
-      // 3. 更新提交时间
-      activity.ac2_2_stuDesignResult.submittedAt = Date.now()
-      
-      ElMessage.success('三星挑战完成！题目已加入问卷')
+      ElMessage.success('题目已加入问卷！请点击"提交设计"按钮完成提交')
     } catch (error: any) {
       console.error('[DesignCard] 提交失败:', error)
       ElMessage.error(`提交失败: ${error.message}`)

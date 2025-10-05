@@ -35,7 +35,7 @@ export interface QuestionOption {
   options?: string[]
   type: 'fill' | 'single' | 'multiple'
   questionType: 'duration' | 'impact' | 'grade' | 'gender' | 'design' 
-  answer?: string
+  answer?: any
 }
 
 // 完整调查问卷
@@ -69,15 +69,29 @@ export interface Activity2_2_designResult {
   submittedAt: number
 }
 
+// ==================== Activity 3 - 问卷填写 ====================
+// 问卷答案（学生提交的完整问卷）
+export interface QuestionnaireAnswer {
+  groupNo: string
+  studentNo: string
+  studentRole: string
+  questions: QuestionOption[]  // 包含答案的完整问卷题目
+  submittedAt: number
+}
+
+// Activity 3 - 学生问卷提交结果（包含评价）
+export interface Activity3Result {
+  rating: Rating[]
+  submittedAt: number
+}
+
 // ==================== Activity 4 - 数据获取方式 ====================
 export type BoxId = 'A' | 'B' | 'C' | 'D'
 export type ElementId =
-  | 'check_vision'
-  | 'register_vision'
-  | 'bad_habits'
-  | 'usage_duration'
-  | 'common_devices'
-  | 'survey_all_devices'
+  | 'get_viewpoints'      // 获取正反方观点
+  | 'ai_organize'         // 借助智能体梳理理由
+  | 'get_group_reasons'   // 获取各小组理由
+  | 'survey_devices'      // 获取学生数字设备使用情况
 
 export interface Activity4Result {
   selections: Record<ElementId, BoxId[]>  // 每个场景可以有多个分类
@@ -108,6 +122,49 @@ const questionnaireInitialData: Questionnaire = {
   }]
 }
 
+export const questionnaireSecondData: Questionnaire = {
+  title: '学生数字设备使用情况调查问卷',
+  description: '为了更好地了解同学们使用数字设备的情况，用于分析，得出合理建议，提升使用数字设备自我管理意识，特设计此问卷。希望同学们如实填写，感谢大家的积极参与。',
+  questions: [{
+    id: 1,
+    title: '就读年级',
+    options: ['一年级', '二年级', '三年级', '四年级', '五年级', '六年级'],
+    type: 'single',
+    questionType: 'grade',
+    answer: ''
+  },{
+    id: 2,
+    title: '你的性别',
+    options: ['男', '女'],
+    type: 'single',
+    questionType: 'gender',
+    answer: ''
+  },{
+    id: 3,
+    title: '周末你使用平板电脑的大概时间是_______。若没有，则填0（单位：分钟）',
+    type: 'fill',
+    questionType: 'duration',
+    answer: ''
+  }, {
+    id: 4,
+    title: '你认为使用数字设备对你的学习和生活最主要的影响是什么？',
+    options: [
+      '快速获取学习资料',
+      '便捷分享生活动态（如照片、视频）',
+      '提供多样化娱乐选择（游戏、短视频等）',
+      '作业时更依赖即时搜索而非独立思考',
+      '减少面对面交流时间',
+      '影响夜间睡眠质量',
+      '连续使用1小时后出现视觉疲劳',
+      '其他_______'
+    ],
+    type: 'multiple',
+    questionType: 'impact',
+    answer: ''
+  },]
+}
+
+
 // 题库数据
 export const bank: QuestionBank = {
   durationQuestions: [
@@ -135,7 +192,7 @@ export const bank: QuestionBank = {
         '便捷分享生活动态（如照片、视频）',
         '提供多样化娱乐选择（游戏、短视频等）'
       ],
-      type: 'single',
+      type: 'multiple',
       questionType: 'impact',
       answer: ''
     },
@@ -147,7 +204,7 @@ export const bank: QuestionBank = {
         '减少面对面交流时间',
         '影响夜间睡眠质量'
       ],
-      type: 'single',
+      type: 'multiple',
       questionType: 'impact',
       answer: ''
     },
@@ -255,9 +312,9 @@ export const useActivity = defineStore('activity', () => {
   })
   
   // Activity 1 - 教师接收提交结果（包含测试数据：12组，正方7组，反方5组）
-  const ac1_allResult = ref<Record<string, Activity1Result>>({
+  const ac1_allResult_test = ref<Record<string, Activity1Result>>({
     // 正方第1组
-    'test_1': {
+    '1': {
       viewpoint: 'A',
       point: {
         1: '数字设备可以快速获取学习资料，提高学习效率',
@@ -267,7 +324,7 @@ export const useActivity = defineStore('activity', () => {
       submittedAt: Date.now() - 660000
     },
     // 反方第1组
-    'test_2': {
+    '2': {
       viewpoint: 'B',
       point: {
         1: '长时间使用数字设备会影响视力健康',
@@ -277,7 +334,7 @@ export const useActivity = defineStore('activity', () => {
       submittedAt: Date.now() - 640000
     },
     // 正方第2组
-    'test_3': {
+    '3': {
       viewpoint: 'A',
       point: {
         1: '数字设备便于与老师和同学进行远程沟通交流',
@@ -287,7 +344,7 @@ export const useActivity = defineStore('activity', () => {
       submittedAt: Date.now() - 620000
     },
     // 反方第2组
-    'test_4': {
+    '4': {
       viewpoint: 'B',
       point: {
         1: '过度依赖数字设备会削弱独立思考能力',
@@ -297,7 +354,7 @@ export const useActivity = defineStore('activity', () => {
       submittedAt: Date.now() - 600000
     },
     // 正方第3组
-    'test_5': {
+    '5': {
       viewpoint: 'A',
       point: {
         1: '数字设备支持多媒体学习，更容易理解抽象概念',
@@ -307,7 +364,7 @@ export const useActivity = defineStore('activity', () => {
       submittedAt: Date.now() - 580000
     },
     // 反方第3组
-    'test_6': {
+    '6': {
       viewpoint: 'B',
       point: {
         1: '夜间使用电子屏幕会影响睡眠质量',
@@ -317,7 +374,7 @@ export const useActivity = defineStore('activity', () => {
       submittedAt: Date.now() - 560000
     },
     // 正方第4组
-    'test_7': {
+    '7': {
       viewpoint: 'A',
       point: {
         1: '数字设备提供了个性化的学习方案和智能辅导',
@@ -327,7 +384,7 @@ export const useActivity = defineStore('activity', () => {
       submittedAt: Date.now() - 540000
     },
     // 反方第4组
-    'test_8': {
+    '8': {
       viewpoint: 'B',
       point: {
         1: '容易形成拖延习惯，总想着先玩一会儿再学习',
@@ -337,7 +394,7 @@ export const useActivity = defineStore('activity', () => {
       submittedAt: Date.now() - 520000
     },
     // 正方第5组
-    'test_9': {
+    '9': {
       viewpoint: 'A',
       point: {
         1: '数字设备让学习变得更有趣，提高学习积极性',
@@ -347,7 +404,7 @@ export const useActivity = defineStore('activity', () => {
       submittedAt: Date.now() - 500000
     },
     // 反方第5组
-    'test_10': {
+    '10': {
       viewpoint: 'B',
       point: {
         1: '过多使用数字设备会影响书写能力和记忆力',
@@ -357,7 +414,7 @@ export const useActivity = defineStore('activity', () => {
       submittedAt: Date.now() - 480000
     },
     // 正方第6组
-    'test_11': {
+    '11': {
       viewpoint: 'A',
       point: {
         1: '数字设备可以帮助记录学习进度，进行数据分析',
@@ -365,9 +422,9 @@ export const useActivity = defineStore('activity', () => {
       },
       rating: [{ index: 1, criteria: "1. 通过小组讨论，我们能够写出两条理由。", score: 1 }],
       submittedAt: Date.now() - 460000
-    },
+    },  
     // 正方第7组
-    'test_12': {
+    '12': {
       viewpoint: 'A',
       point: {
         1: '数字设备提供即时反馈，帮助我们及时纠正错误',
@@ -377,6 +434,8 @@ export const useActivity = defineStore('activity', () => {
       submittedAt: Date.now() - 440000
     }
   })
+
+  const ac1_allResult = ref<Record<string, Activity1Result>>({})
   
   // Activity 2.1 - 教师接收所有学生的选择结果
   const ac2_1_allSelectResult = ref<Record<string, Activity2_1_selectResult>>({})
@@ -384,9 +443,9 @@ export const useActivity = defineStore('activity', () => {
   // Activity 2.2 - 教师接收所有学生的设计结果
   const ac2_2_allDesignResult = ref<Record<string, Activity2_2_designResult>>({})
   
-  // Activity 3 - 教师接收所有问卷提交
-  const ac3_allQuestionnaireResult = ref<Record<string, { questions: QuestionOption[], submittedAt: number }>>({})
-  
+  // Activity 3 - 教师接收学生的问卷答案
+  const ac3_allQuestionnaireAnswer = ref<Record<string, QuestionnaireAnswer>>({})
+    
   // Activity 4 - 教师接收所有分类结果
   const ac4_allResult = ref<Record<string, Activity4Result>>({})
 
@@ -434,26 +493,31 @@ export const useActivity = defineStore('activity', () => {
     submittedAt: 0
   })
 
+  // Activity 3 - 学生问卷提交结果
+  const ac3_stuResult = ref<Activity3Result | null>({
+    rating: [
+      {
+        index: 1,
+        criteria: '1.能够独立完成调查问卷并提交。',
+        score: 0,
+      }
+    ],
+    submittedAt: 0
+  })
+
   // Activity 4 - 数据获取方式
   const ac4_stuResult = ref<Activity4Result>({
     selections: {
-      check_vision: [],
-      register_vision: [],
-      bad_habits: [],
-      usage_duration: [],
-      common_devices: [],
-      survey_all_devices: []
+      get_viewpoints: [],
+      ai_organize: [],
+      get_group_reasons: [],
+      survey_devices: []
     },
     hasSubmittedAll: false,
     rating: [
       {
         index: 1,
-        criteria: '1.能够为至少4个场景选择数据获取方式。',
-        score: 0,
-      },
-      {
-        index: 2,
-        criteria: '2.能够正确匹配所有6个场景的数据获取方式。',
+        criteria: '1.能够了解获取数据的常用方法。',
         score: 0,
       }
     ],
@@ -482,7 +546,7 @@ export const useActivity = defineStore('activity', () => {
     ac1_allResult.value = {}
     ac2_1_allSelectResult.value = {}
     ac2_2_allDesignResult.value = {}
-    ac3_allQuestionnaireResult.value = {}
+    ac3_allQuestionnaireAnswer.value = {}
     ac4_allResult.value = {}
     ac2_1_stuSelectResult.value = {
       selectedDurationQuestion: null,
@@ -524,25 +588,28 @@ export const useActivity = defineStore('activity', () => {
       ],
       submittedAt: 0
     }
+    ac3_stuResult.value = {
+      rating: [
+        {
+          index: 1,
+          criteria: '1.能够独立完成调查问卷并提交。',
+          score: 0,
+        }
+      ],
+      submittedAt: 0
+    }
     ac4_stuResult.value = {
       selections: {
-        check_vision: [],
-        register_vision: [],
-        bad_habits: [],
-        usage_duration: [],
-        common_devices: [],
-        survey_all_devices: []
+        get_viewpoints: [],
+        ai_organize: [],
+        get_group_reasons: [],
+        survey_devices: []
       },
       hasSubmittedAll: false,
       rating: [
         {
           index: 1,
-          criteria: '1.能够为至少4个场景选择数据获取方式。',
-          score: 0,
-        },
-        {
-          index: 2,
-          criteria: '2.能够正确匹配所有6个场景的数据获取方式。',
+          criteria: '1.能够了解获取数据的常用方法。',
           score: 0,
         }
       ],
@@ -570,8 +637,9 @@ export const useActivity = defineStore('activity', () => {
     ac2_2_allDesignResult,
     
     // Activity 3
-    ac3_allQuestionnaireResult,
-
+    ac3_stuResult,
+    ac3_allQuestionnaireAnswer,
+    
     // Activity 4
     ac4_stuResult,
     ac4_allResult,

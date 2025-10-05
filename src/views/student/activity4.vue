@@ -48,7 +48,7 @@
           </div>
         </div>
 
-        <!-- 场景卡片（拖放区域） -->
+        <!-- 场景卡片（拖放区域，2x2网格） -->
         <div class="scenarios-grid">
           <div
             v-for="element in elements"
@@ -107,10 +107,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useActivity, type BoxId, type ElementId } from '@/store/activity'
 import { useStatus } from '@/store/status'
 import { useSocket } from '@/store/socket'
-import { ElMessage } from 'element-plus'
 import { RefreshLeft } from '@element-plus/icons-vue'
 import { EntityMode, EventType } from '@/types'
 
@@ -130,12 +130,10 @@ const boxLabels: Record<BoxId, string> = {
 // 场景定义（拖放区域）
 type ElementItem = { id: ElementId; title: string }
 const elements: Readonly<ElementItem[]> = [
-  { id: 'check_vision', title: '测量新生身高数据' },
-  { id: 'register_vision', title: '获取保护视力的方法' },
-  { id: 'survey_all_devices', title: '调查全校学生数字设备使用情况' },
-  { id: 'bad_habits', title: '记录课堂重点知识' },
-  { id: 'usage_duration', title: '了解当天天气数据' },
-  { id: 'common_devices', title: '2024年全国出生人口' },
+  { id: 'get_viewpoints', title: '获取正反方观点' },
+  { id: 'ai_organize', title: '借助智能体梳理理由' },
+  { id: 'get_group_reasons', title: '获取各小组理由' },
+  { id: 'survey_devices', title: '获取学生数字设备使用情况' },
 ] as const
 
 // 拖拽状态
@@ -147,12 +145,10 @@ const snapping = ref(false)
 const snapPos = ref<{ x: number; y: number }>({ x: 0, y: 0 })
 const pulseElement = ref<ElementId | ''>('')
 const elementRefs = ref<Record<ElementId, HTMLDivElement | null>>({
-  check_vision: null,
-  register_vision: null,
-  bad_habits: null,
-  usage_duration: null,
-  common_devices: null,
-  survey_all_devices: null
+  get_viewpoints: null,
+  ai_organize: null,
+  get_group_reasons: null,
+  survey_devices: null
 })
 
 // 设置元素引用
@@ -168,7 +164,7 @@ const hasAnySelection = computed(() =>
   elements.some(el => selections.value[el.id]?.length > 0)
 )
 
-// 是否可以提交
+// 是否可以提交（每个场景至少有一个选择）
 const canSubmit = computed(() => 
   elements.every(el => selections.value[el.id]?.length > 0)
 )
@@ -283,44 +279,12 @@ function hitTest(cx: number, cy: number): ElementId | '' {
   return ''
 }
 
-// 自动打分
+// 自动打分（只要提交就给1星）
 const autoScore = () => {
   if (!activity.ac4_stuResult) return
   
-  // 正确答案映射
-  const correctAnswers: Record<ElementId, BoxId[]> = {
-    check_vision: ['A'],          // 测量新生身高数据 -> 现场记录
-    register_vision: ['C'],        // 获取保护视力的方法 -> 网络获取
-    survey_all_devices: ['B'],     // 调查全校学生数字设备使用情况 -> 问卷调查
-    bad_habits: ['A'],             // 记录课堂重点知识 -> 现场记录
-    usage_duration: ['C'],         // 了解当天天气数据 -> 网络获取
-    common_devices: ['C']          // 2024年全国出生人口 -> 网络获取
-  }
-  
-  // 计算有多少个场景有选择
-  const scenariosWithSelection = elements.filter(
-    el => selections.value[el.id]?.length > 0
-  ).length
-  
-  // 计算有多少个场景完全正确
-  let correctCount = 0
-  elements.forEach(({ id }) => {
-    const selected = selections.value[id] || []
-    const correct = correctAnswers[id]
-    // 检查是否完全匹配（数量相同且包含所有正确答案）
-    if (selected.length === correct.length && 
-        correct.every(box => selected.includes(box))) {
-      correctCount++
-    }
-  })
-  
-  // 根据标准打分
-  if (scenariosWithSelection >= 4) {
-    activity.ac4_stuResult.rating[0].score = 1
-  }
-  if (correctCount === 6) {
-    activity.ac4_stuResult.rating[1].score = 1
-  }
+  // 只要完成提交，就给1星
+  activity.ac4_stuResult.rating[0].score = 1
 }
 
 // 提交结果
@@ -351,10 +315,10 @@ const submitResult = () => {
       activity.ac4_stuResult.hasSubmittedAll = true
     }
     
-    // ElMessage.success('分类结果提交成功！')
+    ElMessage.success('分类结果提交成功！恭喜你获得⭐')
   } catch (error: any) {
     console.error('[Activity4] 提交失败:', error)
-    // ElMessage.error(`提交失败: ${error.message}`)
+    ElMessage.error(`提交失败: ${error.message}`)
   }
 }
 
@@ -368,9 +332,8 @@ async function onResetAll() {
   })
   activity.ac4_stuResult.hasSubmittedAll = false
   activity.ac4_stuResult.rating[0].score = 0
-  activity.ac4_stuResult.rating[1].score = 0
   
-  // ElMessage.success('已重置所有分类！')
+  ElMessage.success('已重置所有分类！')
 }
 
 // 组件卸载时清理事件监听

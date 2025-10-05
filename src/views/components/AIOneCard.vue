@@ -72,7 +72,7 @@
 import { ref, nextTick, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useActivity } from '@/store/activity'
-import type { QuestionOption, Rating } from '@/store/activity'
+import type { QuestionOption } from '@/store/activity'
 
 const activity = useActivity()
 
@@ -192,14 +192,7 @@ const submitChallenge = () => {
       activity.questionnaire.questions.push(newQuestionForQuestionnaire)
     }
     
-    // 更新评分 - 二星挑战完成
-    const rating = activity.ac2_2_stuDesignResult.rating.find((r: Rating) => r.index === 1)
-    if (rating) rating.score = 1
-    
-    // 更新提交时间
-    activity.ac2_2_stuDesignResult.submittedAt = Date.now()
-    
-    ElMessage.success('二星挑战完成！题目已加入问卷')
+    ElMessage.success('题目已加入问卷！请点击"提交设计"按钮完成提交')
   } catch (error: any) {
     console.error('[AIOneCard] 提交失败:', error)
     ElMessage.error(`提交失败: ${error.message}`)

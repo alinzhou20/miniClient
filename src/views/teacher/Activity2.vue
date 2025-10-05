@@ -7,13 +7,104 @@
         <h2 class="activity-title">📊 问卷设计，精研问题</h2>
       </div>
 
+      <!-- 问卷预览模式 -->
+      <div v-if="showPreviewMode" class="preview-mode">
+        <div class="preview-grid">
+          <!-- 左侧：问卷编辑 -->
+          <div class="preview-left">
+            <div class="preview-container">
+              <div class="preview-header">
+                <div class="preview-header-left">
+                  <h3 class="preview-title">问卷编辑 - 可修改学生选择的题目</h3>
+                  <span class="edit-hint">💡 点击任意文本即可编辑，修改会实时保存</span>
+                </div>
+                <div class="header-actions">
+                  <button class="send-btn" @click="sendQuestionnaireToStudents">
+                    📤 发送问卷给学生
+                  </button>
+                  <button class="back-btn" @click="navigateToActivity2_2">
+                    ← 返回题库统计
+                  </button>
+                </div>
+              </div>
+              <div class="preview-content">
+                <QuestionnairePreviewCard :editable="true" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧：学生设计的题目（粘性卡片） -->
+          <div class="design-list-container">
+            <div class="design-list-header">
+              <h3 class="design-list-title">📝 学生设计的题目</h3>
+              <span class="design-count">{{ studentDesignCount }}个</span>
+            </div>
+            
+            <div v-if="studentDesignCount > 0" class="design-items">
+              <div 
+                v-for="design in sortedDesignResults" 
+                :key="design.groupNo"
+                class="design-item-card"
+              >
+                <div class="design-item-header">
+                  <span class="group-label">第{{ design.groupNo }}组</span>
+                  <span v-if="design.designQuestion" class="type-badge">{{ getQuestionTypeText(design.designQuestion.type) }}</span>
+                  <el-button 
+                    v-if="design.designQuestion"
+                    type="primary" 
+                    size="small"
+                    :icon="Plus"
+                    class="add-btn"
+                    @click="addQuestionToQuestionnaire(design.designQuestion)"
+                  >
+                    添加到问卷
+                  </el-button>
+                  <span class="design-time">{{ formatTime(design.submittedAt) }}</span>
+                </div>
+                
+                <div v-if="design.designQuestion" class="question-content">
+                  <div class="question-title-row">
+                    <span class="question-label">题目：</span>
+                    <span class="question-title-text">{{ design.designQuestion.title }}</span>
+                  </div>
+                  
+                  <div v-if="design.designQuestion.options && design.designQuestion.options.length > 0" class="question-options-list">
+                    <div 
+                      v-for="(option, idx) in design.designQuestion.options" 
+                      :key="idx"
+                      class="option-text-item"
+                    >
+                      {{ String.fromCharCode(65 + idx) }}. {{ option }}
+                    </div>
+                  </div>
+                </div>
+                
+                <div v-else class="no-question">
+                  <span>暂未设计题目</span>
+                </div>
+              </div>
+            </div>
+            
+            <div v-else class="empty-design">
+              <div class="empty-icon">📭</div>
+              <p>暂无学生设计的题目</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 题库统计区域 - 单列布局 -->
-      <div class="question-bank-section">
+      <div v-else class="question-bank-section">
         <!-- 使用时长题库 -->
         <div class="bank-container">
           <div class="bank-header">
+            <div class="bank-header-left">
             <span class="bank-icon">⏱️</span>
             <span class="bank-title">使用时长</span>
+            </div>
+            <button class="activity-btn" @click="navigateToActivity2_2">
+              活动2-2
+            </button>
           </div>
           <div class="question-list">
             <div 
@@ -37,14 +128,13 @@
               
               <!-- 右侧：选择的小组 -->
               <div class="groups-section">
-                <div class="groups-label">选择此题的小组</div>
                 <div v-if="getGroupsByQuestion('duration', question.id).length > 0" class="groups-grid">
                   <div 
                     v-for="group in getGroupsByQuestion('duration', question.id)" 
                     :key="group" 
                     class="group-badge"
                   >
-                    {{ group }}
+                    第{{ group }}组
                   </div>
                 </div>
                 <div v-else class="no-groups">暂无小组选择</div>
@@ -56,8 +146,10 @@
         <!-- 使用影响题库 -->
         <div class="bank-container">
           <div class="bank-header">
-            <span class="bank-icon">💡</span>
-            <span class="bank-title">使用影响</span>
+            <div class="bank-header-left">
+              <span class="bank-icon">💡</span>
+              <span class="bank-title">使用影响</span>
+            </div>
           </div>
           <div class="question-list">
             <div 
@@ -81,14 +173,13 @@
               
               <!-- 右侧：选择的小组 -->
               <div class="groups-section">
-                <div class="groups-label">选择此题的小组</div>
                 <div v-if="getGroupsByQuestion('impact', question.id).length > 0" class="groups-grid">
                   <div 
                     v-for="group in getGroupsByQuestion('impact', question.id)" 
                     :key="group" 
                     class="group-badge"
                   >
-                    {{ group }}
+                    第{{ group }}组
                   </div>
                 </div>
                 <div v-else class="no-groups">暂无小组选择</div>
@@ -102,12 +193,23 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { reactive, computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useSocket } from '@/store/socket'
-import { ElMessage } from 'element-plus'
-import { bank } from '@/store/activity'
+import { useStatus } from '@/store/status'
+// import { ElMessage } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
+import { bank, useActivity, questionnaireSecondData, type QuestionOption } from '@/store/activity'
+import { EntityMode, EventType } from '@/types'
+import QuestionnairePreviewCard from '../components/QuestionnairePreviewCard.vue'
 
+const router = useRouter()
 const socket = useSocket()
+const status = useStatus()
+const activity = useActivity()
+
+// 显示模式：false 显示题库统计，true 显示问卷预览
+const showPreviewMode = ref(false)
 
 // 问卷设计数据结构
 interface DesignPayload {
@@ -133,39 +235,45 @@ const designStore = reactive(new Map<string, DesignPayload>())
 const durationQuestions = bank.durationQuestions
 const impactQuestions = bank.impactQuestions
 
-// 问卷数据
-const designItems = computed(() => {
-  return Array.from(designStore.values())
-    .sort((a, b) => (b.at || 0) - (a.at || 0))
-    .map(p => ({ ...p, key: p.from.groupNo }))
+// 问卷数据（旧的，已废弃 - 仅保留 designStore 用于其他 socket 事件）
+// const designItems = computed(() => {
+//   return Array.from(designStore.values())
+//     .sort((a, b) => (b.at || 0) - (a.at || 0))
+//     .map(p => ({ ...p, key: p.from.groupNo }))
+// })
+
+// 活动2.1选择结果数据（新的，基于小组）
+const selectResults = computed(() => {
+  return Object.entries(activity.ac2_1_allSelectResult).map(([groupNo, result]) => ({
+    groupNo,
+    ...result
+  }))
 })
 
 // 获取选择某题目的小组数量
 function getQuestionCount(type: 'duration' | 'impact', questionId: number): number {
-  return designItems.value.filter(item => {
-    const selectedQ = item.data.selectedQuestion
+  return selectResults.value.filter(item => {
     if (type === 'duration') {
-      // 使用时长题目 ID 范围：1-4
-      return selectedQ === questionId && questionId >= 1 && questionId <= 4
+      // 使用时长题目 ID 范围：1-2
+      return item.selectedDurationQuestion === questionId
     } else {
       // 使用影响题目 ID 范围：1-4
-      return selectedQ === questionId && questionId >= 1 && questionId <= 4
+      return item.selectedImpactQuestion === questionId
     }
   }).length
 }
 
 // 获取选择某题目的小组列表
 function getGroupsByQuestion(type: 'duration' | 'impact', questionId: number): string[] {
-  const groups = designItems.value
+  const groups = selectResults.value
     .filter(item => {
-      const selectedQ = item.data.selectedQuestion
       if (type === 'duration') {
-        return selectedQ === questionId && questionId >= 1 && questionId <= 4
+        return item.selectedDurationQuestion === questionId
       } else {
-        return selectedQ === questionId && questionId >= 1 && questionId <= 4
+        return item.selectedImpactQuestion === questionId
       }
     })
-    .map(item => item.from.groupNo)
+    .map(item => item.groupNo)
     .sort((a, b) => parseInt(a) - parseInt(b))
   
   return groups
@@ -202,10 +310,10 @@ function handleDesignSubmission(payload: any) {
   
   if (isFirstSubmission) {
     // console.log(`[Activity2 Teacher] 收到问卷设计: 第${groupNo}组 (首次提交)`)
-    ElMessage.success(`第${groupNo}组提交了问卷设计`)
+    // ElMessage.success(`第${groupNo}组提交了问卷设计`)
   } else {
     // console.log(`[Activity2 Teacher] 更新问卷设计: 第${groupNo}组 (覆盖之前的设计)`)
-    ElMessage.info(`第${groupNo}组更新了问卷设计`)
+    // ElMessage.info(`第${groupNo}组更新了问卷设计`)
   }
 }
 
@@ -218,6 +326,166 @@ onBeforeUnmount(() => {
   // console.log('[Activity2 Teacher] 🔴 组件卸载，清理监听器')
   socket.off('submit', handleDesignSubmission)
 })
+
+// ==================== 活动2-2按钮处理 ====================
+function navigateToActivity2_2() {
+  // 切换显示模式
+  const isEnteringPreviewMode = !showPreviewMode.value
+  showPreviewMode.value = isEnteringPreviewMode
+  
+  // 如果进入预览模式（活动2-2），重置问卷为 questionnaireSecondData
+  if (isEnteringPreviewMode) {
+    // 深拷贝 questionnaireSecondData 以避免直接修改原始数据
+    activity.questionnaire = JSON.parse(JSON.stringify(questionnaireSecondData))
+    // ElMessage.success('已加载活动2-2问卷模板')
+    // 发送问卷给所有学生
+     socket.dispatch({
+      mode: EntityMode.STUDENT,
+      messageType: 'sync_questionnaire',
+      activityIndex: '2',
+      data: {
+        questionnaire: activity.questionnaire
+      },
+      from: null,
+      to: {}, // 发送给所有学生
+      eventType: EventType.DISPATCH
+    })   
+  }
+
+}
+
+// ==================== 发送问卷给学生 ====================
+function sendQuestionnaireToStudents() {
+  try {
+    // 发送问卷给所有学生
+    socket.dispatch({
+      mode: EntityMode.STUDENT,
+      messageType: 'sync_questionnaire',
+      activityIndex: '2',
+      data: {
+        questionnaire: activity.questionnaire
+      },
+      from: null,
+      to: {}, // 发送给所有学生
+      eventType: EventType.DISPATCH
+    })
+    
+    // ElMessage.success('问卷已发送，正在切换到活动3')
+    
+    // 自动跳转到活动3
+    setTimeout(() => {
+      // 更新活动状态
+      status.activityStatus.now = 3
+      status.activityStatus.all.forEach(a => {
+        a.isActive = (a.id === 3)
+      })
+      
+      // 路由跳转
+      router.push('/teacher/activity3')
+      
+      // 广播给学生切换活动
+      socket.dispatch({
+        mode: status.mode,
+        eventType: EventType.DISPATCH,
+        messageType: 'change_activity',
+        activityIndex: '-1',
+        data: { activityStatus: status.activityStatus },
+        from: null,
+        to: {}
+      })
+    }, 500)
+  } catch (error: any) {
+    console.error('[Activity2 Teacher] 发送问卷失败:', error)
+    // ElMessage.error(`发送失败: ${error.message}`)
+  }
+}
+
+// ==================== 学生设计题目相关 ====================
+// 学生设计题目数量
+const studentDesignCount = computed(() => {
+  return Object.keys(activity.ac2_2_allDesignResult).length
+})
+
+// 排序后的设计结果（按得分降序，相同得分按提交时间升序）
+const sortedDesignResults = computed(() => {
+  return Object.entries(activity.ac2_2_allDesignResult)
+    .map(([groupNo, result]) => ({
+      groupNo,
+      ...result
+    }))
+    .sort((a, b) => {
+      // 计算总分
+      const scoreA = getTotalScore(a.rating || [])
+      const scoreB = getTotalScore(b.rating || [])
+      
+      // 先按得分降序
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA
+      }
+      
+      // 得分相同，按提交时间升序（早的排前面）
+      return (a.submittedAt || 0) - (b.submittedAt || 0)
+    })
+})
+
+// 格式化时间
+function formatTime(timestamp: number): string {
+  if (!timestamp) return '未知'
+  
+  const now = Date.now()
+  const diff = now - timestamp
+  const minutes = Math.floor(diff / 60000)
+  
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}小时前`
+  
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}天前`
+  
+  const date = new Date(timestamp)
+  return `${date.getMonth() + 1}月${date.getDate()}日`
+}
+
+// 获取题目类型文本
+function getQuestionTypeText(type: 'fill' | 'single' | 'multiple'): string {
+  const typeMap = {
+    'fill': '填空题',
+    'single': '单选题',
+    'multiple': '多选题'
+  }
+  return typeMap[type] || '未知'
+}
+
+// 计算总分
+function getTotalScore(rating: any[]): number {
+  return rating.reduce((sum, item) => sum + (item.score || 0), 0)
+}
+
+// 添加题目到问卷
+function addQuestionToQuestionnaire(question: QuestionOption) {
+  try {
+    // 深拷贝题目以避免引用问题
+    const newQuestion: QuestionOption = {
+      id: activity.questionnaire.questions.length + 1,
+      title: question.title,
+      type: question.type,
+      questionType: 'design',  // 标记为学生设计的题目
+      options: question.options ? [...question.options] : undefined,
+      answer: question.answer || ''
+    }
+    
+    // 添加到问卷
+    activity.questionnaire.questions.push(newQuestion)
+    
+    // ElMessage.success(`已将第${groupNo}组设计的题目添加到问卷`)
+  } catch (error: any) {
+    console.error('[Activity2 Teacher] 添加题目失败:', error)
+    // ElMessage.error(`添加失败: ${error.message}`)
+  }
+}
 </script>
 
 <style scoped>
@@ -249,7 +517,7 @@ onBeforeUnmount(() => {
 .question-bank-section {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 16px;
 }
 
 /* 题库容器 */
@@ -264,10 +532,16 @@ onBeforeUnmount(() => {
 .bank-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
   padding-bottom: 16px;
   margin-bottom: 24px;
   border-bottom: 3px solid #f3f4f6;
+}
+
+.bank-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .bank-icon {
@@ -278,6 +552,25 @@ onBeforeUnmount(() => {
   font-size: 22px;
   font-weight: 700;
   color: #1f2937;
+}
+
+.activity-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.activity-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
 }
 
 /* 题目列表 */
@@ -294,7 +587,7 @@ onBeforeUnmount(() => {
   background: #fafafa;
   border: 2px solid #e5e7eb;
   border-radius: 12px;
-  padding: 20px;
+  padding: 10px;
   gap: 24px;
   transition: all 0.3s ease;
 }
@@ -307,7 +600,7 @@ onBeforeUnmount(() => {
 
 /* 左侧：题目信息 */
 .question-info {
-  flex: 0 0 540px;
+  flex: 0 0 640px;
   min-width: 0;
 }
 
@@ -315,20 +608,20 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .question-number {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   color: #3b82f6;
   background: #dbeafe;
-  padding: 4px 12px;
+  padding: 4px 10px;
   border-radius: 8px;
 }
 
 .question-count {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 900;
   color: #10b981;
   background: #d1fae5;
@@ -410,9 +703,9 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  height: 32px;
-  padding: 0 12px;
+  min-width: 34px;
+  height: 24px;
+  padding: 0 8px;
   background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
   border: 2px solid #93c5fd;
   border-radius: 8px;
@@ -436,6 +729,314 @@ onBeforeUnmount(() => {
   padding: 20px 12px;
   color: #9ca3af;
   font-size: 13px;
+  font-style: italic;
+}
+
+/* 问卷预览模式 */
+.preview-mode {
+  width: 100%;
+}
+
+/* 预览模式网格布局 */
+.preview-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.preview-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.preview-container {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+  border-bottom: 3px solid #f3f4f6;
+}
+
+.preview-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.preview-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.edit-hint {
+  font-size: 14px;
+  color: #f59e0b;
+  font-weight: 500;
+  padding: 8px 12px;
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 4px;
+  display: inline-block;
+  align-self: flex-start;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.send-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  white-space: nowrap;
+}
+
+.send-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.back-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  white-space: nowrap;
+}
+
+.back-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.preview-content {
+  width: 100%;
+}
+
+/* 学生设计题目列表 - 粘性卡片 */
+.design-list-container {
+  position: sticky;
+  top: 20px;
+  height: 640px;  /* 固定高度，与学生端保持一致 */
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  overflow-y: auto;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 滚动条样式 */
+.design-list-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.design-list-container::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 3px;
+}
+
+.design-list-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.design-list-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.design-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  border-bottom: 3px solid #f3f4f6;
+}
+
+.design-list-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.design-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: #3b82f6;
+  background: #dbeafe;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.design-items {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.design-item-card {
+  background: #fafafa;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.3s ease;
+}
+
+.design-item-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.design-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.group-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e40af;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 2px solid #93c5fd;
+  flex-shrink: 0;
+}
+
+.design-item-header .type-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0ea5e9;
+  background: #e0f2fe;
+  padding: 2px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.design-item-header .add-btn {
+  font-size: 11px;
+  padding: 3px 10px;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.design-item-header .add-btn:deep(.el-button) {
+  padding: 3px 10px;
+}
+
+.design-time {
+  font-size: 11px;
+  color: #6b7280;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.question-content {
+  margin-bottom: 12px;
+}
+
+.question-title-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.question-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.question-title-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.5;
+}
+
+
+.question-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.option-text-item {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.no-question {
+  text-align: center;
+  padding: 20px;
+  color: #9ca3af;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.empty-design {
+  text-align: center;
+  padding: 60px 20px;
+  color: #9ca3af;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.empty-design p {
+  margin: 0;
+  font-size: 14px;
   font-style: italic;
 }
 
@@ -464,6 +1065,17 @@ onBeforeUnmount(() => {
     padding-left: 0;
     padding-top: 16px;
   }
+  
+  .preview-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .design-list-container {
+    position: relative;
+    top: 0;
+    height: auto;
+    max-height: 600px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -481,6 +1093,21 @@ onBeforeUnmount(() => {
   
   .question-card {
     padding: 16px;
+  }
+  
+  .preview-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+  
+  .send-btn,
+  .back-btn {
+    width: 100%;
   }
 }
 </style>

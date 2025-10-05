@@ -108,7 +108,6 @@ const selectActivity = (id: number) => {
   }
 
   const activityName = teacherActivities.value.find(a => a.id === id)?.title || '活动'
-  ElMessage.success(`已切换到${activityName}`)
 }
 
 // 跳转到看板

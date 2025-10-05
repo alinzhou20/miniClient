@@ -50,7 +50,6 @@
 import { ref, computed } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { useStatus } from '@/store/status'
 import { useSocket } from '@/store/socket'
 import StudentCamera from '@/views/components/StudentCamera.vue'
@@ -121,7 +120,6 @@ const handleLogin = async () => {
   
   try {
     const studentNo = currentStudentNo.value.toString()
-    const roleName = form.value.role === 'operator' ? '操作员' : '记录员'
     
     await connect({
       type: 'student',
@@ -138,11 +136,14 @@ const handleLogin = async () => {
       studentNo: studentNo
     }
     
-    // ElMessage.success(`登录成功！${roleName} - 学号: ${studentNo}`)
-    router.push('/student')
+    // 根据角色跳转到不同页面
+    if (form.value.role === 'operator') {
+      router.push('/student')
+    } else {
+      router.push('/student/sleep')
+    }
   } catch (error: any) {
     console.error('[Login] 登录失败:', error)
-    // ElMessage.error(error.message || '连接失败')
   } finally {
     isLogging.value = false
   }

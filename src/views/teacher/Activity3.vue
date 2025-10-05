@@ -1,617 +1,547 @@
 <template>
-  <div class="activity7-monitor">
-    <!-- 小组完成进度 -->
-    <div class="progress-section">
-      <div class="progress-header">
-        <span class="progress-label">Activity7 - 智能问题设计</span>
-        <span class="progress-count">设计题目: {{ designItems.length }} | 完成小组: {{ completedGroups.size }}</span>
+  <div class="page">
+    <!-- 结果展示区域 -->
+    <div class="stats-section">
+      <!-- 活动标题 -->
+      <div class="activity-header">
+        <h2 class="activity-title">📋 问卷答题，收集数据</h2>
       </div>
-      <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: progressPercentage + '%' }"></div>
-      </div>
-    </div>
 
-    <!-- 功能按钮区域 -->
-    <div class="action-section">
-      <el-button 
-        type="primary" 
-        size="large"
-        :icon="Download"
-        @click="exportAllQuestions"
-        :disabled="!designItems.length"
-      >
-        导出所有问题
-      </el-button>
-      <el-button 
-        type="success" 
-        size="large"
-        :icon="Document"
-        @click="exportByDirection"
-        :disabled="!designItems.length"
-      >
-        按方向导出
-      </el-button>
-      <el-button 
-        type="warning" 
-        size="large"
-        :icon="Refresh"
-        @click="clearData"
-      >
-        清空数据
-      </el-button>
-    </div>
-
-    <!-- 问题展示区域 -->
-    <div class="questions-layout">
-      <!-- 按设计方向分组展示 -->
-      <div class="direction-panel" v-for="direction in directions" :key="direction">
-        <div class="direction-header">
-          <h3 class="direction-title">{{ direction }}</h3>
-          <span class="direction-count">{{ getDirectionQuestions(direction).length }} 个问题</span>
+      <!-- 操控按钮区域 -->
+      <div class="action-section">
+        <div class="stats-info">
+          <div class="stat-item">
+            <span class="stat-label">已提交学生：</span>
+            <span class="stat-value">{{ submittedGroupCount }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">完成率：</span>
+            <span class="stat-value">{{ completionRate }}%</span>
+          </div>
         </div>
-        
-        <div class="questions-grid">
-          <el-empty v-if="!getDirectionQuestions(direction).length" :description="`暂无${direction}相关问题`" />
-          <el-card 
-            v-for="item in getDirectionQuestions(direction)" 
-            :key="item.key" 
-            class="question-card" 
-            shadow="hover"
+
+        <div class="action-buttons">
+          <el-button 
+            type="success" 
+            size="large"
+            :icon="Plus"
+            @click="showTestDialog = true"
           >
-            <!-- 左上角标签 -->
-            <div class="card-tags">
-              <span class="type-tag group-tag">第{{ item.from.groupNo }}组</span>
-              <span class="source-tag">{{ item.from.studentNo }}号</span>
-              <span class="direction-tag">{{ item.data.direction }}</span>
-            </div>
-
-            <div class="card-content">
-              <div class="question-content">
-                <div class="question-text">
-                  {{ item.data.question.text || '（未命名题目）' }}
-                </div>
-                
-                <div class="question-meta">
-                  <span class="question-type">{{ typeTag(item.data.question.type) }}</span>
-                  <span class="question-time">{{ formatTime(item.at) }}</span>
-                </div>
-
-                <!-- 显示选项 -->
-                <div v-if="Array.isArray(item.data.question.options)" class="question-options">
-                  <div class="option-item" v-for="(opt, oi) in item.data.question.options" :key="oi">
-                    {{ letter(oi) }}. {{ opt }}
-                  </div>
-                </div>
-                <div v-else-if="item.data.question.type === 'text'" class="question-blank">
-                  ________________
-                </div>
-              </div>
-            </div>
-            
-            <div class="card-actions">
-              <el-button size="small" type="primary" @click="exportSingleQuestion(item)">
-                导出问题
-              </el-button>
-            </div>
-          </el-card>
+            测试工具
+          </el-button>
+          <el-button 
+            type="primary" 
+            size="large"
+            :icon="Download"
+            @click="exportAllAnswers"
+            :disabled="submittedGroupCount === 0"
+          >
+            导出所有答题
+          </el-button>
+          <el-button 
+            type="warning" 
+            size="large"
+            :icon="Refresh"
+            @click="clearData"
+          >
+            清空数据
+          </el-button>
         </div>
       </div>
+
+      <!-- 问卷答题卡组件 - 显示统计柱状图 -->
+      <div class="answer-display-section">
+        <QuestionnaireAnswerCard />
+      </div>
     </div>
+
+    <!-- 测试工具对话框 -->
+    <el-dialog 
+      v-model="showTestDialog" 
+      title="测试工具 - 模拟问卷提交"
+      width="600px"
+    >
+      <div class="test-form">
+        <el-form :model="testForm" label-width="100px">
+          <el-form-item label="小组号">
+            <el-input-number v-model="testForm.groupNo" :min="1" :max="25" />
+          </el-form-item>
+          <el-form-item label="学号">
+            <el-input-number v-model="testForm.studentNo" :min="1" :max="99" />
+          </el-form-item>
+          <el-form-item label="学生角色">
+            <el-radio-group v-model="testForm.studentRole">
+              <el-radio value="operator">操作员</el-radio>
+              <el-radio value="member">成员</el-radio>
+            </el-radio-group>
+          </el-form-item>
+        </el-form>
+
+        <div class="test-info">
+          <el-alert type="info" :closable="false">
+            点击"添加测试数据"将模拟该学生提交完整问卷（随机生成答案）
+          </el-alert>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="showTestDialog = false">取消</el-button>
+        <el-button type="primary" @click="addTestData">添加测试数据</el-button>
+        <el-button type="success" @click="addBatchTestData">批量添加(5人)</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useSocket } from '@/store/socket'
-import { ElMessage } from 'element-plus'
-import { Download, Document, Refresh } from '@element-plus/icons-vue'
+import { computed, ref } from 'vue'
+import { ElMessageBox } from 'element-plus'
+import { Download, Refresh, Plus } from '@element-plus/icons-vue'
+import { useActivity, type QuestionnaireAnswer, type QuestionOption } from '@/store/activity'
+import QuestionnaireAnswerCard from '../components/QuestionnaireAnswerCard.vue'
+// @ts-ignore
+import * as XLSX from 'xlsx'
 
-// Store
-const socket = useSocket()
+const activity = useActivity()
 
-// 问题类型定义
-interface DesignPayload {
-  type: 'activity7_design'
-  from: { groupNo: string; studentNo: string }
-  data: {
-    direction: string
-    question: {
-      id: string
-      type: 'single' | 'multi' | 'text'
-      text: string
-      options?: string[]
-      createdAt: number
-    }
-  }
-  at: number
-}
-
-const designStore = reactive(new Map<string, DesignPayload>())
-
-// 设计方向列表
-const directions = ['设备类型', '使用时长', '使用用途', '监管情况']
-
-// 问题数据
-const designItems = computed(() => {
-  return Array.from(designStore.values())
-    .sort((a, b) => (b.at || 0) - (a.at || 0))
-    .map(p => ({ ...p, key: p.from.groupNo }))
+// 测试对话框
+const showTestDialog = ref(false)
+const testForm = ref({
+  groupNo: 1,
+  studentNo: 1,
+  studentRole: 'operator' as 'operator' | 'member'
 })
 
-// 完成小组统计
-const completedGroups = computed(() => {
-  const groups = new Set<string>()
-  designItems.value.forEach(item => {
-    groups.add(item.from.groupNo)
-  })
-  return groups
+// 已提交学生数
+const submittedGroupCount = computed(() => {
+  return Object.keys(activity.ac3_allQuestionnaireAnswer).length
 })
 
-// 进度百分比
-const progressPercentage = computed(() => {
-  return Math.round((completedGroups.value.size / 25) * 100)
+// 完成率（假设总共24个学生：6组*4人）
+const completionRate = computed(() => {
+  return Math.round((submittedGroupCount.value / 24) * 100)
 })
 
-// 根据方向获取问题
-function getDirectionQuestions(direction: string) {
-  return designItems.value.filter(item => item.data.direction === direction)
-}
-
-// 工具函数
-function letter(i: number): string { 
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  return letters[i] || '?' 
-}
-
-function typeTag(type: string): string {
-  return type === 'single' ? '[单选题]' : 
-         type === 'multi' ? '[多选题]' : '[填空题]'
-}
-
-function formatTime(timestamp: number): string {
-  const date = new Date(timestamp)
-  return date.toLocaleTimeString('zh-CN', { hour12: false })
-}
-
-// 导出功能（参考Activity3格式）
-function exportSingleQuestion(item: DesignPayload) {
-  const lines: string[] = []
-  const question = item.data.question
+// 添加测试数据
+function addTestData() {
+  const { groupNo, studentNo, studentRole } = testForm.value
+  const studentId = `${groupNo}-${studentNo}`
   
-  // 参考Activity3的导出格式
-  lines.push(`智能问题设计 - 第${item.from.groupNo}组`)
-  lines.push(`设计方向：${item.data.direction}`)
-  lines.push(`设计学生：${item.from.studentNo}号`)
-  lines.push(`提交时间：${new Date(item.at).toLocaleString('zh-CN', { hour12: false })}`)
-  lines.push('')
-  
-  lines.push('问题内容：')
-  lines.push(`${question.text} ${typeTag(question.type)}`)
-  lines.push('')
-  
-  if (Array.isArray(question.options) && question.options.length > 0) {
-    lines.push('选项内容：')
-    question.options.forEach((opt, oi) => {
-      lines.push(`${letter(oi)}. ${opt}`)
-    })
-    lines.push('')
+  // 检查是否已存在
+  if (activity.ac3_allQuestionnaireAnswer[studentId]) {
+    // ElMessage.warning(`学生 ${studentId} 已存在，将覆盖原数据`)
   }
   
-  copyToClipboard(lines.join('\n'))
-  ElMessage.success('问题已复制到剪贴板')
-}
-
-function exportAllQuestions() {
-  if (!designItems.value.length) return
-  
-  const lines: string[] = []
-  lines.push('--- Activity7 智能问题设计 - 全部问题汇总 ---')
-  lines.push(`导出时间: ${new Date().toLocaleString('zh-CN', { hour12: false })}`)
-  lines.push(`共收到 ${designItems.value.length} 个小组的问题设计`)
-  lines.push('')
-  
-  designItems.value.forEach((item, index) => {
-    const question = item.data.question
-    lines.push(`--- 问题 ${index + 1} ---`)
-    lines.push(`小组: 第${item.from.groupNo}组, 学生: ${item.from.studentNo}号`)
-    lines.push(`设计方向: ${item.data.direction}`)
-    lines.push(`问题类型: ${typeTag(question.type)}`)
-    lines.push(`问题内容: ${question.text}`)
+  // 生成测试问卷（基于 questionnaire）
+  const testQuestions: QuestionOption[] = activity.questionnaire.questions.map(q => {
+    const question = { ...q }
     
-    if (Array.isArray(question.options) && question.options.length > 0) {
-      question.options.forEach((opt, oi) => {
-        lines.push(`  ${letter(oi)}. ${opt}`)
-      })
-    }
-    lines.push(`提交时间: ${new Date(item.at).toLocaleString('zh-CN', { hour12: false })}`)
-    lines.push('')
-  })
-  
-  lines.push(`统计信息:`)
-  lines.push(`总问题数: ${designItems.value.length}`)
-  lines.push(`参与小组数: ${completedGroups.value.size}`)
-  lines.push(`完成率: ${progressPercentage.value}%`)
-  
-  copyToClipboard(lines.join('\n'))
-  ElMessage.success(`已导出 ${designItems.value.length} 个问题到剪贴板`)
-}
-
-function exportByDirection() {
-  if (!designItems.value.length) return
-  
-  const lines: string[] = []
-  lines.push('--- Activity7 智能问题设计 - 按方向分类导出 ---')
-  lines.push(`导出时间: ${new Date().toLocaleString('zh-CN', { hour12: false })}`)
-  lines.push('')
-  
-  directions.forEach(direction => {
-    const directionQuestions = getDirectionQuestions(direction)
-    lines.push(`=== ${direction} ===（${directionQuestions.length} 个问题）`)
-    lines.push('')
-    
-    if (directionQuestions.length === 0) {
-      lines.push('暂无问题设计')
-      lines.push('')
-    } else {
-      directionQuestions.forEach((item, index) => {
-        const question = item.data.question
-        lines.push(`${index + 1}. ${question.text} ${typeTag(question.type)}`)
-        lines.push(`   设计小组: 第${item.from.groupNo}组-${item.from.studentNo}号`)
-        lines.push(`   提交时间: ${new Date(item.at).toLocaleString('zh-CN', { hour12: false })}`)
-        
-        if (Array.isArray(question.options) && question.options.length > 0) {
-          question.options.forEach((opt, oi) => {
-            lines.push(`   ${letter(oi)}. ${opt}`)
-          })
+    // 随机生成答案
+    if (q.type === 'fill') {
+      question.answer = `测试答案-${Math.random().toString(36).substring(7)}`
+    } else if (q.type === 'single' && q.options) {
+      const randomIdx = Math.floor(Math.random() * q.options.length)
+      question.answer = String.fromCharCode(65 + randomIdx)
+    } else if (q.type === 'multiple' && q.options) {
+      const count = Math.floor(Math.random() * q.options.length) + 1
+      const selected: string[] = []
+      for (let i = 0; i < count; i++) {
+        const randomIdx = Math.floor(Math.random() * q.options.length)
+        const option = String.fromCharCode(65 + randomIdx)
+        if (!selected.includes(option)) {
+          selected.push(option)
         }
-        lines.push('')
-      })
-    }
-    lines.push('----------------------------------------')
-    lines.push('')
-  })
-  
-  lines.push(`按方向统计:`)
-  directions.forEach(direction => {
-    const count = getDirectionQuestions(direction).length
-    lines.push(`${direction}: ${count} 个问题`)
-  })
-  lines.push(`总计: ${designItems.value.length} 个问题`)
-  
-  copyToClipboard(lines.join('\n'))
-  ElMessage.success('已按方向导出所有问题到剪贴板')
-}
-
-function clearData() {
-  designStore.clear()
-  ElMessage.warning('数据已清空')
-}
-
-function copyToClipboard(text: string) {
-  if (!text) return
-  if (navigator && (navigator as any).clipboard && (navigator as any).clipboard.writeText) {
-    ;(navigator as any).clipboard.writeText(text)
-  } else {
-    const ta = document.createElement('textarea')
-    ta.value = text
-    document.body.appendChild(ta)
-    ta.select()
-    document.execCommand('copy')
-    document.body.removeChild(ta)
-  }
-}
-
-// Socket事件处理
-function handleDesignSubmission(payload: any) {
-  if (!payload || String(payload.type) !== 'activity7_design') return
-  
-  const from = payload.from || {}
-  const data = payload.data || {}
-  if (!from.groupNo || !from.studentNo) return
-  
-  const groupNo = String(from.groupNo)
-  const studentNo = String(from.studentNo)
-  // 同一小组只保留最新的设计，使用组号作为key实现覆盖
-  const key = `${groupNo}` 
-  
-  // 检查是否为该小组的首次提交
-  const isFirstSubmission = !designStore.has(key)
-  
-  designStore.set(key, {
-    type: 'activity7_design',
-    from: { groupNo, studentNo },
-    data: {
-      direction: data.direction || '未知方向',
-      question: {
-        id: data.question?.id || 'unknown',
-        type: data.question?.type || 'text',
-        text: data.question?.text || '未命名题目',
-        options: data.question?.options || undefined,
-        createdAt: data.question?.createdAt || Date.now()
       }
-    },
-    at: payload.at || Date.now()
+      question.answer = selected
+    }
+    
+    return question
   })
   
-  if (isFirstSubmission) {
-    // console.log(`[Activity7 Teacher] 收到问题设计: 第${groupNo}组-${studentNo}号 (首次提交)`)
-    ElMessage.success(`第${groupNo}组提交了问题设计`)
-  } else {
-    // console.log(`[Activity7 Teacher] 更新问题设计: 第${groupNo}组-${studentNo}号 (覆盖之前的设计)`)
-    ElMessage.info(`第${groupNo}组更新了问题设计`)
+  // 添加到 store
+  const questionnaireAnswer: QuestionnaireAnswer = {
+    groupNo: String(groupNo),
+    studentNo: String(studentNo),
+    studentRole: studentRole,
+    questions: testQuestions,
+    submittedAt: Date.now()
+  }
+  
+  activity.ac3_allQuestionnaireAnswer[studentId] = questionnaireAnswer
+  
+  // ElMessage.success(`成功添加测试数据：第${groupNo}组-${studentNo}号`)
+  showTestDialog.value = false
+}
+
+// 批量添加测试数据
+function addBatchTestData() {
+  const baseGroup = testForm.value.groupNo
+  
+  for (let i = 0; i < 5; i++) {
+    const studentNo = i + 1
+    const studentId = `${baseGroup}-${studentNo}`
+    
+    const testQuestions: QuestionOption[] = activity.questionnaire.questions.map(q => {
+      const question = { ...q }
+      
+      if (q.type === 'fill') {
+        question.answer = `测试答案${i + 1}-${Math.random().toString(36).substring(7)}`
+      } else if (q.type === 'single' && q.options) {
+        const randomIdx = Math.floor(Math.random() * q.options.length)
+        question.answer = String.fromCharCode(65 + randomIdx)
+      } else if (q.type === 'multiple' && q.options) {
+        const count = Math.floor(Math.random() * q.options.length) + 1
+        const selected: string[] = []
+        for (let j = 0; j < count; j++) {
+          const randomIdx = Math.floor(Math.random() * q.options.length)
+          const option = String.fromCharCode(65 + randomIdx)
+          if (!selected.includes(option)) {
+            selected.push(option)
+          }
+        }
+        question.answer = selected
+      }
+      
+      return question
+    })
+    
+    const questionnaireAnswer: QuestionnaireAnswer = {
+      groupNo: String(baseGroup),
+      studentNo: String(studentNo),
+      studentRole: i === 0 ? 'operator' : 'member',
+      questions: testQuestions,
+      submittedAt: Date.now() - i * 1000
+    }
+    
+    activity.ac3_allQuestionnaireAnswer[studentId] = questionnaireAnswer
+  }
+  
+  // ElMessage.success(`成功批量添加5个学生的测试数据（第${baseGroup}组）`)
+  showTestDialog.value = false
+}
+
+// 导出所有答题
+function exportAllAnswers() {
+  if (submittedGroupCount.value === 0) return
+  
+  try {
+    // 创建工作簿
+    const wb = XLSX.utils.book_new()
+    
+    // ==================== 工作表1：答题详情 ====================
+    const detailData: any[][] = []
+    
+    // 标题行
+    detailData.push([activity.questionnaire.title])
+    detailData.push([activity.questionnaire.description])
+    detailData.push([]) // 空行
+    detailData.push([`导出时间：${new Date().toLocaleString('zh-CN', { hour12: false })}`])
+    detailData.push([`已提交学生数：${submittedGroupCount.value} / 24`])
+    detailData.push([`完成率：${completionRate.value}%`])
+    detailData.push([]) // 空行
+    
+    // 表头行
+    const headers = ['小组号', '学号', '角色', '提交时间']
+    activity.questionnaire.questions.forEach((q, idx) => {
+      headers.push(`题${idx + 1}：${q.title}`)
+    })
+    detailData.push(headers)
+    
+    // 按学生ID排序
+    const sortedAnswers = Object.entries(activity.ac3_allQuestionnaireAnswer)
+      .sort((a, b) => {
+        const [groupA, noA] = a[0].split('-').map(Number)
+        const [groupB, noB] = b[0].split('-').map(Number)
+        return groupA !== groupB ? groupA - groupB : noA - noB
+      })
+    
+    // 数据行
+    sortedAnswers.forEach(([, answer]) => {
+      const row: any[] = [
+        `第${answer.groupNo}组`,
+        answer.studentNo,
+        answer.studentRole === 'operator' ? '操作员' : '记录员',
+        new Date(answer.submittedAt).toLocaleString('zh-CN', { hour12: false })
+      ]
+      
+      // 每道题的答案
+      answer.questions.forEach((question) => {
+        let answerText = ''
+        
+        if (question.type === 'fill') {
+          answerText = question.answer || '未填写'
+        } else if (question.type === 'single') {
+          // 单选题：显示选项字母和内容
+          if (question.answer && question.options) {
+            const idx = question.answer.charCodeAt(0) - 65
+            answerText = `${question.answer}. ${question.options[idx] || ''}`
+          } else {
+            answerText = '未选择'
+          }
+        } else if (question.type === 'multiple') {
+          // 多选题：显示所有选择的选项
+          if (Array.isArray(question.answer) && question.answer.length > 0 && question.options) {
+            const selectedOptions = question.answer.map(letter => {
+              const idx = letter.charCodeAt(0) - 65
+              return `${letter}. ${question.options![idx] || ''}`
+            })
+            answerText = selectedOptions.join('; ')
+          } else {
+            answerText = '未选择'
+          }
+        }
+        
+        row.push(answerText)
+      })
+      
+      detailData.push(row)
+    })
+    
+    const ws1 = XLSX.utils.aoa_to_sheet(detailData)
+    
+    // 设置列宽
+    const colWidths = [
+      { wch: 10 },  // 小组号
+      { wch: 8 },   // 学号
+      { wch: 10 },  // 角色
+      { wch: 20 },  // 提交时间
+    ]
+    activity.questionnaire.questions.forEach(() => {
+      colWidths.push({ wch: 30 }) // 每道题的答案列宽度
+    })
+    ws1['!cols'] = colWidths
+    
+    // 合并标题和描述单元格
+    ws1['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }, // 标题
+      { s: { r: 1, c: 0 }, e: { r: 1, c: headers.length - 1 } }, // 描述
+    ]
+    
+    XLSX.utils.book_append_sheet(wb, ws1, '答题详情')
+    
+    // ==================== 工作表2：统计分析 ====================
+    const statsData: any[][] = []
+    
+    statsData.push(['问卷统计分析'])
+    statsData.push([]) // 空行
+    statsData.push(['基本信息'])
+    statsData.push(['问卷标题', activity.questionnaire.title])
+    statsData.push(['问卷描述', activity.questionnaire.description])
+    statsData.push(['导出时间', new Date().toLocaleString('zh-CN', { hour12: false })])
+    statsData.push(['已提交人数', submittedGroupCount.value])
+    statsData.push(['总人数', 24])
+    statsData.push(['完成率', `${completionRate.value}%`])
+    statsData.push([]) // 空行
+    
+    // 每道题的统计
+    statsData.push(['题目统计'])
+    statsData.push([]) // 空行
+    
+    activity.questionnaire.questions.forEach((question, qIdx) => {
+      statsData.push([`题目 ${qIdx + 1}`, question.title])
+      statsData.push(['题目类型', question.type === 'fill' ? '填空题' : question.type === 'single' ? '单选题' : '多选题'])
+      
+      if (question.type === 'fill') {
+        // 填空题：列出所有答案
+        statsData.push(['答案列表', ''])
+        sortedAnswers.forEach(([, answer]) => {
+          const ans = answer.questions[qIdx]?.answer || '未填写'
+          statsData.push(['', ans])
+        })
+      } else if (question.options) {
+        // 选择题：统计每个选项的选择人数
+        statsData.push(['选项', '内容', '选择人数', '占比'])
+        
+        question.options.forEach((option, optIdx) => {
+          const letter = String.fromCharCode(65 + optIdx)
+          let count = 0
+          
+          sortedAnswers.forEach(([, answer]) => {
+            const ans = answer.questions[qIdx]
+            if (question.type === 'single') {
+              if (ans?.answer === letter) count++
+            } else if (question.type === 'multiple') {
+              if (Array.isArray(ans?.answer) && ans.answer.includes(letter)) count++
+            }
+          })
+          
+          const percentage = submittedGroupCount.value > 0 
+            ? ((count / submittedGroupCount.value) * 100).toFixed(1)
+            : '0.0'
+          
+          statsData.push([letter, option, count, `${percentage}%`])
+        })
+      }
+      
+      statsData.push([]) // 空行
+    })
+    
+    const ws2 = XLSX.utils.aoa_to_sheet(statsData)
+    
+    // 设置列宽
+    ws2['!cols'] = [
+      { wch: 15 },
+      { wch: 40 },
+      { wch: 12 },
+      { wch: 10 }
+    ]
+    
+    XLSX.utils.book_append_sheet(wb, ws2, '统计分析')
+    
+    // ==================== 导出文件 ====================
+    const fileName = `问卷答题统计_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}_${new Date().toLocaleTimeString('zh-CN', { hour12: false }).replace(/:/g, '-')}.xlsx`
+    XLSX.writeFile(wb, fileName)
+    
+    // ElMessage.success(`已导出 ${submittedGroupCount.value} 名学生的答题到 Excel 文件`)
+  } catch (error: any) {
+    console.error('[Activity3] 导出失败:', error)
+    // ElMessage.error(`导出失败: ${error.message}`)
   }
 }
 
-// 本地存储
-
-onMounted(() => {
-  // console.log('[Activity3 Teacher] 🟢 组件已挂载，开始监听 submit 事件')
-  
-  // 监听submit事件
-  socket.on('submit', handleDesignSubmission)
-})
-
-onBeforeUnmount(() => {
-  // console.log('[Activity3 Teacher] 🔴 组件卸载，清理监听器')
-  socket.off('submit', handleDesignSubmission)
-})
+// 清空数据
+function clearData() {
+  ElMessageBox.confirm(
+    '确定要清空所有问卷答题数据吗？此操作不可恢复。',
+    '警告',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(() => {
+      activity.ac3_allQuestionnaireAnswer = {}
+      // ElMessage.success('数据已清空')
+    })
+    .catch(() => {
+      // 用户取消
+    })
+}
 </script>
 
 <style scoped>
-.activity7-monitor {
-  padding: 12px;
+.page {
+  padding: 0;
   width: 1240px;
-  max-width: 100%;
   margin: 0 auto;
   background: #F5F5F0;
 }
 
-/* 进度条样式 */
-.progress-section {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
+.stats-section {
+  padding: 40px 0;
 }
 
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+/* 活动标题 */
+.activity-header {
+  text-align: center;
+  margin-bottom: 32px;
 }
 
-.progress-label {
-  font-size: 16px;
+.activity-title {
+  font-size: 36px;
   font-weight: 700;
-  color: #374151;
-}
-
-.progress-count {
-  font-size: 14px;
-  font-weight: 600;
-  color: #059669;
-}
-
-.progress-bar {
-  height: 8px;
-  background: #e5e7eb;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #10b981, #059669);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-/* 功能按钮区域 */
-.action-section {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding: 16px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-}
-
-/* 问题展示布局 */
-.questions-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.direction-panel {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.direction-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #f1f5f9;
-}
-
-.direction-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
+  color: #1f2937;
   margin: 0;
 }
 
-.direction-count {
-  font-size: 14px;
-  font-weight: 600;
-  color: #64748b;
-  background: #f1f5f9;
-  padding: 4px 12px;
-  border-radius: 12px;
-}
-
-/* 问题网格 */
-.questions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 16px;
-}
-
-.question-card {
-  width: 100%;
-  height: 280px;
-  position: relative;
-}
-
-.question-card :deep(.el-card__body) {
-  height: 100%;
-  padding: 8px 10px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 左上角标签样式 */
-.card-tags {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
-  position: absolute;
-  top: 8px;
-  left: 10px;
-  z-index: 10;
-  flex-wrap: wrap;
-}
-
-.type-tag, .source-tag, .direction-tag {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 500;
-}
-
-.group-tag {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.source-tag {
-  background: #e0e7ff;
-  color: #3730a3;
-}
-
-.direction-tag {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-/* 卡片内容样式 */
-.card-content {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 4px;
-  min-height: 0;
-  margin-top: 32px; /* 为标签留空间 */
-}
-
-.question-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.question-text {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
-  line-height: 1.5;
-  word-wrap: break-word;
-}
-
-.question-meta {
+/* 操控按钮区域 */
+.action-section {
+  background: white;
+  border-radius: 16px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f1f5f9;
+  gap: 24px;
 }
 
-.question-type {
-  font-size: 12px;
-  color: #6366f1;
-  background: #eef2ff;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-weight: 500;
+.stats-info {
+  display: flex;
+  gap: 32px;
 }
 
-.question-time {
-  font-size: 12px;
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stat-label {
+  font-size: 15px;
+  font-weight: 600;
   color: #6b7280;
 }
 
-.question-options {
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0ea5e9;
+}
+
+.action-buttons {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 12px;
 }
 
-.option-item {
-  font-size: 13px;
-  color: #374151;
-  padding: 4px 8px;
-  background: #f9fafb;
-  border-radius: 4px;
-  border-left: 3px solid #d1d5db;
+/* 问卷答题展示区域 */
+.answer-display-section {
+  background: white;
+  border-radius: 16px;
+  padding: 28px 40px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
-.question-blank {
-  font-size: 14px;
-  color: #9ca3af;
-  text-align: center;
-  padding: 20px;
-  background: #f9fafb;
-  border-radius: 6px;
-  border: 1px dashed #d1d5db;
+/* 测试工具对话框 */
+.test-form {
+  padding: 10px 0;
 }
 
-.card-actions {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 0;
-  border-top: 1px solid #f1f5f9;
-  margin-top: auto;
-  flex-shrink: 0;
+.test-info {
+  margin-top: 20px;
 }
 
-/* 滚动条样式 */
-.card-content::-webkit-scrollbar {
-  width: 4px;
+/* 响应式设计 */
+@media (max-width: 1240px) {
+  .page {
+    width: 100%;
+    padding: 0 16px;
+  }
 }
 
-.card-content::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 2px;
+@media (max-width: 1024px) {
+  .action-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stats-info {
+    justify-content: space-around;
+  }
+
+  .action-buttons {
+    justify-content: center;
+  }
 }
 
-.card-content::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 2px;
-}
+@media (max-width: 768px) {
+  .activity-title {
+    font-size: 28px;
+  }
 
-.card-content::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  .stats-info {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .answer-display-section {
+    padding: 20px;
+  }
 }
 </style>

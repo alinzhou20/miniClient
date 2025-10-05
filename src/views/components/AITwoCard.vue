@@ -479,14 +479,7 @@ const saveQuestion = () => {
     activity.questionnaire.questions.push(newQuestionForQuestionnaire)
   }
   
-  // 更新评分 - 二星挑战完成
-  const rating = activity.ac2_2_stuDesignResult.rating.find(r => r.index === 2)
-  if (rating) rating.score = 1
-  
-  // 更新提交时间
-  activity.ac2_2_stuDesignResult.submittedAt = Date.now()
-  
-  ElMessage.success('二星挑战完成！题目已加入问卷')
+  ElMessage.success('题目已加入问卷！请点击"提交设计"按钮完成提交')
   
   // 可以选择重置状态或保留
   // resetConversation()

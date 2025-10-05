@@ -1,50 +1,8 @@
 <template>
   <div class="activity-monitor">
-    <!-- 页面标题 -->
-    <div class="page-header">
-      <h2 class="page-title">Activity 4 - 数据获取方法多</h2>
-      <p class="page-description">实时监控学生场景分类情况</p>
-    </div>
-
-    <!-- 小组完成进度 -->
-    <div class="progress-section">
-      <div class="progress-header">
-        <span class="progress-label">小组完成进度</span>
-        <span class="progress-count">{{ completedGroups.size }}/25 小组</span>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: progressPercentage + '%' }"></div>
-      </div>
-    </div>
-
-    <!-- 功能按钮区域 -->
-    <div class="action-section">
-      <el-button 
-        type="primary" 
-        size="large"
-        :icon="Download"
-        @click="exportAllData"
-        :disabled="totalSubmissions === 0"
-      >
-        导出全部数据
-      </el-button>
-      <el-button 
-        type="success" 
-        size="large"
-        :icon="Document"
-        @click="exportStatistics"
-        :disabled="totalSubmissions === 0"
-      >
-        导出统计结果
-      </el-button>
-      <el-button 
-        type="warning" 
-        size="large"
-        :icon="Refresh"
-        @click="clearData"
-      >
-        清空数据
-      </el-button>
+    <!-- 活动标题 -->
+    <div class="activity-header">
+      <h2 class="activity-title">🔍 数据获取方法多</h2>
     </div>
 
     <!-- 场景统计卡片 -->
@@ -53,32 +11,72 @@
         v-for="element in elements" 
         :key="element.id" 
         class="scenario-card"
-        @click="openDetailDialog(element.id)"
+        :class="{ 'has-data': totalParticipantsOf(element.id) > 0 }"
+        @click="totalParticipantsOf(element.id) > 0 && openDetailDialog(element.id)"
       >
         <div class="card-header">
           <div class="card-title">{{ element.title }}</div>
-          <el-icon class="arrow-icon"><ArrowRight /></el-icon>
+          <div class="participant-badge">
+            {{ totalParticipantsOf(element.id) }}人参与
+          </div>
         </div>
         
         <div class="card-body">
-          <div class="participant-count">
-            <span class="count-label">参与人数：</span>
-            <span class="count-value">{{ totalParticipantsOf(element.id) }}</span>
-          </div>
-          
-          <div v-if="totalParticipantsOf(element.id) > 0" class="choices-list">
-            <div 
-              v-for="(choice, index) in getTopChoices(element.id)" 
-              :key="choice.id" 
-              class="choice-item"
-              :class="'choice-' + (index + 1)"
-            >
-              <span class="choice-rank">{{ index + 1 }}</span>
-              <span class="choice-label" :class="'label-' + choice.id">
-                {{ boxLabels[choice.id] }}
-              </span>
-              <span class="choice-count">{{ choice.count }}人</span>
-              <span class="choice-percent">({{ choice.percent }}%)</span>
+          <div v-if="totalParticipantsOf(element.id) > 0" class="methods-stats">
+            <!-- A: 现场记录 -->
+            <div class="method-row">
+              <span class="method-name name-A">{{ boxLabels['A'] }}</span>
+              <div class="progress-wrapper">
+                <div class="progress-bar-container">
+                  <div 
+                    class="progress-bar-fill fill-A" 
+                    :style="{ width: percentByBoxOf(element.id)['A'] + '%' }"
+                  ></div>
+                </div>
+                <span class="method-count">{{ countByBoxOf(element.id)['A'] }}人</span>
+              </div>
+            </div>
+            
+            <!-- B: 问卷调查 -->
+            <div class="method-row">
+              <span class="method-name name-B">{{ boxLabels['B'] }}</span>
+              <div class="progress-wrapper">
+                <div class="progress-bar-container">
+                  <div 
+                    class="progress-bar-fill fill-B" 
+                    :style="{ width: percentByBoxOf(element.id)['B'] + '%' }"
+                  ></div>
+                </div>
+                <span class="method-count">{{ countByBoxOf(element.id)['B'] }}人</span>
+              </div>
+            </div>
+            
+            <!-- C: 网络获取 -->
+            <div class="method-row">
+              <span class="method-name name-C">{{ boxLabels['C'] }}</span>
+              <div class="progress-wrapper">
+                <div class="progress-bar-container">
+                  <div 
+                    class="progress-bar-fill fill-C" 
+                    :style="{ width: percentByBoxOf(element.id)['C'] + '%' }"
+                  ></div>
+                </div>
+                <span class="method-count">{{ countByBoxOf(element.id)['C'] }}人</span>
+              </div>
+            </div>
+            
+            <!-- D: 设备采集 -->
+            <div class="method-row">
+              <span class="method-name name-D">{{ boxLabels['D'] }}</span>
+              <div class="progress-wrapper">
+                <div class="progress-bar-container">
+                  <div 
+                    class="progress-bar-fill fill-D" 
+                    :style="{ width: percentByBoxOf(element.id)['D'] + '%' }"
+                  ></div>
+                </div>
+                <span class="method-count">{{ countByBoxOf(element.id)['D'] }}人</span>
+              </div>
             </div>
           </div>
           
@@ -153,8 +151,7 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useSocket } from '@/store/socket'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowRight, Download, Document, Refresh } from '@element-plus/icons-vue'
+// import { ElMessage } from 'element-plus'
 import type { BoxId, ElementId } from '@/store/activity'
 
 const socket = useSocket()
@@ -169,47 +166,29 @@ const boxLabels: Record<BoxId, string> = {
 
 // 元素定义
 const elements = [
-  { id: 'check_vision' as ElementId, title: '测量新生身高数据' },
-  { id: 'register_vision' as ElementId, title: '获取保护视力的方法' },
-  { id: 'survey_all_devices' as ElementId, title: '调查全校学生数字设备使用情况' },
-  { id: 'bad_habits' as ElementId, title: '记录课堂重点知识' },
-  { id: 'usage_duration' as ElementId, title: '了解当天天气数据' },
-  { id: 'common_devices' as ElementId, title: '2024年全国出生人口' },
+  { id: 'get_viewpoints' as ElementId, title: '获取正反方观点' },
+  { id: 'ai_organize' as ElementId, title: '借助智能体梳理理由' },
+  { id: 'get_group_reasons' as ElementId, title: '获取各小组理由' },
+  { id: 'survey_devices' as ElementId, title: '获取学生数字设备使用情况' },
 ] as const
 
-// 正确答案映射
+// 正确答案映射（参考答案）
 const correctAnswers: Record<ElementId, BoxId> = {
-  check_vision: 'A',      // 测量新生身高数据 -> 现场记录
-  register_vision: 'C',   // 获取保护视力的方法 -> 网络获取
-  survey_all_devices: 'B', // 调查全校学生数字设备使用情况 -> 问卷调查
-  bad_habits: 'A',        // 记录课堂重点知识 -> 现场记录
-  usage_duration: 'C',    // 了解当天天气数据 -> 网络获取
-  common_devices: 'C'     // 2024年全国出生人口 -> 网络获取
+  get_viewpoints: 'A',      // 获取正反方观点 -> 现场记录
+  ai_organize: 'C',         // 借助智能体梳理理由 -> 网络获取
+  get_group_reasons: 'A',   // 获取各小组理由 -> 现场记录
+  survey_devices: 'B'       // 获取学生数字设备使用情况 -> 问卷调查
 }
 
-// 每个 elementId 对应一个 Map<studentKey, BoxId>
-const selectionByElement = reactive(new Map<ElementId, Map<string, BoxId>>())
-elements.forEach(e => selectionByElement.set(e.id, new Map<string, BoxId>()))
+// 每个 elementId 对应一个 Map<studentKey, BoxId[]>（学生可以为每个场景选择多个方式）
+const selectionByElement = reactive(new Map<ElementId, Map<string, BoxId[]>>())
+elements.forEach(e => selectionByElement.set(e.id, new Map<string, BoxId[]>()))
 
 // 弹窗相关状态
 const dialogVisible = ref(false)
 const selectedElementId = ref<ElementId | null>(null)
 
-// 完成小组统计
-const completedGroups = reactive(new Set<string>())
-
 // 计算属性
-const progressPercentage = computed(() => {
-  return Math.round((completedGroups.size / 25) * 100)
-})
-
-const totalSubmissions = computed(() => {
-  let total = 0
-  selectionByElement.forEach(map => {
-    total += map.size
-  })
-  return total
-})
 
 const dialogTitle = computed(() => {
   if (!selectedElementId.value) return ''
@@ -229,8 +208,9 @@ const correctRate = computed(() => {
   if (!m) return 0
   
   let correctCount = 0
-  m.forEach((boxId) => {
-    if (boxId === correctAnswer) correctCount++
+  m.forEach((boxIds) => {
+    // 只要学生的选择中包含正确答案，就算正确
+    if (boxIds.includes(correctAnswer)) correctCount++
   })
   
   return Math.round((correctCount / selectedElementTotal.value) * 100)
@@ -262,7 +242,12 @@ function countByBoxOf(elementId: ElementId): Record<BoxId, number> {
   const acc: Record<BoxId, number> = { A: 0, B: 0, C: 0, D: 0 }
   const m = selectionByElement.get(elementId)
   if (!m) return acc
-  m.forEach((b) => { acc[b] += 1 })
+  // 遍历所有学生的选择，累加每个方式的选择次数
+  m.forEach((boxIds) => {
+    boxIds.forEach(boxId => {
+      acc[boxId] += 1
+    })
+  })
   return acc
 }
 
@@ -277,25 +262,6 @@ function percentByBoxOf(elementId: ElementId): Record<BoxId, number> {
     C: Math.round((c.C / total) * 100),
     D: Math.round((c.D / total) * 100)
   }
-}
-
-// 获取排名靠前的选择（显示所有非零选项）
-function getTopChoices(elementId: ElementId): Array<{ 
-  id: BoxId
-  count: number
-  percent: number 
-}> {
-  const counts = countByBoxOf(elementId)
-  const percents = percentByBoxOf(elementId)
-  const entries: Array<{ id: BoxId; count: number; percent: number }> = [
-    { id: 'A', count: counts.A, percent: percents.A },
-    { id: 'B', count: counts.B, percent: percents.B },
-    { id: 'C', count: counts.C, percent: percents.C },
-    { id: 'D', count: counts.D, percent: percents.D }
-  ]
-  return entries
-    .filter(entry => entry.count > 0)
-    .sort((a, b) => b.count - a.count)
 }
 
 // 获取所有选择的详细信息
@@ -314,9 +280,12 @@ function getAllChoicesDetail(elementId: ElementId | null): Array<{
     A: [], B: [], C: [], D: []
   }
   
-  m.forEach((boxId, studentKey) => {
+  m.forEach((boxIds, studentKey) => {
     const { groupNo, studentNo } = parseStudentKey(studentKey)
-    result[boxId].push({ key: studentKey, groupNo, studentNo })
+    // 一个学生可能为同一个场景选择多个方式
+    boxIds.forEach(boxId => {
+      result[boxId].push({ key: studentKey, groupNo, studentNo })
+    })
   })
   
   const percents = percentByBoxOf(elementId)
@@ -375,130 +344,22 @@ function handleSubmit(payload: any) {
   // 更新所有选择
   elements.forEach(element => {
     const elementId = element.id
-    const boxId = selections[elementId]
+    const boxIds = selections[elementId] // 这是一个 BoxId[] 数组
     
-    if (boxId && ['A', 'B', 'C', 'D'].includes(boxId)) {
+    if (Array.isArray(boxIds) && boxIds.length > 0) {
       const store = selectionByElement.get(elementId)
       if (store) {
-        store.set(studentKey(g, s), boxId as BoxId)
+        // 过滤出有效的选择
+        const validBoxIds = boxIds.filter(id => ['A', 'B', 'C', 'D'].includes(id)) as BoxId[]
+        if (validBoxIds.length > 0) {
+          store.set(studentKey(g, s), validBoxIds)
+        }
       }
     }
   })
-  
-  // 添加到完成统计
-  completedGroups.add(g)
   
   // console.log(`[Activity4 Teacher] 收到提交: 第${g}组-${s}号`)
-  ElMessage.success(`第${g}组-${s}号 提交了场景分类`)
-}
-
-// 导出全部数据
-function exportAllData() {
-  const lines: string[] = []
-  lines.push('=== Activity 4 - 数据获取方法多 - 全部提交数据 ===')
-  lines.push(`导出时间: ${new Date().toLocaleString('zh-CN', { hour12: false })}`)
-  lines.push(`总提交数: ${totalSubmissions.value}`)
-  lines.push(`完成小组数: ${completedGroups.size}`)
-  lines.push('')
-  
-  elements.forEach(element => {
-    lines.push(`--- ${element.title} ---`)
-    lines.push(`参与人数: ${totalParticipantsOf(element.id)}`)
-    lines.push(`正确答案: ${boxLabels[correctAnswers[element.id]]}`)
-    
-    const details = getAllChoicesDetail(element.id)
-    if (details.length > 0) {
-      details.forEach(choice => {
-        const isCorrect = isCorrectChoice(element.id, choice.id)
-        lines.push(`  ${boxLabels[choice.id]}: ${choice.count}人 (${choice.percent}%)${isCorrect ? ' ✓' : ''}`)
-        choice.students.forEach(student => {
-          lines.push(`    - 第${student.groupNo}组-${student.studentNo}号`)
-        })
-      })
-    } else {
-      lines.push('  暂无数据')
-    }
-    lines.push('')
-  })
-  
-  copyToClipboard(lines.join('\n'))
-  ElMessage.success('已导出全部数据到剪贴板')
-}
-
-// 导出统计结果
-function exportStatistics() {
-  const lines: string[] = []
-  lines.push('=== Activity 4 - 数据获取方法多 - 统计结果 ===')
-  lines.push(`导出时间: ${new Date().toLocaleString('zh-CN', { hour12: false })}`)
-  lines.push(`完成小组数: ${completedGroups.size}/25`)
-  lines.push(`完成率: ${progressPercentage.value}%`)
-  lines.push('')
-  
-  lines.push('各场景统计：')
-  elements.forEach(element => {
-    const total = totalParticipantsOf(element.id)
-    const correctAnswer = correctAnswers[element.id]
-    const choices = getAllChoicesDetail(element.id)
-    
-    lines.push(`\n${element.title}:`)
-    lines.push(`  参与人数: ${total}`)
-    lines.push(`  正确答案: ${boxLabels[correctAnswer]}`)
-    
-    if (total > 0) {
-      // 计算正确率
-      const correctChoice = choices.find(c => c.id === correctAnswer)
-      const correctCount = correctChoice ? correctChoice.count : 0
-      const correctRate = Math.round((correctCount / total) * 100)
-      lines.push(`  正确率: ${correctRate}%`)
-      
-      lines.push(`  选择分布:`)
-      choices.forEach(choice => {
-        const isCorrect = choice.id === correctAnswer
-        lines.push(`    ${boxLabels[choice.id]}: ${choice.count}人 (${choice.percent}%)${isCorrect ? ' ✓' : ''}`)
-      })
-    } else {
-      lines.push(`  暂无数据`)
-    }
-  })
-  
-  copyToClipboard(lines.join('\n'))
-  ElMessage.success('已导出统计结果到剪贴板')
-}
-
-// 清空数据
-async function clearData() {
-  try {
-    await ElMessageBox.confirm(
-      '确定要清空所有数据吗？此操作不可恢复。',
-      '警告',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-    
-    selectionByElement.forEach(map => map.clear())
-    completedGroups.clear()
-    ElMessage.success('数据已清空')
-  } catch {
-    // 用户取消
-  }
-}
-
-// 复制到剪贴板
-function copyToClipboard(text: string) {
-  if (!text) return
-  if (navigator && (navigator as any).clipboard && (navigator as any).clipboard.writeText) {
-    ;(navigator as any).clipboard.writeText(text)
-  } else {
-    const ta = document.createElement('textarea')
-    ta.value = text
-    document.body.appendChild(ta)
-    ta.select()
-    document.execCommand('copy')
-    document.body.removeChild(ta)
-  }
+  // ElMessage.success(`第${g}组-${s}号 提交了场景分类`)
 }
 
 // 生命周期
@@ -516,89 +377,30 @@ onBeforeUnmount(() => {
 <style scoped>
 /* 页面布局 */
 .activity-monitor {
-  padding: 12px;
+  padding: 40px 0;
   width: 1240px;
   max-width: 100%;
   margin: 0 auto;
   background: #F5F5F0;
 }
 
-/* 页面头部 */
-.page-header {
+/* 活动标题 */
+.activity-header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
-.page-title {
-  font-size: 24px;
+.activity-title {
+  font-size: 36px;
   font-weight: 700;
   color: #1f2937;
-  margin: 0 0 8px 0;
-}
-
-.page-description {
-  font-size: 14px;
-  color: #6b7280;
   margin: 0;
-}
-
-/* 进度条样式 */
-.progress-section {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
-}
-
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.progress-label {
-  font-size: 16px;
-  font-weight: 700;
-  color: #374151;
-}
-
-.progress-count {
-  font-size: 14px;
-  font-weight: 700;
-  color: #059669;
-}
-
-.progress-bar {
-  height: 10px;
-  background: #e5e7eb;
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #10b981, #059669);
-  border-radius: 5px;
-  transition: width 0.3s ease;
-}
-
-/* 功能按钮区域 */
-.action-section {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding: 16px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
 }
 
 /* 场景卡片网格 */
 .scenarios-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 }
 
@@ -607,14 +409,19 @@ onBeforeUnmount(() => {
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 16px;
-  cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
 }
 
-.scenario-card:hover {
-  border-color: #3b82f6;
+.scenario-card.has-data {
+  cursor: pointer;
+}
+
+.scenario-card.has-data:hover {
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
   transform: translateY(-2px);
 }
 
@@ -628,112 +435,122 @@ onBeforeUnmount(() => {
 }
 
 .card-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: #1f2937;
   line-height: 1.4;
   flex: 1;
 }
 
-.arrow-icon {
-  color: #9ca3af;
-  font-size: 16px;
-  transition: transform 0.3s ease;
-}
-
-.scenario-card:hover .arrow-icon {
-  transform: translateX(4px);
+.participant-badge {
+  font-size: 12px;
+  font-weight: 600;
   color: #3b82f6;
+  background: #eff6ff;
+  padding: 4px 12px;
+  border-radius: 12px;
+  border: 1px solid #bfdbfe;
 }
 
 .card-body {
+  flex: 1;
   display: flex;
   flex-direction: column;
+}
+
+.methods-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
 
-.participant-count {
+.method-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
-
-.count-label {
-  color: #6b7280;
-  font-weight: 500;
-}
-
-.count-value {
-  font-size: 18px;
-  font-weight: 700;
-  color: #3b82f6;
-}
-
-.choices-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.choice-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 10px 12px;
   background: #f9fafb;
   border-radius: 8px;
-  border-left: 3px solid transparent;
   transition: all 0.2s ease;
+  border-left: 3px solid transparent;
 }
 
-.choice-item:hover {
+.method-row:hover {
   background: #f3f4f6;
 }
 
-.choice-1 { border-left-color: #3b82f6; }
-.choice-2 { border-left-color: #10b981; }
-.choice-3 { border-left-color: #f59e0b; }
-.choice-4 { border-left-color: #ef4444; }
+.method-row:nth-child(1) { border-left-color: #16a34a; }
+.method-row:nth-child(2) { border-left-color: #d97706; }
+.method-row:nth-child(3) { border-left-color: #2563eb; }
+.method-row:nth-child(4) { border-left-color: #dc2626; }
 
-.choice-rank {
-  font-size: 12px;
-  font-weight: 600;
-  color: #6b7280;
-  min-width: 16px;
-}
-
-.choice-label {
+.method-name {
   font-size: 13px;
   font-weight: 600;
-  flex: 1;
+  color: #374151;
+  min-width: 64px;
+  flex-shrink: 0;
 }
 
-.label-A { color: #16a34a; }
-.label-B { color: #d97706; }
-.label-C { color: #2563eb; }
-.label-D { color: #dc2626; }
+.name-A { color: #16a34a; }
+.name-B { color: #d97706; }
+.name-C { color: #2563eb; }
+.name-D { color: #dc2626; }
 
-.choice-count {
+.progress-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.method-count {
   font-size: 12px;
   font-weight: 700;
-  color: #374151;
-  background: #e5e7eb;
-  padding: 2px 8px;
-  border-radius: 10px;
+  color: #1f2937;
+  min-width: 28px;
+  text-align: right;
+  flex-shrink: 0;
 }
 
-.choice-percent {
-  font-size: 11px;
-  color: #6b7280;
+.progress-bar-container {
+  flex: 1;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  min-width: 2px;
+}
+
+.fill-A {
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+}
+
+.fill-B {
+  background: linear-gradient(90deg, #d97706, #f59e0b);
+}
+
+.fill-C {
+  background: linear-gradient(90deg, #2563eb, #3b82f6);
+}
+
+.fill-D {
+  background: linear-gradient(90deg, #dc2626, #ef4444);
 }
 
 .no-data {
   text-align: center;
   color: #9ca3af;
   font-size: 13px;
-  padding: 20px 0;
+  padding: 40px 0;
   font-style: italic;
+  grid-column: 1 / -1;
 }
 
 /* 弹窗样式 */
@@ -861,27 +678,26 @@ onBeforeUnmount(() => {
 }
 
 /* 响应式 */
-@media (max-width: 1200px) {
-  .scenarios-grid {
-    grid-template-columns: repeat(2, 1fr);
+@media (max-width: 1240px) {
+  .activity-monitor {
+    width: 100%;
+    padding: 40px 16px;
   }
-  
+}
+
+@media (max-width: 1024px) {
   .detail-summary {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 768px) {
-  .activity-monitor {
-    padding: 16px;
+  .activity-title {
+    font-size: 28px;
   }
   
   .scenarios-grid {
     grid-template-columns: 1fr;
-  }
-  
-  .action-section {
-    flex-direction: column;
   }
 }
 </style>

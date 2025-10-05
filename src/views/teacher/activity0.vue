@@ -70,15 +70,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+// import { ElMessage, ElButton } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
-import { useSocket } from '@/store/socket'
 import { useActivity } from '@/store/activity'
-import { EntityMode, EventType } from '@/types'
 import TeacherCamera from '@/views/components/TeacherCamera.vue'
 import { useCoze, WORKFLOW } from '@/utils/coze'
 
-const socket = useSocket()
 const activity = useActivity()
 const { uploadFile, runWorkflow } = useCoze()
 
@@ -89,8 +86,13 @@ const isAnalyzing = ref(false)
 
 // 计算属性
 const totalCount = computed(() => {
-  if (!activity.ac0_voteResult) return 0
-  return activity.ac0_voteResult.countA + activity.ac0_voteResult.countB
+  if (!activity.ac0_voteResult) {
+    console.log('[Activity0] 📊 totalCount: 没有投票结果')
+    return 0
+  }
+  const total = activity.ac0_voteResult.countA + activity.ac0_voteResult.countB
+  console.log('[Activity0] 📊 totalCount:', total, '(A:', activity.ac0_voteResult.countA, ', B:', activity.ac0_voteResult.countB, ')')
+  return total
 })
 
 // 计算网格样式（根据人数比例分配列宽）
@@ -136,82 +138,103 @@ const handleCameraAction = () => {
 const handleUpload = async (photo: string) => {
   hasPhoto.value = true
   showCamera.value = false
-  ElMessage.success('照片已拍摄')
+  // ElMessage.success('照片已拍摄')
   startAnalysis(photo)
 }
 
 // 处理退出
 const handleExit = () => {
   showCamera.value = false
-  ElMessage.info('已关闭摄像头')
+  // ElMessage.info('已关闭摄像头')
 }
 
 // 开始分析
 const startAnalysis = async (dataUrl: string) => {
   isAnalyzing.value = true
-  ElMessage.info('开始分析照片...')
+  // ElMessage.info('开始分析照片...')
   
   try {
+    console.log('[Activity0] 📸 开始上传图片...')
     // 使用 coze.ts 的 uploadFile 上传图片
     const fileId = await uploadFile(dataUrl, `activity0_${Date.now()}.jpg`)
+    console.log('[Activity0] 📤 图片上传结果:', fileId)
+    
     if (!fileId) throw new Error('图片上传失败')
     
+    console.log('[Activity0] 🚀 开始调用工作流...')
     // 使用 coze.ts 的 runWorkflow 分析图片
-    const workflowResult = await runWorkflow(WORKFLOW.GET_PICTURE, {img: { file_id: fileId }, index: 0})
+    const workflowParams = { img: { file_id: fileId }, index: 0 }
+    console.log('[Activity0] 📋 工作流参数:', workflowParams)
+    
+    const workflowResult = await runWorkflow(WORKFLOW.GET_PICTURE, workflowParams)
+    console.log('[Activity0] 🎯 工作流返回结果:', workflowResult)
+    
     const { countA, countB } = parseAnalysisResult(workflowResult)
+    console.log('[Activity0] 📊 解析后的人数: countA =', countA, ', countB =', countB)
 
     // 设置投票结果
     activity.ac0_voteResult = {
       countA,
       countB,
       timestamp: Date.now()
-  }
-
-    ElMessage.success('分析完成！')
+    }
+    
+    console.log('[Activity0] ✅ 投票结果已设置:', activity.ac0_voteResult)
+    // ElMessage.success(`分析完成！正方 ${countA} 人，反方 ${countB} 人`)
   } catch (error) {
-    console.error('[Activity0] 分析失败:', error)
-    ElMessage.error('分析失败，使用默认结果')
-    setFallbackResult()
+    console.error('[Activity0] ❌ 分析失败:', error)
+    // ElMessage.error('分析失败，请重试')
+    // 不设置默认结果，让用户可以重新拍照
   } finally {
     isAnalyzing.value = false
   }
 }
 
-// 设置默认结果
-const setFallbackResult = () => {
-  activity.ac0_voteResult = {
-    countA: 0,
-    countB: 0,
-    timestamp: Date.now()
-  }
-}
-
 // 解析分析结果
-const parseAnalysisResult = (data: string): { countA: number, countB: number, choice: 'A' | 'B' } => {
+const parseAnalysisResult = (data: any): { countA: number, countB: number } => {
   let countA = 0
   let countB = 0
-  let choice: 'A' | 'B' = 'A'
+  
+  console.log('[Activity0] 🔍 开始解析工作流返回数据:', data)
   
   try {
-    const analysisData = JSON.parse(data)
+    // 如果 data 已经是对象，直接使用；否则尝试解析
+    const analysisData = typeof data === 'string' ? JSON.parse(data) : data
+    console.log('[Activity0] 📦 解析后的数据:', analysisData)
+    
     const output0 = analysisData.output0
+    console.log('[Activity0] 📄 output0 内容:', output0)
+    console.log('[Activity0] 📄 output0 类型:', typeof output0)
     
     if (output0) {
       try {
-        const countData = JSON.parse(output0)
-        countA = parseInt(countData.count_A || '0', 10)
-        countB = parseInt(countData.count_B || '0', 10)
-        choice = countA > countB ? 'A' : countB > countA ? 'B' : Math.random() > 0.5 ? 'A' : 'B'
-      } catch {
-        const outputStr = String(output0).toUpperCase()
-        choice = outputStr.includes('A') ? 'A' : outputStr.includes('B') ? 'B' : 'A'
+        // 尝试解析 output0（可能是 JSON 字符串）
+        const countData = typeof output0 === 'string' ? JSON.parse(output0) : output0
+        console.log('[Activity0] 🔢 解析出的计数数据:', countData)
+        
+        // 尝试多种可能的字段名
+        countA = parseInt(countData.count_A || countData.countA || countData.A || '0', 10)
+        countB = parseInt(countData.count_B || countData.countB || countData.B || '0', 10)
+        
+        console.log('[Activity0] ✅ 最终计数结果: countA =', countA, ', countB =', countB)
+      } catch (e) {
+        console.warn('[Activity0] ⚠️ 解析 output0 失败，尝试正则提取:', e)
+        // 如果 JSON 解析失败，尝试正则表达式提取数字
+        const outputStr = String(output0)
+        const matchA = outputStr.match(/count[_-]?A[:\s]*(\d+)/i) || outputStr.match(/A[:\s]*(\d+)/i)
+        const matchB = outputStr.match(/count[_-]?B[:\s]*(\d+)/i) || outputStr.match(/B[:\s]*(\d+)/i)
+        countA = matchA ? parseInt(matchA[1], 10) : 0
+        countB = matchB ? parseInt(matchB[1], 10) : 0
+        console.log('[Activity0] 🔍 正则提取结果: countA =', countA, ', countB =', countB)
       }
+    } else {
+      console.warn('[Activity0] ⚠️ output0 为空或 undefined')
     }
-  } catch {
-    // 使用默认值
+  } catch (e) {
+    console.error('[Activity0] ❌ 解析失败，使用默认值:', e)
   }
   
-  return { countA, countB, choice }
+  return { countA, countB }
 }
 </script>
 

@@ -4,8 +4,14 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount } from 'vue'
 import { useActivity, useSocket, useStatus } from '@/store'
-import { ElMessage } from 'element-plus'
-import type { Activity1Result, Activity2_1_selectResult, Activity2_2_designResult, Activity4Result } from '@/store/activity'
+import type { 
+  Activity1Result, 
+  Activity2_1_selectResult, 
+  Activity2_2_designResult, 
+  Activity4Result,
+  QuestionnaireAnswer,
+  QuestionOption
+} from '@/store/activity'
 
 const socket = useSocket()
 const activity = useActivity()
@@ -28,14 +34,6 @@ function updateGroupTotalScore(groupNo: string) {
       group.scores.activity4
     
     group.totalScore = newTotal
-    
-    // console.log(`[得分更新] ${groupNo}组 总分: ${newTotal}`, {
-    //   activity1: group.scores.activity1,
-    //   activity2_1: group.scores.activity2_1,
-    //   activity2_2: group.scores.activity2_2,
-    //   activity3: group.scores.activity3,
-    //   activity4: group.scores.activity4
-    // })
   }
 }
 
@@ -46,9 +44,8 @@ function onStudentSubmit(payload: any) {
   const { messageType, data, from } = payload
   
   // 生成学生唯一标识
-  const studentId = from?.id || `${from?.studentNo}_${from?.groupNo}`
-  const studentInfo = `${from?.groupNo}组 ${from?.studentNo}号 (${from?.studentRole || ''})`
   const groupNo = from?.groupNo
+  const studentId = from?.studentNo
   
   try {
     // 根据不同的消息类型处理
@@ -64,9 +61,6 @@ function onStudentSubmit(payload: any) {
             status.groupStatus[groupNo].operatorNo = studentNo
             status.groupStatus[groupNo].loginTime = loginTime
           }
-          
-          const roleName = studentRole === 'operator' ? '操作员' : '记录员'
-          // ElMessage.success(`${groupNo}组 ${roleName}(${studentNo}号) 已登录`)
         }
         break
         
@@ -74,22 +68,19 @@ function onStudentSubmit(payload: any) {
         // 学生离线通知（只关心操作员）
         if (data && from) {
           const { groupNo, studentRole } = data
-          // console.log('student_logout', data)
           
           // 更新小组状态（只关心操作员）
           if (studentRole === 'operator' && status.groupStatus[groupNo]) {
             status.groupStatus[groupNo].isOnline = false
           }
           
-          const roleName = studentRole === 'operator' ? '操作员' : '记录员'
-          // ElMessage.warning(`${groupNo}组 ${roleName} 已离线`)
         }
         break
         
       case 'activity1_submit':
         // Activity 1 - 观点交锋
         if (data && activity.ac1_allResult) {
-          activity.ac1_allResult[studentId] = {
+          activity.ac1_allResult[groupNo] = {
             viewpoint: data.viewpoint,
             point: data.point,
             rating: data.rating,
@@ -100,16 +91,14 @@ function onStudentSubmit(payload: any) {
           if (groupNo && status.groupStatus[groupNo]) {
             status.groupStatus[groupNo].scores.activity1 = calculateTotalScore(data.rating || [])
             updateGroupTotalScore(groupNo)
-          }
-          
-          // ElMessage.success(`${studentInfo} 提交了活动一`)
+          }          
         }
         break
         
       case 'activity2_1_submit':
         // Activity 2.1 - 题目选择
         if (data && activity.ac2_1_allSelectResult) {
-          activity.ac2_1_allSelectResult[studentId] = {
+          activity.ac2_1_allSelectResult[groupNo] = {
             selectedDurationQuestion: data.selectedDurationQuestion,
             selectedImpactQuestion: data.selectedImpactQuestion,
             durationReason: data.durationReason,
@@ -119,43 +108,57 @@ function onStudentSubmit(payload: any) {
           } as Activity2_1_selectResult
           
           // 更新小组得分
+          let score = 0
           if (groupNo && status.groupStatus[groupNo]) {
-            status.groupStatus[groupNo].scores.activity2_1 = calculateTotalScore(data.rating || [])
+            score = calculateTotalScore(data.rating || [])
+            status.groupStatus[groupNo].scores.activity2_1 = score
             updateGroupTotalScore(groupNo)
           }
           
-          // ElMessage.success(`${studentInfo} 提交了活动二(选择题目)`)
+          // ElMessage.success(`${from?.groupNo}组 提交了活动二-题目选择 (得分: ${score}/2)`)
         }
         break
         
       case 'activity2_2_submit':
         // Activity 2.2 - 题目设计
         if (data && activity.ac2_2_allDesignResult) {
-          activity.ac2_2_allDesignResult[studentId] = {
+          activity.ac2_2_allDesignResult[groupNo] = {
             designQuestion: data.designQuestion,
             rating: data.rating,
             submittedAt: data.submittedAt
           } as Activity2_2_designResult
           
           // 更新小组得分
+          let score = 0
           if (groupNo && status.groupStatus[groupNo]) {
-            status.groupStatus[groupNo].scores.activity2_2 = calculateTotalScore(data.rating || [])
+            score = calculateTotalScore(data.rating || [])
+            status.groupStatus[groupNo].scores.activity2_2 = score
             updateGroupTotalScore(groupNo)
           }
           
-          // ElMessage.success(`${studentInfo} 提交了活动二(设计题目)`)
+          // ElMessage.success(`第${groupNo}组 提交了活动二-题目设计 (得分: ${score}/3)`)
         }
         break
         
       case 'questionnaire_submit':
         // Activity 3 - 问卷填写（无评分，提交即得1分）
-        if (data && activity.ac3_allQuestionnaireResult) {
-          activity.ac3_allQuestionnaireResult[studentId] = {
-            questions: data.questions,
-            submittedAt: data.submittedAt
+        if (data && data.questions && activity.ac3_allQuestionnaireAnswer) {
+          // 验证问卷数据
+          const questions = data.questions as QuestionOption[]
+          
+          // 存储问卷答案
+          const questionnaireAnswer: QuestionnaireAnswer = {
+            groupNo: groupNo,
+            studentNo: studentId,
+            studentRole: from.studentRole,
+            questions: questions,
+            submittedAt: data.submittedAt || Date.now()
           }
           
-          // 更新小组得分（问卷提交即得1分）
+          activity.ac3_allQuestionnaireAnswer[studentId] = questionnaireAnswer
+
+          
+          // 更新小组得分（问卷提交即得1分）  
           if (groupNo && status.groupStatus[groupNo]) {
             status.groupStatus[groupNo].scores.activity3 = 1
             updateGroupTotalScore(groupNo)

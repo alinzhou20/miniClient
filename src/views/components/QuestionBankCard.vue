@@ -38,12 +38,18 @@
       </div>
       
       <!-- 理由部分 -->
-      <div v-if="showReason" class="reason-section">
+      <div v-if="showReason && selectedId !== null" class="reason-section">
         <div class="reason-row">
-          <label class="reason-label">选择理由：</label>
+          <label class="reason-label" :class="{ 'typing': isTyping }">
+            <span v-for="(char, index) in labelChars" :key="index" class="char" :style="{ animationDelay: `${index * 0.1}s` }">
+              {{ char }}
+            </span>
+          </label>
           <el-checkbox 
             v-model="hasReason"
             size="large"
+            class="checkbox-fade-in"
+            :class="{ 'visible': showCheckbox }"
           >
             小组已讨论理由
           </el-checkbox>
@@ -54,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { CircleCheck } from '@element-plus/icons-vue'
 import { useActivity } from '@/store/activity'
 import type { QuestionOption } from '@/store/activity'
@@ -73,6 +79,12 @@ const props = withDefaults(defineProps<Props>(), {
 
 const activity = useActivity()
 
+// 打字机效果状态
+const isTyping = ref(false)
+const showCheckbox = ref(false)
+const labelChars = ref<string[]>([])
+const labelText = '选择理由：'
+
 // 根据类型获取当前选中的题目ID
 const selectedId = computed(() => {
   if (!activity.ac2_1_stuSelectResult) return null
@@ -80,6 +92,48 @@ const selectedId = computed(() => {
     ? activity.ac2_1_stuSelectResult.selectedDurationQuestion
     : activity.ac2_1_stuSelectResult.selectedImpactQuestion
 })
+
+// 触发打字机效果
+const triggerTypingEffect = () => {
+  // 重置状态
+  isTyping.value = true
+  showCheckbox.value = false
+  labelChars.value = []
+  
+  // 逐字添加文字
+  const chars = Array.from(labelText)
+  chars.forEach((char, index) => {
+    setTimeout(() => {
+      labelChars.value.push(char)
+      
+      // 最后一个字符添加后，显示复选框
+      if (index === chars.length - 1) {
+        setTimeout(() => {
+          isTyping.value = false
+          showCheckbox.value = true
+        }, 100)
+      }
+    }, index * 100) // 每个字符间隔100ms
+  })
+}
+
+// 重置打字机效果
+const resetTypingEffect = () => {
+  isTyping.value = false
+  showCheckbox.value = false
+  labelChars.value = []
+}
+
+// 监听题目选择变化，触发打字机效果
+watch(selectedId, (newVal, oldVal) => {
+  if (newVal !== null && newVal !== oldVal) {
+    // 选中了新题目，触发打字机效果
+    triggerTypingEffect()
+  } else if (newVal === null) {
+    // 取消选择，重置状态
+    resetTypingEffect()
+  }
+}, { immediate: true })
 
 // 根据类型获取理由状态
 const hasReason = computed({
@@ -111,41 +165,41 @@ const getQuestionNumber = (id: number): number => {
 const selectQuestion = (id: number) => {
   if (!activity.ac2_1_stuSelectResult) return
   
-  // 如果选择的是 4（我认为以上题目都不合适），不添加到预览中
-  const selectedValue = id === 4 ? null : id
-  
   if (props.type === 'duration') {
-    activity.ac2_1_stuSelectResult.selectedDurationQuestion = selectedValue
+    // 时长题目：正常保存选择
+    activity.ac2_1_stuSelectResult.selectedDurationQuestion = id
     
     // 添加到问卷（固定ID=3）
-    if (selectedValue) {
-      const selectedQ = props.questions.find(q => q.id === selectedValue)
-      if (selectedQ) {
-        const existingIndex = activity.questionnaire.questions.findIndex(q => q.id === 3)
-        const newQuestion: QuestionOption = {
-          ...selectedQ,
-          id: 3  // 固定ID为3
-        }
-        
-        if (existingIndex !== -1) {
-          activity.questionnaire.questions[existingIndex] = newQuestion
-        } else {
-          activity.questionnaire.questions.push(newQuestion)
-        }
+    const selectedQ = props.questions.find(q => q.id === id)
+    if (selectedQ) {
+      const existingIndex = activity.questionnaire.questions.findIndex(q => q.id === 3)
+      const newQuestion: QuestionOption = {
+        ...selectedQ,
+        id: 3  // 固定ID为3
       }
-    } else {
-      // 移除题目
-      const index = activity.questionnaire.questions.findIndex(q => q.id === 3)
-      if (index !== -1) {
-        activity.questionnaire.questions.splice(index, 1)
+      
+      if (existingIndex !== -1) {
+        activity.questionnaire.questions[existingIndex] = newQuestion
+      } else {
+        activity.questionnaire.questions.push(newQuestion)
       }
     }
   } else {
-    activity.ac2_1_stuSelectResult.selectedImpactQuestion = selectedValue
+    // 影响题目：正常保存选择
+    activity.ac2_1_stuSelectResult.selectedImpactQuestion = id
     
-    // 添加到问卷（固定ID=4）
-    if (selectedValue) {
-      const selectedQ = props.questions.find(q => q.id === selectedValue)
+    // 检查是否选择了"我认为以上题目都不合适"（题目4）
+    const selectedQ = props.questions.find(q => q.id === id)
+    const isNotSuitableOption = selectedQ?.title === '我认为以上题目都不合适。'
+    
+    if (isNotSuitableOption) {
+      // 如果是"不合适"选项，从问卷中移除（不显示在预览中）
+      const index = activity.questionnaire.questions.findIndex(q => q.id === 4)
+      if (index !== -1) {
+        activity.questionnaire.questions.splice(index, 1)
+      }
+    } else {
+      // 其他选项正常添加到问卷（固定ID=4）
       if (selectedQ) {
         const existingIndex = activity.questionnaire.questions.findIndex(q => q.id === 4)
         const newQuestion: QuestionOption = {
@@ -158,12 +212,6 @@ const selectQuestion = (id: number) => {
         } else {
           activity.questionnaire.questions.push(newQuestion)
         }
-      }
-    } else {
-      // 移除题目
-      const index = activity.questionnaire.questions.findIndex(q => q.id === 4)
-      if (index !== -1) {
-        activity.questionnaire.questions.splice(index, 1)
       }
     }
   }
@@ -309,6 +357,18 @@ const selectQuestion = (id: number) => {
 .reason-section {
   padding-top: 4px;
   border-top: 2px solid #f0f0f0;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .reason-row {
@@ -322,6 +382,40 @@ const selectQuestion = (id: number) => {
   font-weight: 700;
   color: #1f2937;
   white-space: nowrap;
+  display: inline-flex;
+}
+
+/* 打字机效果 */
+.reason-label .char {
+  opacity: 0;
+  animation: charFadeIn 0.1s ease forwards;
+}
+
+@keyframes charFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reason-label.typing .char {
+  color: #0ea5e9;
+}
+
+/* 复选框渐入效果 */
+.checkbox-fade-in {
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.3s ease;
+}
+
+.checkbox-fade-in.visible {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 /* 自定义复选框样式 */

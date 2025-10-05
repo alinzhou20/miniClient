@@ -128,9 +128,9 @@ function refreshScores() {
   })
   
   if (updatedCount > 0) {
-    ElMessage.success(`已更新 ${updatedCount} 个小组的总分`)
+    // ElMessage.success(`已更新 ${updatedCount} 个小组的总分`)
   } else {
-    ElMessage.info('所有数据已是最新')
+    // ElMessage.info('所有数据已是最新')
   }
 }
 

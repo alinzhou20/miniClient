@@ -81,6 +81,8 @@ export function cameraUtils(config: CameraConfig = {}) {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: true
       })
+
+      console.log('[Camera] 摄像头流:', stream)
       
       mediaStream.value = stream
       
@@ -94,7 +96,7 @@ export function cameraUtils(config: CameraConfig = {}) {
               if (videoRef.value) {
                 videoWidth.value = videoRef.value.videoWidth
                 videoHeight.value = videoRef.value.videoHeight
-                // console.log(`[Camera] 视频尺寸: ${videoWidth.value} x ${videoHeight.value}`)
+                console.log(`[Camera] 视频尺寸: ${videoWidth.value} x ${videoHeight.value}`)
               }
               resolve()
             }

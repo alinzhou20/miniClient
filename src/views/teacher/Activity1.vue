@@ -37,60 +37,75 @@
               </div>
             </div>
             
-            <div class="cards-wrapper" :class="{ 'refine-mode': isSummaryMode, 'organize-mode': isOrganizeMode }">
+            <div class="cards-wrapper" :class="{ 'refine-mode': isSummaryMode, 'organize-mode': isOrganizeMode, 'organize-stage-1': organizeAnimationStage === 1 }">
               <!-- 整理模式：显示 Coze 分析结果 -->
               <template v-if="isOrganizeMode">
-                <!-- P1: 使用时长 -->
-                <div v-if="cozeResultA.p1.length > 0" class="coze-card card-a">
-                  <div class="coze-card-header">
-                    <span class="coze-icon">⏱️</span>
-                    <span class="coze-title">{{ typingTitles.a1 }}</span>
+                <!-- 阶段1: 只显示所有 items，不带卡片框 -->
+                <template v-if="organizeAnimationStage === 1">
+                  <div 
+                    v-for="(item, index) in [...cozeResultA.p1, ...cozeResultA.p2, ...cozeResultA.p3, ...cozeResultA.p4]" 
+                    :key="'a-item-' + index"
+                    class="coze-item-floating card-a"
+                    :style="{ animationDelay: `${index * 80}ms` }"
+                  >
+                    {{ item }}
                   </div>
-                  <div class="coze-card-content">
-                    <div v-for="(item, index) in cozeResultA.p1" :key="'a-p1-' + index" class="coze-item">
-                      {{ item }}
-                    </div>
-                  </div>
-                </div>
+                </template>
                 
-                <!-- P2: 使用影响 -->
-                <div v-if="cozeResultA.p2.length > 0" class="coze-card card-a">
-                  <div class="coze-card-header">
-                    <span class="coze-icon">💡</span>
-                    <span class="coze-title">{{ typingTitles.a2 }}</span>
-                  </div>
-                  <div class="coze-card-content">
-                    <div v-for="(item, index) in cozeResultA.p2" :key="'a-p2-' + index" class="coze-item">
-                      {{ item }}
+                <!-- 阶段2-3: 显示卡片框和标题 -->
+                <template v-else>
+                  <!-- P1: 使用时长 -->
+                  <div v-if="cozeResultA.p1.length > 0" class="coze-card card-a" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
+                    <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
+                      <span class="coze-icon">⏱️</span>
+                      <span class="coze-title">{{ typingTitles.a1 }}</span>
+                    </div>
+                    <div class="coze-card-content">
+                      <div v-for="(item, index) in cozeResultA.p1" :key="'a-p1-' + index" class="coze-item">
+                        {{ item }}
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                <!-- P3: 使用用途 -->
-                <div v-if="cozeResultA.p3.length > 0" class="coze-card card-a">
-                  <div class="coze-card-header">
-                    <span class="coze-icon">🎯</span>
-                    <span class="coze-title">{{ typingTitles.a3 }}</span>
-                  </div>
-                  <div class="coze-card-content">
-                    <div v-for="(item, index) in cozeResultA.p3" :key="'a-p3-' + index" class="coze-item">
-                      {{ item }}
+                  
+                  <!-- P2: 使用影响 -->
+                  <div v-if="cozeResultA.p2.length > 0" class="coze-card card-a" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
+                    <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
+                      <span class="coze-icon">💡</span>
+                      <span class="coze-title">{{ typingTitles.a2 }}</span>
+                    </div>
+                    <div class="coze-card-content">
+                      <div v-for="(item, index) in cozeResultA.p2" :key="'a-p2-' + index" class="coze-item">
+                        {{ item }}
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                <!-- P4: 使用安全 -->
-                <div v-if="cozeResultA.p4.length > 0" class="coze-card card-a">
-                  <div class="coze-card-header">
-                    <span class="coze-icon">🔒</span>
-                    <span class="coze-title">{{ typingTitles.a4 }}</span>
-                  </div>
-                  <div class="coze-card-content">
-                    <div v-for="(item, index) in cozeResultA.p4" :key="'a-p4-' + index" class="coze-item">
-                      {{ item }}
+                  
+                  <!-- P3: 使用用途 -->
+                  <div v-if="cozeResultA.p3.length > 0" class="coze-card card-a" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
+                    <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
+                      <span class="coze-icon">🎯</span>
+                      <span class="coze-title">{{ typingTitles.a3 }}</span>
+                    </div>
+                    <div class="coze-card-content">
+                      <div v-for="(item, index) in cozeResultA.p3" :key="'a-p3-' + index" class="coze-item">
+                        {{ item }}
+                      </div>
                     </div>
                   </div>
-                </div>
+                  
+                  <!-- P4: 使用安全 -->
+                  <div v-if="cozeResultA.p4.length > 0" class="coze-card card-a" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
+                    <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
+                      <span class="coze-icon">🔒</span>
+                      <span class="coze-title">{{ typingTitles.a4 }}</span>
+                    </div>
+                    <div class="coze-card-content">
+                      <div v-for="(item, index) in cozeResultA.p4" :key="'a-p4-' + index" class="coze-item">
+                        {{ item }}
+                      </div>
+                    </div>
+                  </div>
+                </template>
               </template>
               
               <!-- 提炼模式：只显示 reason -->
@@ -161,60 +176,75 @@
               </div>
             </div>
             
-            <div class="cards-wrapper" :class="{ 'refine-mode': isSummaryMode, 'organize-mode': isOrganizeMode }">
+            <div class="cards-wrapper" :class="{ 'refine-mode': isSummaryMode, 'organize-mode': isOrganizeMode, 'organize-stage-1': organizeAnimationStage === 1 }">
               <!-- 整理模式：显示 Coze 分析结果 -->
               <template v-if="isOrganizeMode">
-                <!-- P1: 使用时长 -->
-                <div v-if="cozeResultB.p1.length > 0" class="coze-card card-b">
-                  <div class="coze-card-header">
-                    <span class="coze-icon">⏱️</span>
-                    <span class="coze-title">{{ typingTitles.b1 }}</span>
+                <!-- 阶段1: 只显示所有 items，不带卡片框 -->
+                <template v-if="organizeAnimationStage === 1">
+                  <div 
+                    v-for="(item, index) in [...cozeResultB.p1, ...cozeResultB.p2, ...cozeResultB.p3, ...cozeResultB.p4]" 
+                    :key="'b-item-' + index"
+                    class="coze-item-floating card-b"
+                    :style="{ animationDelay: `${(index + Object.values(cozeResultA).reduce((sum, arr) => sum + arr.length, 0)) * 80}ms` }"
+                  >
+                    {{ item }}
                   </div>
-                  <div class="coze-card-content">
-                    <div v-for="(item, index) in cozeResultB.p1" :key="'b-p1-' + index" class="coze-item">
-                      {{ item }}
-                    </div>
-                  </div>
-                </div>
+                </template>
                 
-                <!-- P2: 使用影响 -->
-                <div v-if="cozeResultB.p2.length > 0" class="coze-card card-b">
-                  <div class="coze-card-header">
-                    <span class="coze-icon">💡</span>
-                    <span class="coze-title">{{ typingTitles.b2 }}</span>
-                  </div>
-                  <div class="coze-card-content">
-                    <div v-for="(item, index) in cozeResultB.p2" :key="'b-p2-' + index" class="coze-item">
-                      {{ item }}
+                <!-- 阶段2-3: 显示卡片框和标题 -->
+                <template v-else>
+                  <!-- P1: 使用时长 -->
+                  <div v-if="cozeResultB.p1.length > 0" class="coze-card card-b" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
+                    <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
+                      <span class="coze-icon">⏱️</span>
+                      <span class="coze-title">{{ typingTitles.b1 }}</span>
+                    </div>
+                    <div class="coze-card-content">
+                      <div v-for="(item, index) in cozeResultB.p1" :key="'b-p1-' + index" class="coze-item">
+                        {{ item }}
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                <!-- P3: 使用用途 -->
-                <div v-if="cozeResultB.p3.length > 0" class="coze-card card-b">
-                  <div class="coze-card-header">
-                    <span class="coze-icon">🎯</span>
-                    <span class="coze-title">{{ typingTitles.b3 }}</span>
-                  </div>
-                  <div class="coze-card-content">
-                    <div v-for="(item, index) in cozeResultB.p3" :key="'b-p3-' + index" class="coze-item">
-                      {{ item }}
+                  
+                  <!-- P2: 使用影响 -->
+                  <div v-if="cozeResultB.p2.length > 0" class="coze-card card-b" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
+                    <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
+                      <span class="coze-icon">💡</span>
+                      <span class="coze-title">{{ typingTitles.b2 }}</span>
+                    </div>
+                    <div class="coze-card-content">
+                      <div v-for="(item, index) in cozeResultB.p2" :key="'b-p2-' + index" class="coze-item">
+                        {{ item }}
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                <!-- P4: 使用安全 -->
-                <div v-if="cozeResultB.p4.length > 0" class="coze-card card-b">
-                  <div class="coze-card-header">
-                    <span class="coze-icon">🔒</span>
-                    <span class="coze-title">{{ typingTitles.b4 }}</span>
-                  </div>
-                  <div class="coze-card-content">
-                    <div v-for="(item, index) in cozeResultB.p4" :key="'b-p4-' + index" class="coze-item">
-                      {{ item }}
+                  
+                  <!-- P3: 使用用途 -->
+                  <div v-if="cozeResultB.p3.length > 0" class="coze-card card-b" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
+                    <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
+                      <span class="coze-icon">🎯</span>
+                      <span class="coze-title">{{ typingTitles.b3 }}</span>
+                    </div>
+                    <div class="coze-card-content">
+                      <div v-for="(item, index) in cozeResultB.p3" :key="'b-p3-' + index" class="coze-item">
+                        {{ item }}
+                      </div>
                     </div>
                   </div>
-                </div>
+                  
+                  <!-- P4: 使用安全 -->
+                  <div v-if="cozeResultB.p4.length > 0" class="coze-card card-b" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
+                    <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
+                      <span class="coze-icon">🔒</span>
+                      <span class="coze-title">{{ typingTitles.b4 }}</span>
+                    </div>
+                    <div class="coze-card-content">
+                      <div v-for="(item, index) in cozeResultB.p4" :key="'b-p4-' + index" class="coze-item">
+                        {{ item }}
+                      </div>
+                    </div>
+                  </div>
+                </template>
               </template>
               
               <!-- 提炼模式：只显示 reason -->
@@ -255,7 +285,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+// import { ElMessage } from 'element-plus'
 import { useActivity, type Activity1Result } from '@/store/activity'
 import { useCoze, WORKFLOW, type ViewpointWorkflow } from '@/utils/coze'
 
@@ -266,16 +296,18 @@ const { runWorkflow } = useCoze()
 interface SubmissionItem {
   id: string
   groupNo: string
-  studentNo: string
   result: Activity1Result
 }
 
 const viewpointA = computed(() => {
   const items: SubmissionItem[] = []
-  for (const [id, result] of Object.entries(activity.ac1_allResult)) {
+  for (const [groupNo, result] of Object.entries(activity.ac1_allResult)) {
     if (result.viewpoint === 'A') {
-      const [studentNo, groupNo] = id.split('_')
-      items.push({ id, groupNo, studentNo, result })
+      items.push({ 
+        id: groupNo, 
+        groupNo, 
+        result 
+      })
     }
   }
   return items.sort((a, b) => parseInt(a.groupNo) - parseInt(b.groupNo))
@@ -283,10 +315,13 @@ const viewpointA = computed(() => {
 
 const viewpointB = computed(() => {
   const items: SubmissionItem[] = []
-  for (const [id, result] of Object.entries(activity.ac1_allResult)) {
+  for (const [groupNo, result] of Object.entries(activity.ac1_allResult)) {
     if (result.viewpoint === 'B') {
-      const [studentNo, groupNo] = id.split('_')
-      items.push({ id, groupNo, studentNo, result })
+      items.push({ 
+        id: groupNo, 
+        groupNo, 
+        result 
+      })
     }
   }
   return items.sort((a, b) => parseInt(a.groupNo) - parseInt(b.groupNo))
@@ -326,6 +361,8 @@ const isRefineAnimating = ref(false) // 提炼动画进行中
 
 // 整理模式
 const isOrganizeMode = ref(false)
+// 整理动画阶段：0=未开始, 1=显示items, 2=显示卡片框, 3=显示标题
+const organizeAnimationStage = ref(0)
 
 // 提炼卡片数据 - 改为数组存储三条信息
 const summaryCardA = ref<string[]>([])
@@ -486,7 +523,7 @@ const handleSummary = async () => {
     isRefineAnimating.value = false
     
     // 4. 调用 Coze AI 获取提炼卡片内容（后台进行）
-    ElMessage.info('正在生成提炼卡片...')
+    // ElMessage.info('正在生成提炼卡片...')
     
     const viewpointA = activity.ac1_allReason.A
     const viewpointB = activity.ac1_allReason.B
@@ -536,13 +573,13 @@ const handleSummary = async () => {
     
     console.log('[提炼] 进入提炼模式，isSummaryMode =', isSummaryMode.value)
     
-    ElMessage.success('观点提炼完成')
+    // ElMessage.success('观点提炼完成')
   } catch (error) {
     console.error('[提炼] 调用失败:', error)
     isRefineAnimating.value = false
     isLoadingSummaryA.value = false
     isLoadingSummaryB.value = false
-    ElMessage.error('提炼失败，请重试')
+    // ElMessage.error('提炼失败，请重试')
   }
 }
 
@@ -619,7 +656,7 @@ const playRefineAnimation = async () => {
 const handleOrganize = async () => {
   try {
     // 调用 Coze AI 分析观点
-    ElMessage.info('正在分析观点...')
+    // ElMessage.info('正在分析观点...')
     
     // 获取正反方观点数组
     const viewpointA = activity.ac1_allReason.A
@@ -662,21 +699,50 @@ const handleOrganize = async () => {
       console.log('[整理] 保存的 cozeResultB:', cozeResultB.value)
     }
     
-    // 关闭提炼模式，进入整理模式
-    isSummaryMode.value = false
-    isOrganizeMode.value = true
+    // 开始动画流程
+    await playOrganizeAnimation()
     
-    // 等待 DOM 更新，确保卡片渲染
-    await new Promise(resolve => setTimeout(resolve, 300))
-    
-    // 启动标题打字机效果
-    startTitleTyping()
-    
-    ElMessage.success('观点整理完成')
+    // ElMessage.success('观点整理完成')
   } catch (error) {
     console.error('[整理] 调用失败:', error)
-    ElMessage.error('观点分析失败，请重试')
+    // ElMessage.error('观点分析失败，请重试')
   }
+}
+
+// 整理动画流程
+const playOrganizeAnimation = async () => {
+  // 关闭提炼模式，进入整理模式
+  isSummaryMode.value = false
+  isOrganizeMode.value = true
+  
+  // 阶段1: 显示所有 items（不带卡片框）
+  organizeAnimationStage.value = 1
+  console.log('[整理动画] 阶段1: 显示所有条目')
+  
+  // 计算所有 items 的总数，用于控制动画时长
+  const totalItemsA = Object.values(cozeResultA.value).reduce((sum, arr) => sum + arr.length, 0)
+  const totalItemsB = Object.values(cozeResultB.value).reduce((sum, arr) => sum + arr.length, 0)
+  const totalItems = totalItemsA + totalItemsB
+  
+  // 等待所有 items 出现动画完成（每个 item 50ms 延迟 + 400ms 动画）
+  await new Promise(resolve => setTimeout(resolve, totalItems * 80 + 600))
+  
+  // 阶段2: 显示卡片框（将 items 包裹起来）
+  organizeAnimationStage.value = 2
+  console.log('[整理动画] 阶段2: 显示卡片框，归类条目')
+  
+  // 等待卡片框动画完成
+  await new Promise(resolve => setTimeout(resolve, 1200))
+  
+  // 阶段3: 显示标题（带脉冲效果）
+  organizeAnimationStage.value = 3
+  console.log('[整理动画] 阶段3: 显示标题')
+  
+  // 等待标题脉冲动画
+  await new Promise(resolve => setTimeout(resolve, 800))
+  
+  // 启动标题打字机效果
+  startTitleTyping()
 }
 
 </script>
@@ -1045,6 +1111,52 @@ const handleOrganize = async () => {
   gap: 14px;
 }
 
+/* 整理模式阶段1 - 单列瀑布流 */
+.cards-wrapper.organize-stage-1 {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+/* 阶段1: 漂浮的 item */
+.coze-item-floating {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1f2937;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 8px;
+  border-left: 3px solid;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  transform: translateY(30px) scale(0.95);
+  animation: floatItemIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.coze-item-floating.card-a {
+  border-left-color: #3b82f6;
+  background: linear-gradient(90deg, #eff6ff 0%, #ffffff 20%);
+}
+
+.coze-item-floating.card-b {
+  border-left-color: #ef4444;
+  background: linear-gradient(90deg, #fef2f2 0%, #ffffff 20%);
+}
+
+@keyframes floatItemIn {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* 观点卡片 - 弹性宽度设计 */
 .opinion-card {
   width: 100%;
@@ -1224,15 +1336,43 @@ const handleOrganize = async () => {
   background: white;
   border-radius: 12px;
   padding: 16px;
-  border: 2px solid #e5e7eb;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 2px solid transparent;
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
   transition: all 0.3s ease;
-  animation: fadeInUp 0.4s ease-out backwards;
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-height: 150px;
   max-height: 400px;
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+/* 阶段2: 显示卡片框 */
+.coze-card.show-box {
+  opacity: 1;
+  transform: scale(1);
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  animation: cardBoxIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes cardBoxIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
 }
 
 .coze-card:hover {
@@ -1256,6 +1396,47 @@ const handleOrganize = async () => {
   gap: 8px;
   padding-bottom: 10px;
   border-bottom: 2px solid #f3f4f6;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.5s ease;
+}
+
+/* 阶段3: 显示标题 */
+.coze-card.show-header .coze-card-header {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 标题脉冲效果 */
+.coze-card-header.header-pulse {
+  animation: headerPulse 1.5s ease-out;
+}
+
+@keyframes headerPulse {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.9);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  25% {
+    opacity: 0.5;
+    transform: translateY(-5px) scale(0.95);
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(0) scale(1.05);
+    box-shadow: 0 0 0 20px rgba(59, 130, 246, 0.2);
+  }
+  75% {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 0 0 30px rgba(59, 130, 246, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
 }
 
 .coze-icon {
