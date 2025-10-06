@@ -85,6 +85,7 @@ function generateCertificates(): void {
   const domains = [
     'localhost',
     '127.0.0.1',
+    '117.72.63.157',
     '::1',
     ...localIPs
   ]

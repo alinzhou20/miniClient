@@ -26,16 +26,39 @@
       
       <!-- 题目统计区域 -->
       <div class="survey-questions">
-        <!-- 固定题目（就读年级和性别） -->
-        <div v-for="question in fixedQuestions" :key="question.id" class="question-item">
+        <!-- 动态渲染所有题目 -->
+        <div v-for="(question, qIndex) in questionnaire.questions" :key="question.id" 
+             class="question-item"
+             :class="{ 'highlight': shouldHighlight(question) }">
           <div class="question-title">
-            <span class="q-number">{{ question.id }}.</span>
+            <span class="q-number">{{ qIndex + 1 }}.</span>
             <span class="q-text">{{ question.title }}</span>
             <span class="type-badge">[{{ getTypeText(question.type) }}]</span>
+            <span 
+              v-if="getQuestionTypeLabel(question.questionType)" 
+              class="tag-badge"
+              :class="getQuestionTypeLabel(question.questionType)?.class"
+            >
+              {{ getQuestionTypeLabel(question.questionType)?.text }}
+            </span>
           </div>
           
-          <!-- 选择题统计 -->
-          <div v-if="question.options && question.options.length > 0" class="question-options">
+          <!-- 填空题 - 显示所有答案 -->
+          <div v-if="question.type === 'fill'" class="fill-answers">
+            <div v-if="getFillAnswers(question.id).length > 0" class="answer-list">
+              <div 
+                v-for="(answer, idx) in getFillAnswers(question.id)" 
+                :key="idx"
+                class="fill-answer-item"
+              >
+                {{ answer.answer }}
+              </div>
+            </div>
+            <div v-else class="no-answers">暂无答案</div>
+          </div>
+          
+          <!-- 选择题统计（单选和多选） -->
+          <div v-else-if="question.options && question.options.length > 0" class="question-options">
             <div 
               v-for="(option, index) in question.options" 
               :key="index"
@@ -47,128 +70,13 @@
                 <div class="stat-bar-container">
                   <div 
                     class="stat-bar"
-                    :style="{ width: getOptionPercentage(question.id, index) + '%' }"
+                    :class="{ 'multiple': question.type === 'multiple' }"
+                    :style="{ width: getQuestionOptionPercentage(question, index) + '%' }"
                   ></div>
                 </div>
                 <div class="stat-numbers">
-                  <span class="stat-count">{{ getOptionCount(question.id, index) }}人</span>
-                  <span class="stat-percent">{{ getOptionPercentage(question.id, index).toFixed(1) }}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- 使用时长题目 -->
-        <div v-if="durationQuestion" class="question-item highlight">
-          <div class="question-title">
-            <span class="q-number">3.</span>
-            <span class="q-text">{{ durationQuestion.title }}</span>
-            <span class="type-badge">[{{ getTypeText(durationQuestion.type) }}]</span>
-            <span class="tag-badge">使用时长</span>
-          </div>
-          
-          <!-- 填空题 - 显示所有答案 -->
-          <div v-if="durationQuestion.type === 'fill'" class="fill-answers">
-            <div v-if="getFillAnswers(durationQuestion.id).length > 0" class="answer-list">
-              <div 
-                v-for="(answer, idx) in getFillAnswers(durationQuestion.id)" 
-                :key="idx"
-                class="fill-answer-item"
-              >
-                {{ answer.answer }}
-              </div>
-            </div>
-            <div v-else class="no-answers">暂无答案</div>
-          </div>
-          
-          <!-- 选择题统计 -->
-          <div v-else-if="durationQuestion.options && durationQuestion.options.length > 0" class="question-options">
-            <div 
-              v-for="(option, index) in durationQuestion.options" 
-              :key="index"
-              class="option-stat"
-            >
-              <span class="option-marker">{{ String.fromCharCode(65 + index) }}.</span>
-              <span class="option-text">{{ option }}</span>
-              <div class="stat-inline">
-                <div class="stat-bar-container">
-                  <div 
-                    class="stat-bar"
-                    :style="{ width: getOptionPercentage(durationQuestion.id, index) + '%' }"
-                  ></div>
-                </div>
-                <div class="stat-numbers">
-                  <span class="stat-count">{{ getOptionCount(durationQuestion.id, index) }}人</span>
-                  <span class="stat-percent">{{ getOptionPercentage(durationQuestion.id, index).toFixed(1) }}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- 使用影响题目 -->
-        <div v-if="impactQuestion" class="question-item highlight">
-          <div class="question-title">
-            <span class="q-number">{{ durationQuestion ? '4' : '3' }}.</span>
-            <span class="q-text">{{ impactQuestion.title }}</span>
-            <span class="type-badge">[{{ getTypeText(impactQuestion.type) }}]</span>
-            <span class="tag-badge">使用影响</span>
-          </div>
-          
-          <!-- 选择题统计 -->
-          <div v-if="impactQuestion.options && impactQuestion.options.length > 0" class="question-options">
-            <div 
-              v-for="(option, index) in impactQuestion.options" 
-              :key="index"
-              class="option-stat"
-            >
-              <span class="option-marker">{{ String.fromCharCode(65 + index) }}.</span>
-              <span class="option-text">{{ option }}</span>
-              <div class="stat-inline">
-                <div class="stat-bar-container">
-                  <div 
-                    class="stat-bar"
-                    :style="{ width: getOptionPercentage(impactQuestion.id, index) + '%' }"
-                  ></div>
-                </div>
-                <div class="stat-numbers">
-                  <span class="stat-count">{{ getOptionCount(impactQuestion.id, index) }}人</span>
-                  <span class="stat-percent">{{ getOptionPercentage(impactQuestion.id, index).toFixed(1) }}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- 使用用途题目 -->
-        <div v-if="usageQuestion" class="question-item highlight">
-          <div class="question-title">
-            <span class="q-number">{{ [durationQuestion, impactQuestion].filter(Boolean).length + 3 }}.</span>
-            <span class="q-text">{{ usageQuestion.title }}</span>
-            <span class="type-badge">[{{ getTypeText(usageQuestion.type) }}]</span>
-            <span class="tag-badge usage">使用用途</span>
-          </div>
-          
-          <!-- 选择题统计（多选题） -->
-          <div v-if="usageQuestion.options && usageQuestion.options.length > 0" class="question-options">
-            <div 
-              v-for="(option, index) in usageQuestion.options" 
-              :key="index"
-              class="option-stat"
-            >
-              <span class="option-marker">{{ String.fromCharCode(65 + index) }}.</span>
-              <span class="option-text">{{ option }}</span>
-              <div class="stat-inline">
-                <div class="stat-bar-container">
-                  <div 
-                    class="stat-bar multiple"
-                    :style="{ width: getMultipleOptionPercentage(usageQuestion.id, index) + '%' }"
-                  ></div>
-                </div>
-                <div class="stat-numbers">
-                  <span class="stat-count">{{ getMultipleOptionCount(usageQuestion.id, index) }}人</span>
-                  <span class="stat-percent">{{ getMultipleOptionPercentage(usageQuestion.id, index).toFixed(1) }}%</span>
+                  <span class="stat-count">{{ getQuestionOptionCount(question, index) }}人</span>
+                  <span class="stat-percent">{{ getQuestionOptionPercentage(question, index).toFixed(1) }}%</span>
                 </div>
               </div>
             </div>
@@ -176,7 +84,7 @@
         </div>
         
         <!-- 空状态 -->
-        <div v-if="!hasAnyQuestion" class="empty-state">
+        <div v-if="questionnaire.questions.length === 0" class="empty-state">
           <el-icon class="empty-icon"><DocumentCopy /></el-icon>
           <p>暂无问卷数据</p>
         </div>
@@ -202,33 +110,20 @@ const totalSubmitted = computed(() => {
   return Object.keys(allAnswers.value).length
 })
 
-// 只获取固定题目（ID 1和2：就读年级和性别）
-const fixedQuestions = computed<QuestionOption[]>(() => {
-  return activity.questionnaire.questions.filter(q => q.id === 1 || q.id === 2)
-})
+// 判断题目是否需要高亮显示（duration、impact、design 类型）
+const shouldHighlight = (question: QuestionOption): boolean => {
+  return ['duration', 'impact', 'design'].includes(question.questionType)
+}
 
-// 从问卷中读取使用时长题目（固定ID=3）
-const durationQuestion = computed<QuestionOption | null>(() => {
-  return activity.questionnaire.questions.find(q => q.id === 3) || null
-})
-
-// 从问卷中读取使用影响题目（固定ID=4）
-const impactQuestion = computed<QuestionOption | null>(() => {
-  const question = activity.questionnaire.questions.find(q => q.id === 4)
-  if (!question) return null
-  if (question.title === '我认为以上题目都不合适。') return null
-  return question
-})
-
-// 从问卷中读取使用用途题目（固定ID=5）
-const usageQuestion = computed<QuestionOption | null>(() => {
-  return activity.questionnaire.questions.find(q => q.id === 5) || null
-})
-
-// 检查是否有任何题目
-const hasAnyQuestion = computed(() => {
-  return fixedQuestions.value.length > 0 || durationQuestion.value || impactQuestion.value || usageQuestion.value
-})
+// 根据 questionType 获取标签文本和样式类
+const getQuestionTypeLabel = (questionType: string): { text: string; class: string } | null => {
+  const labelMap: Record<string, { text: string; class: string }> = {
+    'duration': { text: '使用时长', class: '' },
+    'impact': { text: '使用影响', class: '' },
+    'design': { text: '使用用途', class: 'usage' }
+  }
+  return labelMap[questionType] || null
+}
 
 // 获取题目类型的文本
 const getTypeText = (type: 'fill' | 'single' | 'multiple'): string => {
@@ -240,37 +135,30 @@ const getTypeText = (type: 'fill' | 'single' | 'multiple'): string => {
   return typeMap[type] || '单选'
 }
 
-// 获取单选题某个选项的选择人数
-const getOptionCount = (questionId: number, optionIndex: number): number => {
+// 统一获取题目选项的选择人数（支持单选和多选）
+const getQuestionOptionCount = (question: QuestionOption, optionIndex: number): number => {
   const letter = String.fromCharCode(65 + optionIndex)
   let count = 0
   
   Object.values(allAnswers.value).forEach(answer => {
-    const question = answer.questions.find(q => q.id === questionId)
-    if (question && question.answer === letter) {
-      count++
-    }
-  })
-  
-  return count
-}
-
-// 获取单选题某个选项的选择百分比
-const getOptionPercentage = (questionId: number, optionIndex: number): number => {
-  if (totalSubmitted.value === 0) return 0
-  const count = getOptionCount(questionId, optionIndex)
-  return (count / totalSubmitted.value) * 100
-}
-
-// 获取多选题某个选项的选择人数
-const getMultipleOptionCount = (questionId: number, optionIndex: number): number => {
-  const letter = String.fromCharCode(65 + optionIndex)
-  let count = 0
-  
-  Object.values(allAnswers.value).forEach(answer => {
-    const question = answer.questions.find(q => q.id === questionId)
-    if (question && Array.isArray(question.answer)) {
-      if (question.answer.includes(letter)) {
+    const answerQuestion = answer.questions.find(q => q.id === question.id)
+    if (!answerQuestion) return
+    
+    if (question.type === 'multiple') {
+      // 多选题：支持数组格式（如 ['A', 'B']）或字符串格式（如 'A、B'）
+      if (Array.isArray(answerQuestion.answer)) {
+        if (answerQuestion.answer.includes(letter)) {
+          count++
+        }
+      } else if (typeof answerQuestion.answer === 'string') {
+        const letters = answerQuestion.answer.split('、').filter(l => l && l.trim())
+        if (letters.includes(letter)) {
+          count++
+        }
+      }
+    } else {
+      // 单选题：直接比较
+      if (answerQuestion.answer === letter) {
         count++
       }
     }
@@ -279,10 +167,10 @@ const getMultipleOptionCount = (questionId: number, optionIndex: number): number
   return count
 }
 
-// 获取多选题某个选项的选择百分比
-const getMultipleOptionPercentage = (questionId: number, optionIndex: number): number => {
+// 统一获取题目选项的选择百分比
+const getQuestionOptionPercentage = (question: QuestionOption, optionIndex: number): number => {
   if (totalSubmitted.value === 0) return 0
-  const count = getMultipleOptionCount(questionId, optionIndex)
+  const count = getQuestionOptionCount(question, optionIndex)
   return (count / totalSubmitted.value) * 100
 }
 

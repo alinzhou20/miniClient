@@ -49,6 +49,7 @@
                 <div class="design-item-header">
                   <span class="group-label">第{{ design.groupNo }}组</span>
                   <span v-if="design.designQuestion" class="type-badge">{{ getQuestionTypeText(design.designQuestion.type) }}</span>
+                  <span class="like-badge">👍 {{ design.great || 0 }}</span>
                   <el-button 
                     v-if="design.designQuestion"
                     type="primary" 
@@ -406,7 +407,7 @@ const studentDesignCount = computed(() => {
   return Object.keys(activity.ac2_2_allDesignResult).length
 })
 
-// 排序后的设计结果（按得分降序，相同得分按提交时间升序）
+// 排序后的设计结果（按点赞数降序，相同点赞数按提交时间升序）
 const sortedDesignResults = computed(() => {
   return Object.entries(activity.ac2_2_allDesignResult)
     .map(([groupNo, result]) => ({
@@ -414,16 +415,15 @@ const sortedDesignResults = computed(() => {
       ...result
     }))
     .sort((a, b) => {
-      // 计算总分
-      const scoreA = getTotalScore(a.rating || [])
-      const scoreB = getTotalScore(b.rating || [])
+      // 先按点赞数降序
+      const greatA = a.great || 0
+      const greatB = b.great || 0
       
-      // 先按得分降序
-      if (scoreB !== scoreA) {
-        return scoreB - scoreA
+      if (greatB !== greatA) {
+        return greatB - greatA
       }
       
-      // 得分相同，按提交时间升序（早的排前面）
+      // 点赞数相同，按提交时间升序（早的排前面）
       return (a.submittedAt || 0) - (b.submittedAt || 0)
     })
 })
@@ -459,28 +459,42 @@ function getQuestionTypeText(type: 'fill' | 'single' | 'multiple'): string {
   return typeMap[type] || '未知'
 }
 
-// 计算总分
-function getTotalScore(rating: any[]): number {
-  return rating.reduce((sum, item) => sum + (item.score || 0), 0)
-}
-
 // 添加题目到问卷
 function addQuestionToQuestionnaire(question: QuestionOption) {
   try {
-    // 深拷贝题目以避免引用问题
-    const newQuestion: QuestionOption = {
-      id: activity.questionnaire.questions.length + 1,
-      title: question.title,
-      type: question.type,
-      questionType: 'design',  // 标记为学生设计的题目
-      options: question.options ? [...question.options] : undefined,
-      answer: question.answer || ''
+    // 查找是否已存在 design 类型的题目
+    const existingDesignIndex = activity.questionnaire.questions.findIndex(
+      q => q.questionType === 'design'
+    )
+    
+    if (existingDesignIndex !== -1) {
+      // 如果存在，替换该题目（保持原有 ID）
+      const existingId = activity.questionnaire.questions[existingDesignIndex].id
+      const updatedQuestion: QuestionOption = {
+        id: existingId,
+        title: question.title,
+        type: question.type,
+        questionType: 'design',
+        options: question.options ? [...question.options] : undefined,
+        answer: question.answer || ''
+      }
+      
+      activity.questionnaire.questions[existingDesignIndex] = updatedQuestion
+      // ElMessage.success('已替换问卷中的学生设计题目')
+    } else {
+      // 如果不存在，添加到最后面
+      const newQuestion: QuestionOption = {
+        id: activity.questionnaire.questions.length + 1,
+        title: question.title,
+        type: question.type,
+        questionType: 'design',
+        options: question.options ? [...question.options] : undefined,
+        answer: question.answer || ''
+      }
+      
+      activity.questionnaire.questions.push(newQuestion)
+      // ElMessage.success('已将学生设计的题目添加到问卷')
     }
-    
-    // 添加到问卷
-    activity.questionnaire.questions.push(newQuestion)
-    
-    // ElMessage.success(`已将第${groupNo}组设计的题目添加到问卷`)
   } catch (error: any) {
     console.error('[Activity2 Teacher] 添加题目失败:', error)
     // ElMessage.error(`添加失败: ${error.message}`)
@@ -953,6 +967,18 @@ function addQuestionToQuestionnaire(question: QuestionOption) {
   background: #e0f2fe;
   padding: 2px 8px;
   border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.design-item-header .like-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #92400e;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #fbbf24;
+  padding: 2px 8px;
+  border-radius: 10px;
   flex-shrink: 0;
 }
 

@@ -125,6 +125,7 @@ function onStudentSubmit(payload: any) {
           activity.ac2_2_allDesignResult[groupNo] = {
             designQuestion: data.designQuestion,
             rating: data.rating,
+            great: data.great || 0,
             submittedAt: data.submittedAt
           } as Activity2_2_designResult
           
@@ -137,6 +138,19 @@ function onStudentSubmit(payload: any) {
           }
           
           // ElMessage.success(`第${groupNo}组 提交了活动二-题目设计 (得分: ${score}/3)`)
+        }
+        break
+        
+      case 'activity2_2_like_submit':
+        // Activity 2.2 - 点赞
+        if (data && activity.ac2_2_allDesignResult) {
+          const targetGroupNo = data.groupNo
+          const groupResult = activity.ac2_2_allDesignResult[targetGroupNo]
+          
+          if (groupResult) {
+            groupResult.great = data.great || 0
+            // console.log(`[Teacher Listener] 第${targetGroupNo}组点赞数更新为 ${groupResult.great}`)
+          }
         }
         break
         

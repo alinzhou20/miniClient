@@ -24,7 +24,7 @@
     </div>
 
     <!-- 左右分栏 -->
-    <div class="content-grid">
+    <div v-if="!showDesignPanel" class="content-grid">
       <!-- 问卷预览 -->
       <div class="preview-panel">
         <div class="panel-header">
@@ -90,7 +90,7 @@
                 v-for="item in challengeItems" 
                 :key="item.level"
                 :type="selectedChallenge === item.level ? 'primary' : 'default'"
-                size="small"
+                size="default"
                 class="challenge-btn"
                 :class="item.level"
                 @click="selectChallenge(item.level)"
@@ -109,14 +109,43 @@
             </div>
           </div>
           <div class="help-card">
-
           <ThreeStarChallenge v-if="selectedChallenge === 'three'" />
           <TwoStarChallenge v-if="selectedChallenge === 'two'" />
-          <OneStarChallenge v-if="selectedChallenge === 'one'" />
         </div>
         </template>
       </div>
     </div>
+
+    <!-- 理由确认对话框 -->
+    <el-dialog 
+      v-model="showReasonDialog" 
+      title="提交确认"
+      width="600px"
+      :close-on-click-modal="false"
+    >
+      <div class="reason-confirm-content">
+        <div class="confirm-text">
+          我们小组能够说出"使用时长"和"使用影响"题目的选择理由。
+        </div>
+        <el-radio-group v-model="reasonConfirmed" class="confirm-options">
+          <el-radio :value="true" size="large">是</el-radio>
+          <el-radio :value="false" size="large">否</el-radio>
+        </el-radio-group>
+      </div>
+      <template #footer>
+        <el-button @click="showReasonDialog = false">取消</el-button>
+        <el-button 
+          type="primary" 
+          @click="confirmSubmit"
+          :disabled="reasonConfirmed === null"
+        >
+          确定
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 各小组设计展示面板 -->
+    <DesignShow v-if="showDesignPanel" />
   </div>
 </template>
 
@@ -131,7 +160,7 @@ import QuestionBankCard from '../components/QuestionBankCard.vue'
 import QuestionnairePreview from '../components/QuestionnairePreviewCard.vue'
 import ThreeStarChallenge from '../components/DesignCard.vue'
 import TwoStarChallenge from '../components/AITwoCard.vue'
-import OneStarChallenge from '../components/AIOneCard.vue'
+import DesignShow from '../components/DesignShow.vue'
 
 const activity = useActivity()
 const status = useStatus()
@@ -148,13 +177,15 @@ const activity2_1Submitted = ref(false)
 const isSubmitting2_2 = ref(false)
 const activity2_2Submitted = ref(false)
 
+// 展示面板状态
+const showDesignPanel = ref(false)
+
 // 题库常量（传递给子组件）
 const QUESTION_BANK = bank
 
 const challengeItems: Array<{ level: 'one' | 'two' | 'three', stars: string, name: string }> = [
-  { level: 'three', stars: '⭐⭐⭐', name: '三星挑战' },
-  { level: 'two', stars: '⭐⭐', name: '二星挑战' },
-  { level: 'one', stars: '⭐', name: '一星挑战' },
+  { level: 'two', stars: '⭐', name: '基础题' },
+  { level: 'three', stars: '⭐⭐', name: '挑战题' },
 ]
 
 const challengeDescriptions = {
@@ -185,16 +216,12 @@ const currentRating = computed(() => {
     // 如果选择了挑战级别并且有设计题目，显示对应的得分预览
     if (selectedChallenge.value && result.designQuestion) {
       if (selectedChallenge.value === 'three') {
-        // 三星挑战：index=1, score=3
+        // 挑战题：index=1, score=2
         const item = previewRating.find(r => r.index === 1)
-        if (item) item.score = 3
-      } else if (selectedChallenge.value === 'two') {
-        // 二星挑战：index=2, score=2
-        const item = previewRating.find(r => r.index === 2)
         if (item) item.score = 2
-      } else if (selectedChallenge.value === 'one') {
-        // 一星挑战：index=3, score=1
-        const item = previewRating.find(r => r.index === 3)
+      } else if (selectedChallenge.value === 'two') {
+        // 基础题：index=2, score=1
+        const item = previewRating.find(r => r.index === 2)
         if (item) item.score = 1
       }
     }
@@ -210,22 +237,20 @@ const currentRating = computed(() => {
     // 创建副本以避免直接修改store（仅用于预览）
     const previewRating = rating.map(r => ({ ...r }))
     
-    // 预览：如果有时长题目和理由，显示第一项得分
-    const hasDuration = result.selectedDurationQuestion !== null && 
-                        result.durationReason && 
-                        result.durationReason.trim()
+    // 预览：如果有时长题目，显示第一项得分（提交后才会真正确认）
+    const hasDuration = result.selectedDurationQuestion !== null
     const durationItem = previewRating.find(r => r.index === 1)
     if (durationItem) {
-      durationItem.score = hasDuration ? 1 : 0
+      // 如果已经提交并确认，显示分数；否则预览为0
+      durationItem.score = (hasDuration && result.durationReason) ? 1 : 0
     }
     
-    // 预览：如果有影响题目和理由，显示第二项得分
-    const hasImpact = result.selectedImpactQuestion !== null && 
-                      result.impactReason && 
-                      result.impactReason.trim()
+    // 预览：如果有影响题目，显示第二项得分（提交后才会真正确认）
+    const hasImpact = result.selectedImpactQuestion !== null
     const impactItem = previewRating.find(r => r.index === 2)
     if (impactItem) {
-      impactItem.score = hasImpact ? 1 : 0
+      // 如果已经提交并确认，显示分数；否则预览为0
+      impactItem.score = (hasImpact && result.impactReason) ? 1 : 0
     }
     
     return previewRating
@@ -267,6 +292,10 @@ const canSubmitActivity2_2 = computed(() => {
   return result.designQuestion !== null
 })
 
+// 理由确认对话框状态
+const showReasonDialog = ref(false)
+const reasonConfirmed = ref<boolean | null>(null)
+
 // 提交活动2-1
 const submitActivity2_1 = async () => {
   if (isSubmitting2_1.value || activity2_1Submitted.value) return
@@ -283,6 +312,23 @@ const submitActivity2_1 = async () => {
     return
   }
   
+  // 显示理由确认对话框
+  reasonConfirmed.value = null
+  showReasonDialog.value = true
+}
+
+// 确认提交
+const confirmSubmit = async () => {
+  if (reasonConfirmed.value === null) {
+    ElMessage.warning('请选择是否能够说出理由')
+    return
+  }
+  
+  showReasonDialog.value = false
+  
+  const result = activity.ac2_1_stuSelectResult
+  if (!result) return
+  
   // 计算评分
   let score = 0
   const rating = result.rating || []
@@ -290,22 +336,26 @@ const submitActivity2_1 = async () => {
   // 先重置所有分数
   rating.forEach(r => r.score = 0)
   
-  // 如果选择了时长题目且有理由内容，第一项得分
-  if (result.selectedDurationQuestion !== null && result.durationReason && result.durationReason.trim()) {
+  // 如果选择了时长题目，且确认能说出理由，第一项得分
+  if (result.selectedDurationQuestion !== null && reasonConfirmed.value) {
     const ratingItem = rating.find(r => r.index === 1)
     if (ratingItem) {
       ratingItem.score = 1
       score++
     }
+    // 保存理由状态
+    result.durationReason = '已确认'
   }
   
-  // 如果选择了影响题目且有理由内容，第二项得分
-  if (result.selectedImpactQuestion !== null && result.impactReason && result.impactReason.trim()) {
+  // 如果选择了影响题目，且确认能说出理由，第二项得分
+  if (result.selectedImpactQuestion !== null && reasonConfirmed.value) {
     const ratingItem = rating.find(r => r.index === 2)
     if (ratingItem) {
       ratingItem.score = 1
       score++
     }
+    // 保存理由状态
+    result.impactReason = '已确认'
   }
   
   isSubmitting2_1.value = true
@@ -378,22 +428,15 @@ const submitActivity2_2 = async () => {
   // 根据挑战级别设置对应的分数
   let score = 0
   if (selectedChallenge.value === 'three') {
-    // 三星挑战：index=1, score=3
+    // 挑战题：index=1, score=2
     const ratingItem = rating.find(r => r.index === 1)
-    if (ratingItem) {
-      ratingItem.score = 3
-      score = 3
-    }
-  } else if (selectedChallenge.value === 'two') {
-    // 二星挑战：index=2, score=2
-    const ratingItem = rating.find(r => r.index === 2)
     if (ratingItem) {
       ratingItem.score = 2
       score = 2
     }
-  } else if (selectedChallenge.value === 'one') {
-    // 一星挑战：index=3, score=1
-    const ratingItem = rating.find(r => r.index === 3)
+  } else if (selectedChallenge.value === 'two') {
+    // 基础题：index=2, score=1
+    const ratingItem = rating.find(r => r.index === 2)
     if (ratingItem) {
       ratingItem.score = 1
       score = 1
@@ -406,7 +449,9 @@ const submitActivity2_2 = async () => {
     // 更新提交时间
     result.submittedAt = Date.now()
     
-    // 发送 socket 消息
+    const groupNo = status.userStatus?.groupNo || ''
+    
+    // 1. 发送给教师
     socket.submit({
       mode: status.mode,
       eventType: EventType.SUBMIT,
@@ -415,19 +460,55 @@ const submitActivity2_2 = async () => {
       data: {
         designQuestion: result.designQuestion,
         rating: result.rating,
+        great: result.great,
         submittedAt: result.submittedAt
       },
       from: {
-        id: `${status.userStatus?.studentNo}_${status.userStatus?.groupNo}`,
-        groupNo: status.userStatus?.groupNo,
+        id: `${status.userStatus?.studentNo}_${groupNo}`,
+        groupNo: groupNo,
         studentNo: status.userStatus?.studentNo,
         studentRole: status.userStatus?.studentRole
       },
       to: null
     })
     
+    // 2. 广播给所有学生
+    socket.discuss({
+      mode: status.mode,
+      eventType: EventType.DISCUSS,
+      messageType: 'activity2_2_discuss',
+      activityIndex: '2-2',
+      data: {
+        groupNo: groupNo,
+        designQuestion: result.designQuestion,
+        rating: result.rating,
+        great: result.great,
+        submittedAt: result.submittedAt
+      },
+      from: {
+        id: `${status.userStatus?.studentNo}_${groupNo}`,
+        groupNo: groupNo,
+        studentNo: status.userStatus?.studentNo,
+        studentRole: status.userStatus?.studentRole
+      },
+      to: {} // 发送给所有学生
+    })
+    
+    // 3. 更新本地的 ac2_2_allDesignResult
+    if (groupNo) {
+      activity.ac2_2_allDesignResult[groupNo] = {
+        designQuestion: result.designQuestion,
+        rating: result.rating,
+        great: result.great,
+        submittedAt: result.submittedAt
+      }
+    }
+    
     activity2_2Submitted.value = true
     ElMessage.success(`提交成功！获得 ${score} 分`)
+    
+    // 提交成功后显示展示面板
+    showDesignPanel.value = true
   } catch (error) {
     console.error('[Activity 2-2] 提交失败:', error)
     ElMessage.error('提交失败，请重试')
@@ -594,7 +675,8 @@ const submitActivity2_2 = async () => {
 
 .challenge-buttons {
   display: flex;
-  justify-content: space-between;
+  justify-content: left;
+  gap: 12px;
   margin-bottom: 15px;
 }
 
@@ -634,18 +716,6 @@ const submitActivity2_2 = async () => {
 .challenge-btn.two-star.is-plain:hover {
   background: #bfdbfe !important;
   border-color: #2563eb !important;
-}
-
-.challenge-btn.one-star {
-  background: #d1fae5 !important;
-  border-color: #34d399 !important;
-  color: #064e3b !important;
-}
-
-.challenge-btn.one-star:hover,
-.challenge-btn.one-star.is-plain:hover {
-  background: #a7f3d0 !important;
-  border-color: #059669 !important;
 }
 
 .challenge-description {
@@ -693,5 +763,44 @@ font-size: 18px;
   top: 20px;
   height: 560px;
   z-index: 100;
+}
+
+/* 理由确认对话框 */
+.reason-confirm-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px 0;
+}
+
+.confirm-text {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  text-align: center;
+  line-height: 1.6;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.confirm-options {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+}
+
+.confirm-options :deep(.el-radio) {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.confirm-options :deep(.el-radio__input) {
+  transform: scale(1.2);
+}
+
+.confirm-options :deep(.el-radio__label) {
+  font-size: 18px;
+  font-weight: 600;
+  padding-left: 12px;
 }
 </style>

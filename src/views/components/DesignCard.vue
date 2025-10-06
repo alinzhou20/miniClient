@@ -3,7 +3,12 @@
     <!-- 头部 -->
     <div class="card-header">
       <div class="card-title">小敏老师</div>
-      <button class="clear-btn" @click="removePhoto" v-if="hasRecognitionResult">清空</button>
+      <div class="header-actions">
+        <button class="test-btn" @click="fillTestData">
+          {{ testMode === 'multiple' ? '测试填空题' : '测试选择题' }}
+        </button>
+        <button class="clear-btn" @click="removePhoto" v-if="hasRecognitionResult">清空</button>
+      </div>
     </div>
     
     <!-- 主体内容区域 -->
@@ -15,32 +20,42 @@
         <div class="loading-text">正在识别手写内容...</div>
       </div>
 
-      <!-- 识别结果显示区域 - 单个题目 -->
+      <!-- 可编辑表单 - 单个题目 -->
       <div 
         v-else-if="hasRecognitionResult"
         class="recognition-form"
       >
-        <div class="form-item">
-          <span class="form-label">题目：</span>
-          <span class="form-value" :class="{ 'empty': !designQuestion?.title }">
-            {{ designQuestion?.title || '未识别' }}
-          </span>
+        <!-- 题型标题 -->
+        <div class="question-type-title">
+          {{ questionTypeText }}
         </div>
-        <div class="form-item" v-if="designQuestion?.options && designQuestion.options.length > 0">
-          <span class="form-label">选项：</span>
-          <div class="options-container">
-            <div 
-              v-for="(option, optIndex) in designQuestion.options" 
-              :key="optIndex"
-              class="option-item"
-            >
-              <span class="option-label">{{ String.fromCharCode(65 + optIndex) }}.</span>
-              <span class="form-value" :class="{ 'empty': !option }">
-                {{ option || '未识别' }}
-              </span>
-            </div>
-          </div>
-        </div>
+        
+        <el-form label-width="45px">
+          <el-form-item label="题目">
+            <el-input
+              v-model="designQuestion!.title"
+              type="textarea"
+              :rows="2"
+              placeholder="请输入题目"
+              maxlength="200"
+              show-word-limit
+            />
+          </el-form-item>
+          <el-form-item 
+            v-for="(_option, optIndex) in (designQuestion?.options || [])" 
+            :key="optIndex"
+            :label="String.fromCharCode(65 + optIndex)"
+          >
+            <el-input
+              v-model="designQuestion!.options![optIndex]"
+              type="textarea"
+              :rows="1"
+              :placeholder="`请输入选项${String.fromCharCode(65 + optIndex)}`"
+              maxlength="100"
+              show-word-limit
+            />
+          </el-form-item>
+        </el-form>
       </div>
 
       <!-- 空状态提示 -->
@@ -98,6 +113,7 @@ const { uploadFile, runWorkflow } = useCoze()
 const showCamera = ref(false)
 const bodyRef = ref<HTMLElement>()
 const isRecognizing = ref(false)
+const testMode = ref<'multiple' | 'fill'>('multiple')
 
 // 获取设计的单个题目
 const designQuestion = computed(() => {
@@ -113,6 +129,17 @@ const hasRecognitionResult = computed(() => {
 const canSubmit = computed(() => {
   // 题目存在且有标题
   return !!(designQuestion.value?.title && designQuestion.value.title.trim() !== '')
+})
+
+// 题型显示文本
+const questionTypeText = computed(() => {
+  if (!designQuestion.value) return ''
+  const typeMap: Record<string, string> = {
+    'fill': '填空题',
+    'single': '单选题',
+    'multiple': '多选题'
+  }
+  return typeMap[designQuestion.value.type] || '未知题型'
 })
 
 // 启动摄像头
@@ -219,6 +246,44 @@ const submitChallenge = () => {
     }
   }
 }
+
+// 填充测试数据
+const fillTestData = () => {
+  if (!activity.ac2_2_stuDesignResult) return
+  
+  if (testMode.value === 'multiple') {
+    // 填充选择题测试数据
+    const testQuestion: QuestionOption = {
+      id: 1,
+      title: '你平常使用数字设备最多的用途是什么？',
+      options: [
+        '学习查找资料',
+        '娱乐游戏',
+        '社交聊天',
+        '观看视频'
+      ],
+      type: 'multiple',
+      questionType: 'design',
+      answer: ''
+    }
+    activity.ac2_2_stuDesignResult.designQuestion = testQuestion
+    ElMessage.success('已填充选择题测试数据')
+    testMode.value = 'fill'
+  } else {
+    // 填充填空题测试数据
+    const testQuestion: QuestionOption = {
+      id: 1,
+      title: '你认为使用数字设备对学习最大的帮助是什么？',
+      options: [],
+      type: 'fill',
+      questionType: 'design',
+      answer: ''
+    }
+    activity.ac2_2_stuDesignResult.designQuestion = testQuestion
+    ElMessage.success('已填充填空题测试数据')
+    testMode.value = 'multiple'
+  }
+}
 </script>
 
 <style scoped>
@@ -251,6 +316,31 @@ const submitChallenge = () => {
   margin: 0;
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.test-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+  color: #78350f;
+}
+
+.test-btn:hover {
+  background: linear-gradient(135deg, #fde68a, #fcd34d);
+  border-color: #f59e0b;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(251, 191, 36, 0.3);
+}
+
 .clear-btn {
   padding: 4px 8px;
   font-size: 11px;
@@ -277,82 +367,8 @@ const submitChallenge = () => {
   gap: 16px;
 }
 
-/* 介绍文本 */
-.intro-box {
-  background: white;
-  padding: 12px 16px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  animation: fadeIn 0.3s ease;
-}
-
-.intro-text {
-  font-size: 14px;
-  color: #374151;
-  line-height: 1.6;
-  margin: 0;
-}
-
-/* 模板区域 */
-.template-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  animation: fadeIn 0.3s ease 0.1s backwards;
-}
-
-.section-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #0369a1;
-  margin: 0;
-}
-
-.template-box {
-  background: white;
-  border: 1px solid #bae6fd;
-  border-radius: 12px;
-  padding: 16px 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.template-line {
-  margin: 8px 0;
-  line-height: 1.8;
-  font-size: 14px;
-  color: #374151;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.template-line.option {
-  padding-left: 20px;
-}
-
-.label {
-  font-weight: 600;
-  color: #1f2937;
-  min-width: 60px;
-}
-
-.option-label {
-  font-weight: 600;
-  color: #60a5fa;
-  min-width: 30px;
-}
-
-.underline {
-  flex: 1;
-  color: #9ca3af;
-  letter-spacing: 0.5px;
-}
-
 /* 识别表单区域 */
 .recognition-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
   padding: 20px;
   background: white;
   border-radius: 12px;
@@ -361,12 +377,39 @@ const submitChallenge = () => {
   animation: fadeIn 0.3s ease 0.2s backwards;
 }
 
+/* 题型标题 */
+.question-type-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0ea5e9;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border-left: 4px solid #0ea5e9;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* 加载状态 */
 .recognition-form.loading {
+  display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
   border-color: #7dd3fc;
+  min-height: 200px;
 }
 
 .loading-spinner {
@@ -388,67 +431,6 @@ const submitChallenge = () => {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-
-.form-item {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  font-size: 15px;
-}
-
-.form-label {
-  font-weight: 600;
-  color: #374151;
-  min-width: 70px;
-  white-space: nowrap;
-}
-
-.form-value {
-  flex: 1;
-  color: #1f2937;
-  font-size: 14px;
-  padding: 4px 0;
-  border-bottom: 2px solid transparent;
-  transition: all 0.3s ease;
-  word-break: break-word;
-}
-
-.form-value.empty {
-  color: #9ca3af;
-  border-bottom: 2px solid #d1d5db;
-  font-style: italic;
-}
-
-.form-value:not(.empty) {
-  color: #059669;
-  font-weight: 500;
-  border-bottom: 2px solid #10b981;
-}
-
-/* 选项容器 */
-.options-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.option-item {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding-left: 12px;
-}
-
-.option-item .option-label {
-  font-weight: 600;
-  color: #60a5fa;
-  min-width: 25px;
-}
-
-.option-item .form-value {
-  flex: 1;
 }
 
 /* 空状态 */

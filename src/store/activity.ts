@@ -66,6 +66,7 @@ export interface Activity2_1_selectResult {
 export interface Activity2_2_designResult {
   designQuestion: QuestionOption | null  // 单个题目，不是数组
   rating: Rating[]
+  great: number
   submittedAt: number
 }
 
@@ -141,7 +142,7 @@ export const questionnaireSecondData: Questionnaire = {
     answer: ''
   },{
     id: 3,
-    title: '周末你使用平板电脑的大概时间是_______。若没有，则填0（单位：分钟）',
+    title: '你每周使用数字设备的大概时间是_____。若没有，则填0（单位：分钟）',
     type: 'fill',
     questionType: 'duration',
     answer: ''
@@ -170,14 +171,14 @@ export const bank: QuestionBank = {
   durationQuestions: [
     {
       id: 1,
-      title: '今天你使用平板电脑的大概时间是_______。',
+      title: '你每周使用数字设备的大概时间是_____。',
       type: 'fill',
       questionType: 'duration',
       answer: ''
     },
     {
       id: 2,
-      title: '周末你使用平板电脑的大概时间是_______。若没有，则填0（单位：分钟）',
+      title: '你每周使用数字设备的大概时间是_____。若没有，则填0（单位：分钟）',
       type: 'fill',
       questionType: 'duration',
       answer: ''
@@ -476,20 +477,16 @@ export const useActivity = defineStore('activity', () => {
     rating: [
       {
         index: 1,
-        criteria: '1.能够独立设计题目，并完成上传。（3星）',
+        criteria: '1.能够独立设计题目，并完成上传。（2星）',
         score: 0,
       },
       {
         index: 2,
-        criteria: '2.能够通过与智能体对话完成题目设计。（2星）',
+        criteria: '2.能够通过与智能体对话完成题目设计。（1星）',
         score: 0,
       },
-      {
-        index: 3,
-        criteria: '3.能够在智能体推送的题目中选择合适的题目（1星）',
-        score: 0,
-      }
     ],
+    great: 0,
     submittedAt: 0
   })
 
@@ -572,20 +569,16 @@ export const useActivity = defineStore('activity', () => {
       rating: [
         {
           index: 1,
-          criteria: '1.能够独立设计题目，并完成上传。（3星）',
+          criteria: '1.能够独立设计题目，并完成上传。（2星）',
           score: 0,
         },
         {
           index: 2,
-          criteria: '2.能够通过与智能体对话完成题目设计。（2星）',
+          criteria: '2.能够通过与智能体对话完成题目设计。（1星）',
           score: 0,
         },
-        {
-          index: 3,
-          criteria: '3.能够在智能体推送的题目中选择合适的题目（1星）',
-          score: 0,
-        }
       ],
+      great: 0,
       submittedAt: 0
     }
     ac3_stuResult.value = {

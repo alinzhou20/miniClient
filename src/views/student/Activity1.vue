@@ -35,7 +35,7 @@
           <h3 class="card-title">2. 点击"拍照上传"（问卷拍完整、清晰）</h3>
           <div class="header-btns">
             <el-button type="primary" @click="startCamera">
-              <el-icon><Camera /></el-icon> {{ hasRecognitionResult ? '重新拍摄' : '启动摄像头' }}
+              {{ hasRecognitionResult ? '重新拍摄' : '拍照上传' }}
             </el-button>
             <el-button type="success" @click="submitResult" :disabled="!canSubmit">
               提交
@@ -49,26 +49,40 @@
           <div class="loading-text">正在识别手写内容...</div>
         </div>
 
-        <!-- 挖空表单 -->
+        <!-- 可编辑表单 -->
         <div v-else class="recognition-form">
-          <div class="form-item">
-            <span class="form-label">小组观点：</span>
-            <span class="form-value" :class="{ 'empty': !activity.ac1_stuResult?.viewpoint }">
-              {{ viewpointText || '' }}
-            </span>
-          </div>
-          <div class="form-item">
-            <span class="form-label">理由一：</span>
-            <span class="form-value" :class="{ 'empty': !activity.ac1_stuResult?.point[1] }">
-              {{ activity.ac1_stuResult?.point[1] || '' }}
-            </span>
-          </div>
-          <div class="form-item">
-            <span class="form-label">理由二：</span>
-            <span class="form-value" :class="{ 'empty': !activity.ac1_stuResult?.point[2] }">
-              {{ activity.ac1_stuResult?.point[2] || '' }}
-            </span>
-          </div>
+          <el-form label-width="100px">
+            <el-form-item label="小组观点：">
+              <el-select 
+                v-model="activity.ac1_stuResult!.viewpoint" 
+                placeholder="请选择观点"
+                style="width: 100%"
+              >
+                <el-option label="A 使用数字设备利大于弊" value="A" />
+                <el-option label="B 使用数字设备弊大于利" value="B" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="理由一：">
+              <el-input
+                v-model="activity.ac1_stuResult!.point[1]"
+                type="textarea"
+                :rows="2"
+                placeholder="请输入理由一"
+                maxlength="200"
+                show-word-limit
+              />
+            </el-form-item>
+            <el-form-item label="理由二：">
+              <el-input
+                v-model="activity.ac1_stuResult!.point[2]"
+                type="textarea"
+                :rows="2"
+                placeholder="请输入理由二"
+                maxlength="200"
+                show-word-limit
+              />
+            </el-form-item>
+          </el-form>
         </div>
         <!-- 摄像头组件 -->
         <StudentCamera 
@@ -111,12 +125,6 @@ const showCamera = ref(false)
 const isRecognizing = ref(false)
 const recognitionResult = ref<any>(null)
 
-// 观点映射
-const viewpointMap: Record<'A' | 'B', string> = {
-  'A': 'A 使用数字设备利大于弊',
-  'B': 'B 使用数字设备弊大于利'
-}
-
 // 判断是否有识别结果
 const hasRecognitionResult = computed(() => {
   return !!(
@@ -124,13 +132,6 @@ const hasRecognitionResult = computed(() => {
     activity.ac1_stuResult?.point[1] || 
     activity.ac1_stuResult?.point[2]
   )
-})
-
-// 获取观点显示文字
-const viewpointText = computed(() => {
-  const vp = activity.ac1_stuResult?.viewpoint
-  if (!vp) return ''
-  return viewpointMap[vp] || vp
 })
 
 // 判断是否可以提交
@@ -315,23 +316,22 @@ const handleCameraExit = () => {
   gap: 12px;
 }
 
-/* 挖空表单 */
+/* 可编辑表单 */
 .recognition-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
   padding: 24px;
   margin-top: 16px;
   background: #f9fafb;
   border-radius: 12px;
   border: 2px dashed #d1d5db;
   min-height: 210px;
-  justify-content: center;
 }
 
 /* 加载状态 */
 .recognition-form.loading {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
   border-color: #bae6fd;
 }
@@ -355,41 +355,6 @@ const handleCameraExit = () => {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-
-.form-item {
-  display: flex;
-  align-items: baseline;
-  gap: 15px;
-  font-size: 18px;
-}
-
-.form-label {
-  font-weight: 600;
-  color: #374151;
-  min-width: 80px;
-  white-space: nowrap;
-}
-
-.form-value {
-  flex: 1;
-  color: #1f2937;
-  font-size: 16px;
-  padding: 4px 0;
-  border-bottom: 2px solid transparent;
-  transition: all 0.3s ease;
-}
-
-.form-value.empty {
-  color: #9ca3af;
-  border-bottom: 2px solid #d1d5db;
-  font-family: monospace;
-}
-
-.form-value:not(.empty) {
-  color: #059669;
-  font-weight: 500;
-  border-bottom: 2px solid #10b981;
 }
 
 /* 评价标准 */

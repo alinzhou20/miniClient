@@ -280,12 +280,25 @@ function exportAllAnswers() {
           }
         } else if (question.type === 'multiple') {
           // 多选题：显示所有选择的选项
-          if (Array.isArray(question.answer) && question.answer.length > 0 && question.options) {
-            const selectedOptions = question.answer.map(letter => {
-              const idx = letter.charCodeAt(0) - 65
-              return `${letter}. ${question.options![idx] || ''}`
-            })
-            answerText = selectedOptions.join('; ')
+          if (question.answer && question.options) {
+            let letters: string[] = []
+            
+            // 支持数组格式（如 ['A', 'B']）或字符串格式（如 'A、B'）
+            if (Array.isArray(question.answer)) {
+              letters = question.answer.filter(l => l && l.trim())
+            } else if (typeof question.answer === 'string' && question.answer.trim()) {
+              letters = question.answer.split('、').filter(l => l && l.trim())
+            }
+            
+            if (letters.length > 0) {
+              const selectedOptions = letters.map(letter => {
+                const idx = letter.charCodeAt(0) - 65
+                return `${letter}. ${question.options![idx] || ''}`
+              })
+              answerText = selectedOptions.join('; ')
+            } else {
+              answerText = '未选择'
+            }
           } else {
             answerText = '未选择'
           }
@@ -361,7 +374,13 @@ function exportAllAnswers() {
             if (question.type === 'single') {
               if (ans?.answer === letter) count++
             } else if (question.type === 'multiple') {
-              if (Array.isArray(ans?.answer) && ans.answer.includes(letter)) count++
+              // 支持数组格式（如 ['A', 'B']）或字符串格式（如 'A、B'）
+              if (Array.isArray(ans?.answer)) {
+                if (ans.answer.includes(letter)) count++
+              } else if (typeof ans?.answer === 'string') {
+                const letters = ans.answer.split('、').filter(l => l && l.trim())
+                if (letters.includes(letter)) count++
+              }
             }
           })
           

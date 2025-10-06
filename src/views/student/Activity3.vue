@@ -20,9 +20,14 @@
     <div class="questionnaire-section">
       <div class="section-header">
         <h3>3. 填写问卷</h3>
-        <el-button type="success" @click="submitQuestionnaire" :disabled="!canSubmit || hasSubmitted">
-          {{ hasSubmitted ? '已提交' : '提交问卷' }}
-        </el-button>
+        <div class="submit-area">
+          <span v-if="!canSubmit && !hasSubmitted" class="submit-hint">
+            请完成所有题目（{{ unansweredCount }}题未完成）
+          </span>
+          <el-button type="success" @click="submitQuestionnaire" :disabled="!canSubmit || hasSubmitted">
+            {{ hasSubmitted ? '已提交' : '提交问卷' }}
+          </el-button>
+        </div>
       </div>
       <QuestionnairePreview :answerable="true" />
     </div>
@@ -47,16 +52,36 @@ const hasSubmitted = computed(() => {
   return activity.ac3_stuResult?.submittedAt && activity.ac3_stuResult.submittedAt > 0
 })
 
+// 判断题目是否已回答
+const isQuestionAnswered = (q: any): boolean => {
+  if (!q.answer) return false
+  
+  if (q.type === 'fill') {
+    // 填空题：检查是否有内容
+    return typeof q.answer === 'string' && q.answer.trim() !== ''
+  } else if (q.type === 'multiple') {
+    // 多选题：检查是否选择了至少一个选项
+    if (Array.isArray(q.answer)) {
+      return q.answer.length > 0
+    } else if (typeof q.answer === 'string') {
+      return q.answer.trim() !== ''
+    }
+    return false
+  } else {
+    // 单选题：检查是否有选择
+    return typeof q.answer === 'string' && q.answer.trim() !== ''
+  }
+}
+
+// 未回答的题目数量
+const unansweredCount = computed(() => {
+  return activity.questionnaire.questions.filter(q => !isQuestionAnswered(q)).length
+})
+
 // 判断是否可以提交
 const canSubmit = computed(() => {
   // 检查所有题目是否都已回答
-  return activity.questionnaire.questions.every(q => {
-    if (q.type === 'fill') {
-      return q.answer && q.answer.trim() !== ''
-    } else {
-      return q.answer && q.answer !== ''
-    }
-  })
+  return activity.questionnaire.questions.every(q => isQuestionAnswered(q))
 })
 
 // 提交问卷
@@ -185,6 +210,19 @@ const submitQuestionnaire = () => {
   font-weight: 600;
   margin: 0;
   flex: 1;
+}
+
+.submit-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.submit-hint {
+  font-size: 13px;
+  color: #f59e0b;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 @media (max-width: 1024px) {

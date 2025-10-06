@@ -32,12 +32,19 @@
       <!-- 分隔线 -->
       <div class="divider"></div>
       
-      <!-- 固定题目（只显示ID 1和2：就读年级和性别） -->
+      <!-- 动态渲染所有题目 -->
       <div class="survey-questions">
-        <div v-for="question in fixedQuestions" :key="question.id">
-          <div class="question-item">
+        <div v-for="(question, qIndex) in questionnaire.questions" :key="question.id">
+          <!-- 题目项 -->
+          <div 
+            class="question-item" 
+            :class="{ 
+              'editable-question': props.editable,
+              'highlight': shouldHighlight(question)
+            }"
+          >
             <div class="question-title">
-              <span class="q-number">{{ question.id }}.</span>
+              <span class="q-number">{{ qIndex + 1 }}.</span>
               <span 
                 v-if="props.editable"
                 class="q-text editable-q-text"
@@ -49,17 +56,34 @@
               </span>
               <span v-else class="q-text">{{ question.title }}</span>
               <span class="type-badge">[{{ getTypeText(question.type) }}]</span>
+              <span 
+                v-if="getQuestionTypeLabel(question.questionType)" 
+                class="tag-badge"
+                :class="getQuestionTypeLabel(question.questionType)?.class"
+              >
+                {{ getQuestionTypeLabel(question.questionType)?.text }}
+              </span>
+              <button 
+                v-if="props.editable"
+                class="delete-question-btn"
+                @click="deleteQuestion(question.id)"
+                title="删除此题目"
+              >
+                ×
+              </button>
             </div>
           </div>
-          <div class="question-options">
+          
+          <!-- 选择题选项 -->
+          <div v-if="question.options && question.options.length > 0" class="question-options">
             <div 
               v-for="(option, index) in question.options" 
               :key="index"
               :class="['option-item', { 
-                'answerable': answerable,
-                'selected': answerable && isOptionSelected(question, index)
+                'answerable': props.answerable,
+                'selected': props.answerable && isOptionSelected(question, index)
               }]"
-              @click="answerable && handleOptionClick(question, index)"
+              @click="props.answerable && handleOptionClick(question, index)"
             >
               <span :class="getOptionClass(question, index)"></span>
               <span 
@@ -89,192 +113,24 @@
               添加选项
             </button>
           </div>
-        </div>        
-        <!-- 使用时长题目 -->
-        <div v-if="durationQuestion" class="question-item highlight">
-          <div class="question-title">
-            <span class="q-number">3.</span>
-            <span 
-              v-if="props.editable"
-              class="q-text editable-q-text"
-              contenteditable="true"
-              @blur="(e) => durationQuestion && updateQuestionTitle(durationQuestion, e)"
-              @keydown.enter.prevent="(e) => (e.target as HTMLElement)?.blur()"
-            >
-              {{ durationQuestion.title }}
-            </span>
-            <span v-else class="q-text">{{ durationQuestion.title }}</span>
-            <span class="type-badge">[{{ getTypeText(durationQuestion.type) }}]</span>
-            <span class="tag-badge">使用时长</span>
-          </div>
-          <div v-if="durationQuestion.options && durationQuestion.options.length > 0" class="question-options">
-            <div 
-              v-for="(option, index) in durationQuestion.options" 
-              :key="index"
-              :class="['option-item', { 
-                'answerable': answerable,
-                'selected': answerable && isOptionSelected(durationQuestion, index)
-              }]"
-              @click="answerable && handleOptionClick(durationQuestion, index)"
-            >
-              <span :class="getOptionClass(durationQuestion, index)"></span>
-              <span 
-                v-if="props.editable"
-                class="option-text editable-option"
-                contenteditable="true"
-                @blur="(e) => durationQuestion && updateOption(durationQuestion, index, e)"
-                @keydown.enter.prevent="(e) => (e.target as HTMLElement)?.blur()"
-              >
-                {{ option }}
-              </span>
-              <span v-else class="option-text">{{ option }}</span>
-              <button 
-                v-if="props.editable && durationQuestion.options && durationQuestion.options.length > 1"
-                class="delete-option-btn"
-                @click.stop="deleteOption(durationQuestion, index)"
-                title="删除此选项"
-              >
-                ×
-              </button>
-            </div>
-            <button 
-              v-if="props.editable"
-              class="add-option-btn"
-              @click="addOption(durationQuestion)"
-            >
-              添加选项
-            </button>
-          </div>
+          
+          <!-- 填空题输入框 -->
           <div v-else class="fill-blank">
             <el-input 
-              v-if="answerable"
-              v-model="durationQuestion.answer"
+              v-if="props.answerable"
+              v-model="question.answer"
               placeholder="请输入答案"
               size="large"
               class="fill-input"
             />
-            <span v-else class="blank-line"> </span>
-          </div>
-        </div>
-        
-        <!-- 使用影响题目 -->
-        <div v-if="impactQuestion" class="question-item highlight">
-          <div class="question-title">
-            <span class="q-number">{{ durationQuestion ? '4' : '3' }}.</span>
-            <span 
-              v-if="props.editable"
-              class="q-text editable-q-text"
-              contenteditable="true"
-              @blur="(e) => impactQuestion && updateQuestionTitle(impactQuestion, e)"
-              @keydown.enter.prevent="(e) => (e.target as HTMLElement)?.blur()"
-            >
-              {{ impactQuestion.title }}
-            </span>
-            <span v-else class="q-text">{{ impactQuestion.title }}</span>
-            <span class="type-badge">[{{ getTypeText(impactQuestion.type) }}]</span>
-            <span class="tag-badge">使用影响</span>
-          </div>
-          <div v-if="impactQuestion.options && impactQuestion.options.length > 0" class="question-options">
-            <div 
-              v-for="(option, index) in impactQuestion.options" 
-              :key="index"
-              :class="['option-item', { 
-                'answerable': answerable,
-                'selected': answerable && isOptionSelected(impactQuestion, index)
-              }]"
-              @click="answerable && handleOptionClick(impactQuestion, index)"
-            >
-              <span :class="getOptionClass(impactQuestion, index)"></span>
-              <span 
-                v-if="props.editable"
-                class="option-text editable-option"
-                contenteditable="true"
-                @blur="(e) => impactQuestion && updateOption(impactQuestion, index, e)"
-                @keydown.enter.prevent="(e) => (e.target as HTMLElement)?.blur()"
-              >
-                {{ option }}
-              </span>
-              <span v-else class="option-text">{{ option }}</span>
-              <button 
-                v-if="props.editable && impactQuestion.options && impactQuestion.options.length > 1"
-                class="delete-option-btn"
-                @click.stop="deleteOption(impactQuestion, index)"
-                title="删除此选项"
-              >
-                ×
-              </button>
-            </div>
-            <button 
-              v-if="props.editable"
-              class="add-option-btn"
-              @click="addOption(impactQuestion)"
-            >
-              添加选项
-            </button>
-          </div>
-        </div>
-        
-        <!-- 使用用途题目 -->
-        <div v-if="usageQuestion" class="question-item highlight">
-          <div class="question-title">
-            <span class="q-number">{{ [durationQuestion, impactQuestion].filter(Boolean).length + 3 }}.</span>
-            <span 
-              v-if="props.editable"
-              class="q-text editable-q-text"
-              contenteditable="true"
-              @blur="(e) => usageQuestion && updateQuestionTitle(usageQuestion, e)"
-              @keydown.enter.prevent="(e) => (e.target as HTMLElement)?.blur()"
-            >
-              {{ usageQuestion.title }}
-            </span>
-            <span v-else class="q-text">{{ usageQuestion.title }}</span>
-            <span class="type-badge">[{{ getTypeText(usageQuestion.type) }}]</span>
-            <span class="tag-badge usage">使用用途</span>
-          </div>
-          <div v-if="usageQuestion.options && usageQuestion.options.length > 0" class="question-options">
-            <div 
-              v-for="(option, index) in usageQuestion.options" 
-              :key="index"
-              :class="['option-item', { 
-                'answerable': answerable,
-                'selected': answerable && isOptionSelected(usageQuestion, index)
-              }]"
-              @click="answerable && handleOptionClick(usageQuestion, index)"
-            >
-              <span :class="getOptionClass(usageQuestion, index)"></span>
-              <span 
-                v-if="props.editable"
-                class="option-text editable-option"
-                contenteditable="true"
-                @blur="(e) => usageQuestion && updateOption(usageQuestion, index, e)"
-                @keydown.enter.prevent="(e) => (e.target as HTMLElement)?.blur()"
-              >
-                {{ option }}
-              </span>
-              <span v-else class="option-text">{{ option }}</span>
-              <button 
-                v-if="props.editable && usageQuestion.options && usageQuestion.options.length > 1"
-                class="delete-option-btn"
-                @click.stop="deleteOption(usageQuestion, index)"
-                title="删除此选项"
-              >
-                ×
-              </button>
-            </div>
-            <button 
-              v-if="props.editable"
-              class="add-option-btn"
-              @click="addOption(usageQuestion)"
-            >
-              添加选项
-            </button>
+            <span v-else class="blank-line">_______________</span>
           </div>
         </div>
         
         <!-- 空状态 -->
-        <div v-if="!durationQuestion && !impactQuestion && !usageQuestion" class="empty-state">
+        <div v-if="questionnaire.questions.length === 0" class="empty-state">
           <el-icon class="empty-icon"><DocumentCopy /></el-icon>
-          <p>请从题库中选择题目</p>
+          <p>暂无题目</p>
         </div>
       </div>
     </div>
@@ -308,34 +164,10 @@ const descRef = ref<HTMLElement>()
 // 从 store 读取响应式问卷数据
 const questionnaire = computed(() => activity.questionnaire)
 
-// 只获取固定题目（ID 1和2：就读年级和性别）
-const fixedQuestions = computed<QuestionOption[]>(() => {
-  return activity.questionnaire.questions.filter(q => q.id === 1 || q.id === 2)
-})
-
-// 从问卷中读取使用时长题目（固定ID=3）
-const durationQuestion = computed<QuestionOption | null>(() => {
-  return activity.questionnaire.questions.find(q => q.id === 3) || null
-})
-
-// 从问卷中读取使用影响题目（固定ID=4）
-// 注意：如果题目标题是"我认为以上题目都不合适。"，则不显示
-const impactQuestion = computed<QuestionOption | null>(() => {
-  const question = activity.questionnaire.questions.find(q => q.id === 4)
-  if (!question) return null
-  
-  // 过滤掉"我认为以上题目都不合适"这个选项，不在预览中显示
-  if (question.title === '我认为以上题目都不合适。') {
-    return null
-  }
-  
-  return question
-})
-
-// 从问卷中读取使用用途题目（固定ID=5）
-const usageQuestion = computed<QuestionOption | null>(() => {
-  return activity.questionnaire.questions.find(q => q.id === 5) || null
-})
+// 判断题目是否需要高亮显示（duration、impact、design 类型）
+const shouldHighlight = (question: QuestionOption): boolean => {
+  return ['duration', 'impact', 'design'].includes(question.questionType)
+}
 
 // 获取题目类型的文本
 const getTypeText = (type: 'fill' | 'single' | 'multiple'): string => {
@@ -345,6 +177,16 @@ const getTypeText = (type: 'fill' | 'single' | 'multiple'): string => {
     'multiple': '多选'
   }
   return typeMap[type] || '单选'
+}
+
+// 根据 questionType 获取标签文本和样式类
+const getQuestionTypeLabel = (questionType: string): { text: string; class: string } | null => {
+  const labelMap: Record<string, { text: string; class: string }> = {
+    'duration': { text: '使用时长', class: '' },
+    'impact': { text: '使用影响', class: '' },
+    'design': { text: '使用用途', class: 'usage' }
+  }
+  return labelMap[questionType] || null
 }
 
 // 获取选项样式类名
@@ -481,6 +323,22 @@ const addOption = (question: QuestionOption) => {
   const optionLetter = String.fromCharCode(65 + storeQuestion.options.length) // A, B, C, D...
   storeQuestion.options.push(`新选项 ${optionLetter}`)
   ElMessage.success('选项已添加，请点击编辑')
+}
+
+// 删除题目
+const deleteQuestion = (questionId: number) => {
+  const index = activity.questionnaire.questions.findIndex(q => q.id === questionId)
+  if (index === -1) return
+  
+  // 删除题目
+  activity.questionnaire.questions.splice(index, 1)
+  
+  // 重新分配ID（从1开始连续编号）
+  activity.questionnaire.questions.forEach((q, idx) => {
+    q.id = idx + 1
+  })
+  
+  ElMessage.success('题目已删除')
 }
 </script>
 
@@ -699,6 +557,43 @@ const addOption = (question: QuestionOption) => {
   transform: scale(0.95);
 }
 
+/* 删除题目按钮 */
+.delete-question-btn {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  color: #6b7280;
+  font-size: 16px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.question-item.editable-question:hover .delete-question-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.delete-question-btn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.delete-question-btn:active {
+  background: #fecaca;
+}
+
 /* 分隔线 */
 .divider {
   height: 1px;
@@ -716,10 +611,16 @@ const addOption = (question: QuestionOption) => {
 .question-item {
   padding: 5px 0;
   border-bottom: 1px dashed #e5e7eb;
+  position: relative;
 }
 
 .question-item:last-child {
   border-bottom: none;
+}
+
+/* 可编辑题目的悬停效果 */
+.question-item.editable-question:hover {
+  background: rgba(0, 0, 0, 0.01);
 }
 
 /* 题目标题 */
@@ -728,6 +629,7 @@ const addOption = (question: QuestionOption) => {
   align-items: baseline;
   gap: 8px;
   margin-bottom: 16px;
+  position: relative;
 }
 
 .q-number {

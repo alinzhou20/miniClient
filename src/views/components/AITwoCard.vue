@@ -35,36 +35,82 @@
         <div v-else class="msg-content">{{ msg.content }}</div>
       </div>
       
-      <!-- 设计结果展示 -->
-      <div v-if="designedQuestions.length > 0" class="designed-question">
-        <div class="question-header">✨ AI 为你设计的题目</div>
-        
-        <!-- 单个题目显示（选择题） -->
-        <div v-if="designedQuestions.length === 1" class="question-body">
-          <div class="question-title">{{ designedQuestions[0].title }}</div>
-          <div v-if="designedQuestions[0].options && designedQuestions[0].options.length > 0" class="question-options">
-            <div v-for="(option, idx) in designedQuestions[0].options" :key="idx" class="option-item">
-              <span class="option-label">{{ String.fromCharCode(65 + idx) }}.</span>
-              <span class="option-text">{{ option }}</span>
-            </div>
-          </div>
+      <!-- 设计结果展示 - 可编辑 -->
+      <!-- 单个题目显示（选择题） - 可编辑 -->
+      <div v-if="designedQuestions.length === 1" class="question-body editable">
+        <!-- 题型标题 -->
+        <div class="question-type-title">
+          {{ designedQuestions[0].type === 'fill' ? '填空题' : '多选题' }}
         </div>
         
-        <!-- 多个题目显示（填空题数组） -->
-        <div v-else class="fill-questions-container">
-          <div 
-            v-for="(question, qIdx) in designedQuestions" 
-            :key="qIdx"
-            :class="['question-body', 'selectable', { 'selected': selectedQuestionIndex === qIdx }]"
-            @click="selectedQuestionIndex = qIdx"
+        <el-form label-width="45px">
+          <el-form-item label="题目">
+            <el-input
+              v-model="designedQuestions[0].title"
+              type="textarea"
+              :rows="2"
+              placeholder="请输入题目"
+              maxlength="200"
+              show-word-limit
+            />
+          </el-form-item>
+          <el-form-item 
+            v-for="(_option, optIndex) in (designedQuestions[0].options || [])" 
+            :key="optIndex"
+            :label="String.fromCharCode(65 + optIndex)"
           >
-            <div class="question-number">题目 {{ qIdx + 1 }}</div>
-            <div class="question-title">{{ question.title }}</div>
-            <div v-if="selectedQuestionIndex === qIdx" class="selected-badge">✓ 已选中</div>
-          </div>
+            <el-input
+              v-model="designedQuestions[0].options![optIndex]"
+              type="textarea"
+              :rows="1"
+              :placeholder="`请输入选项${String.fromCharCode(65 + optIndex)}`"
+              maxlength="100"
+              show-word-limit
+            />
+          </el-form-item>
+        </el-form>
+        
+        <el-button type="primary" @click="saveQuestion" class="save-btn">
+          保存到问卷
+        </el-button>
+      </div>
+      
+      <!-- 多个题目显示（填空题数组） -->
+      <div v-else-if="designedQuestions.length > 1" class="fill-questions-wrapper">
+        <div 
+          v-for="(question, qIdx) in designedQuestions" 
+          :key="qIdx"
+          :class="['question-body', 'selectable', { 'selected': selectedQuestionIndex === qIdx }]"
+          @click="selectedQuestionIndex = qIdx"
+        >
+          <div class="question-number">题目 {{ qIdx + 1 }}</div>
+          
+          <!-- 选中的题目可以编辑 -->
+          <template v-if="selectedQuestionIndex === qIdx">
+            <!-- 题型标题 -->
+            <div class="question-type-title">填空题</div>
+            
+            <el-form label-width="45px">
+              <el-form-item label="题目">
+                <el-input
+                  v-model="question.title"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="请输入题目"
+                  maxlength="200"
+                  show-word-limit
+                />
+              </el-form-item>
+            </el-form>
+            
+            <div class="selected-badge">✓ 已选中</div>
+          </template>
+          
+          <!-- 未选中的题目只显示 -->
+          <div v-else class="question-title">{{ question.title }}</div>
         </div>
         
-        <el-button type="success" @click="saveQuestion" class="save-btn">
+        <el-button type="primary" @click="saveQuestion" class="save-btn-multiple">
           保存到问卷
         </el-button>
       </div>
@@ -687,31 +733,36 @@ const clearChat = () => {
   50% { opacity: 0; }
 }
 
-/* 设计题目展示 */
-.designed-question {
-  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-  border: 2px solid #86efac;
-  border-radius: 12px;
-  padding: 20px;
-  margin-top: 16px;
-  animation: fadeInSuggestions 0.5s ease;
-}
-
-.question-header {
+/* 题型标题 */
+.question-type-title {
   font-size: 16px;
   font-weight: 700;
-  color: #15803d;
+  color: #0ea5e9;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border-left: 4px solid #0ea5e9;
+  border-radius: 6px;
   margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  animation: slideIn 0.3s ease;
 }
 
-.fill-questions-container {
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 填空题多题目容器 */
+.fill-questions-wrapper {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-bottom: 16px;
+  animation: fadeInSuggestions 0.5s ease;
 }
 
 .question-body {
@@ -720,6 +771,16 @@ const clearChat = () => {
   padding: 16px;
   margin-bottom: 16px;
   position: relative;
+}
+
+.question-body.editable {
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  border: 2px solid #bae6fd;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  animation: fadeInSuggestions 0.5s ease;
+  margin-bottom: 0;
 }
 
 .question-body.selectable {
@@ -731,20 +792,21 @@ const clearChat = () => {
 
 .question-body.selectable:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
-  border-color: #86efac;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+  border-color: #7dd3fc;
 }
 
 .question-body.selectable.selected {
-  border-color: #059669;
-  background: linear-gradient(135deg, #ffffff, #f0fdf4);
-  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.3);
+  border-color: #0ea5e9;
+  background: linear-gradient(135deg, #ffffff, #f0f9ff);
+  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.3);
+  padding: 20px;
 }
 
 .question-number {
   font-size: 12px;
   font-weight: 600;
-  color: #059669;
+  color: #0ea5e9;
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -754,7 +816,7 @@ const clearChat = () => {
   position: absolute;
   top: 12px;
   right: 12px;
-  background: #059669;
+  background: #0ea5e9;
   color: white;
   padding: 4px 12px;
   border-radius: 12px;
@@ -767,39 +829,20 @@ const clearChat = () => {
   font-size: 15px;
   font-weight: 600;
   color: #1f2937;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   line-height: 1.6;
-}
-
-.question-options {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-left: 12px;
-}
-
-.designed-question .option-item {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 14px;
-  color: #374151;
-  line-height: 1.6;
-}
-
-.designed-question .option-label {
-  font-weight: 600;
-  color: #059669;
-  min-width: 25px;
-}
-
-.designed-question .option-text {
-  flex: 1;
 }
 
 .save-btn {
   width: 100%;
   font-weight: 600;
+  margin-top: 8px;
+}
+
+.save-btn-multiple {
+  width: 100%;
+  font-weight: 600;
+  margin-top: 12px;
 }
 
 .ai-footer {
