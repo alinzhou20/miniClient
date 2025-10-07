@@ -75,7 +75,7 @@
         </el-button>
       </div>
       
-      <!-- 多个题目显示（填空题数组） -->
+      <!-- 多个题目显示（可以是填空题或选择题） -->
       <div v-else-if="designedQuestions.length > 1" class="fill-questions-wrapper">
         <div 
           v-for="(question, qIdx) in designedQuestions" 
@@ -88,7 +88,7 @@
           <!-- 选中的题目可以编辑 -->
           <template v-if="selectedQuestionIndex === qIdx">
             <!-- 题型标题 -->
-            <div class="question-type-title">填空题</div>
+            <div class="question-type-title">{{ question.type === 'fill' ? '填空题' : '多选题' }}</div>
             
             <el-form label-width="45px">
               <el-form-item label="题目">
@@ -101,13 +101,36 @@
                   show-word-limit
                 />
               </el-form-item>
+              <!-- 如果是选择题，显示选项编辑 -->
+              <el-form-item 
+                v-if="question.type === 'multiple' && question.options"
+                v-for="(_option, optIndex) in question.options" 
+                :key="optIndex"
+                :label="String.fromCharCode(65 + optIndex)"
+              >
+                <el-input
+                  v-model="question.options![optIndex]"
+                  type="textarea"
+                  :rows="1"
+                  :placeholder="`请输入选项${String.fromCharCode(65 + optIndex)}`"
+                  maxlength="100"
+                  show-word-limit
+                />
+              </el-form-item>
             </el-form>
             
             <div class="selected-badge">✓ 已选中</div>
           </template>
           
-          <!-- 未选中的题目只显示 -->
-          <div v-else class="question-title">{{ question.title }}</div>
+          <!-- 未选中的题目显示标题和选项预览 -->
+          <template v-else>
+            <div class="question-title">{{ question.title }}</div>
+            <div v-if="question.options && question.options.length > 0" class="question-options-preview">
+              <span v-for="(opt, idx) in question.options" :key="idx" class="option-preview">
+                {{ String.fromCharCode(65 + idx) }}. {{ opt }}
+              </span>
+            </div>
+          </template>
         </div>
         
         <el-button type="primary" @click="saveQuestion" class="save-btn-multiple">
@@ -339,9 +362,75 @@ const refreshSuggestions = async () => {
 // 处理建议点击
 const handleSuggestionClick = async (suggestion: string, index: number) => {
   if (conversationState.value === 1) {
-    // 状态1：直接确定题型
+    // 状态1：直接确定题型并推送写死的题目
     questionType.value = index === 0 ? 'multiple' : 'fill' // 0->1(选择题), 1->2(填空题)
-    await ask(suggestion, true) // 跳过工作流，直接进入状态2
+    
+    // 添加用户消息
+    messages.value.push({ id: `u${Date.now()}`, type: 'user', content: suggestion })
+    scroll()
+    
+    // 直接进入状态3，显示写死的题目
+    conversationState.value = 3
+    isAsking.value = true
+    
+    // 根据题型创建写死的题目
+    const newQuestions: QuestionOption[] = []
+    
+    if (index === 0) {
+      // 选择题（提供三道题目供选择）
+      newQuestions.push({
+        id: 2000,
+        title: '你使用数字设备主要用于哪些场景？（可多选）',
+        options: ['学习', '运动', '交流', '旅游'],
+        type: 'multiple',
+        questionType: 'design',
+        answer: '',
+        visibility: 'both'
+      })
+      newQuestions.push({
+        id: 2001,
+        title: '你使用数字设备主要用于哪些场景？（可多选）',
+        options: ['学习', '娱乐'],
+        type: 'multiple',
+        questionType: 'design',
+        answer: '',
+        visibility: 'both'
+      })
+      newQuestions.push({
+        id: 2002,
+        title: '你使用数字设备主要用于哪些场景？（可多选）',
+        options: ['学习', '运动', '娱乐', '交流', '旅游', '其他_____'],
+        type: 'multiple',
+        questionType: 'design',
+        answer: '',
+        visibility: 'both'
+      })
+    } else {
+      // 填空题
+      newQuestions.push({
+        id: 2000,
+        title: '你认为数字设备主要用于哪些场景？',
+        options: [],
+        type: 'fill',
+        questionType: 'design',
+        answer: '',
+        visibility: 'both'
+      })
+    }
+    
+    designedQuestions.value = newQuestions
+    selectedQuestionIndex.value = 0
+    
+    isAsking.value = false
+    const tipMsg = newQuestions.length > 1 
+      ? `已为你设计了 ${newQuestions.length} 道题目！请选择一道保存到问卷。` 
+      : '题目已设计完成！请查看下方结果。'
+    await typeWriter(tipMsg, `design_${Date.now()}`)
+    
+    // 等待题目卡片渲染后再滚动
+    await nextTick()
+    scroll()
+    setTimeout(() => scroll(), 100)
   } else if (conversationState.value === 2) {
     // 状态2：选择方向，进入状态3
     direction.value = suggestion
@@ -462,7 +551,8 @@ const proceedToDesign = async (selectedDirection: string) => {
           options: resultData.output_s.o || [],
           type: 'multiple',
           questionType: 'design',
-          answer: ''
+          answer: '',
+          visibility: 'both'
         })
       } else if (resultData.output_i) {
         // 填空题（数组，包含三道题）
@@ -474,7 +564,8 @@ const proceedToDesign = async (selectedDirection: string) => {
             options: [],
             type: 'fill',
             questionType: 'design',
-            answer: ''
+            answer: '',
+            visibility: 'both'
           })
         })
       }
@@ -829,8 +920,22 @@ const clearChat = () => {
   font-size: 15px;
   font-weight: 600;
   color: #1f2937;
-  margin-bottom: 0;
+  margin-bottom: 8px;
   line-height: 1.6;
+}
+
+.question-options-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.option-preview {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.5;
+  padding: 2px 0;
 }
 
 .save-btn {

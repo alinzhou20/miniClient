@@ -358,7 +358,12 @@ function navigateToActivity2_2() {
 // ==================== 发送问卷给学生 ====================
 function sendQuestionnaireToStudents() {
   try {
-    // 发送问卷给所有学生
+    // 1. 在发送前，将所有题目的可见性改为 'both'
+    activity.questionnaire.questions.forEach(question => {
+      question.visibility = 'both'
+    })
+    
+    // 2. 发送问卷给所有学生
     socket.dispatch({
       mode: EntityMode.STUDENT,
       messageType: 'sync_questionnaire',
@@ -373,7 +378,7 @@ function sendQuestionnaireToStudents() {
     
     // ElMessage.success('问卷已发送，正在切换到活动3')
     
-    // 自动跳转到活动3
+    // 3. 自动跳转到活动3
     setTimeout(() => {
       // 更新活动状态
       status.activityStatus.now = 3
@@ -476,7 +481,8 @@ function addQuestionToQuestionnaire(question: QuestionOption) {
         type: question.type,
         questionType: 'design',
         options: question.options ? [...question.options] : undefined,
-        answer: question.answer || ''
+        answer: question.answer || '',
+        visibility: question.visibility || 'both'
       }
       
       activity.questionnaire.questions[existingDesignIndex] = updatedQuestion
@@ -489,7 +495,8 @@ function addQuestionToQuestionnaire(question: QuestionOption) {
         type: question.type,
         questionType: 'design',
         options: question.options ? [...question.options] : undefined,
-        answer: question.answer || ''
+        answer: question.answer || '',
+        visibility: question.visibility || 'both'
       }
       
       activity.questionnaire.questions.push(newQuestion)

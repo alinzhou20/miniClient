@@ -2,10 +2,7 @@
   <div class="main-content">
     <!-- 评价标准 -->
     <div class="evaluation-card">
-      <div class="evaluation-header">
-        <h3>评价标准</h3>
-        <span class="live-preview-badge">实时预览</span>
-      </div>
+      <h3>评价标准</h3>
       <div class="criteria-grid">
         <div 
           v-for="rating in currentRating" 
@@ -184,8 +181,8 @@ const showDesignPanel = ref(false)
 const QUESTION_BANK = bank
 
 const challengeItems: Array<{ level: 'one' | 'two' | 'three', stars: string, name: string }> = [
-  { level: 'two', stars: '⭐', name: '基础题' },
-  { level: 'three', stars: '⭐⭐', name: '挑战题' },
+  { level: 'two', stars: '⭐', name: '基础任务' },
+  { level: 'three', stars: '⭐⭐', name: '挑战任务' },
 ]
 
 const challengeDescriptions = {
@@ -388,6 +385,8 @@ const confirmSubmit = async () => {
     })
     
     activity2_1Submitted.value = true
+    // 同步更新小组得分
+    status.groupScores.activity2_1 = score
     ElMessage.success(`提交成功！获得 ${score} 分`)
   } catch (error) {
     console.error('[Activity 2-1] 提交失败:', error)
@@ -505,6 +504,8 @@ const submitActivity2_2 = async () => {
     }
     
     activity2_2Submitted.value = true
+    // 同步更新小组得分
+    status.groupScores.activity2_2 = score
     ElMessage.success(`提交成功！获得 ${score} 分`)
     
     // 提交成功后显示展示面板
@@ -530,13 +531,9 @@ const submitActivity2_2 = async () => {
   border: 1px solid #fbbf24;
   border-radius: 8px;
   padding: 15px 20px;
-}
-
-.evaluation-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 20px;
 }
 
 .evaluation-card h3 {
@@ -544,29 +541,6 @@ const submitActivity2_2 = async () => {
   font-weight: 600;
   margin: 0;
   white-space: nowrap;
-}
-
-.live-preview-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 10px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 12px;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.8;
-    transform: scale(0.98);
-  }
 }
 
 .criteria-grid {

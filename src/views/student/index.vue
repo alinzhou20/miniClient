@@ -10,17 +10,24 @@
         <!-- 活动按钮区 -->
         <div class="activity-btns">
           <button 
-            v-for="activity in studentActivities" 
-            :key="activity.id"
+            v-for="act in studentActivities" 
+            :key="act.id"
             class="activity-btn"
-            :class="{ active: currentActivityId === activity.id }"
-            @click="selectActivity(activity.id)"
+            :class="{ active: currentActivityId === act.id }"
+            @click="selectActivity(act.id)"
           >
-            {{ activity.title }}
+            <span class="btn-text">{{ act.title }}</span>
+            <span class="btn-stars">{{ getActivityStars(act.id) }}</span>
           </button>
         </div>
         
         <div class="spacer"></div>
+        
+        <!-- 总星数显示 -->
+        <div class="total-stars">
+          <span class="total-label">总星数</span>
+          <span class="total-count">{{ totalStars }}</span>
+        </div>
         
         <el-button @click="handleLogout" class="logout-btn">
           <el-icon :size="20"><Fold /></el-icon>
@@ -67,6 +74,34 @@ const selectActivity = (id: number) => {
     router.push(`/student/activity${id}`)
   }
 }
+
+// 获取每个活动的星星数显示
+const getActivityStars = (activityId: number): string => {
+  if (activityId === 1) {
+    const stars = status.groupScores.activity1
+    return stars > 0 ? '⭐'.repeat(stars) : ''
+  } else if (activityId === 2) {
+    // 活动2：计算2-1和2-2的总和
+    const total = status.groupScores.activity2_1 + status.groupScores.activity2_2
+    return total > 0 ? '⭐'.repeat(total) : ''
+  } else if (activityId === 3) {
+    const stars = status.groupScores.activity3
+    return stars > 0 ? '⭐'.repeat(stars) : ''
+  } else if (activityId === 4) {
+    const stars = status.groupScores.activity4
+    return stars > 0 ? '⭐'.repeat(stars) : ''
+  }
+  return ''
+}
+
+// 计算总星数
+const totalStars = computed(() => {
+  return status.groupScores.activity1 + 
+         status.groupScores.activity2_1 + 
+         status.groupScores.activity2_2 + 
+         status.groupScores.activity3 + 
+         status.groupScores.activity4
+})
 
 const handleLogout = () => {
   socket.disconnect()
@@ -126,13 +161,18 @@ const handleLogout = () => {
   background: rgba(255, 255, 255, 0.3);
   border: 2px solid rgba(255, 255, 255, 0.4);
   color: white;
-  padding: 8px 20px;
+  padding: 8px 16px;
   border-radius: 20px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 90px;
 }
 
 .activity-btn:hover {
@@ -148,8 +188,50 @@ const handleLogout = () => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+.btn-text {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.btn-stars {
+  font-size: 12px;
+  min-height: 16px;
+  line-height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .spacer {
   flex: 1;
+}
+
+/* 总星数显示 */
+.total-stars {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid white;
+  border-radius: 16px;
+  padding: 8px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.total-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1976d2;
+  white-space: nowrap;
+}
+
+.total-count {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f59e0b;
+  min-height: 20px;
+  line-height: 20px;
 }
 
 .logout-btn {

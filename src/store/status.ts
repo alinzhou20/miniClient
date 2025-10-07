@@ -30,7 +30,7 @@ export interface ActivityStatus {
 export interface GroupActivityScores {
   activity1: number      // 活动一得分 (最高1分)
   activity2_1: number    // 活动二-选择 (最高2分)
-  activity2_2: number    // 活动二-设计 (最高3分)
+  activity2_2: number    // 活动二-设计 (最高2分)
   activity3: number      // 活动三-问卷 (最高1分，提交即得分)
   activity4: number      // 活动四得分 (最高1分)
 }
@@ -58,6 +58,15 @@ export const useStatus = defineStore('status', () => {
   // 存储最新一次上传的数据到云平台的
   const fileId = ref<string | null>(null)
 
+  // 学生端小组得分状态（用于显示本小组的总体得分）
+  const groupScores = ref<GroupActivityScores>({
+    activity1: 0,
+    activity2_1: 0,
+    activity2_2: 0,
+    activity3: 0,
+    activity4: 0
+  })
+
   // 活动状态（通用，学生端使用 1-4，教师端使用 0-4）
   const activityStatus = ref<ActivityStatus>(
     {
@@ -74,6 +83,7 @@ export const useStatus = defineStore('status', () => {
 
   // 小组状态（教师端主要使用）- 12个组
   const groupStatus = ref<Record<string, GroupStatus>>({})
+
   
   // 初始化小组状态
   for (let i = 1; i <= 12; i++) {
@@ -109,6 +119,15 @@ export const useStatus = defineStore('status', () => {
     takePhoto.value = null
     fileId.value = null
     
+    // 重置学生端小组得分
+    groupScores.value = {
+      activity1: 0,
+      activity2_1: 0,
+      activity2_2: 0,
+      activity3: 0,
+      activity4: 0
+    }
+    
     // 重置小组状态
     groupStatus.value = {}
     for (let i = 1; i <= 12; i++) {
@@ -134,6 +153,7 @@ export const useStatus = defineStore('status', () => {
     userStatus,
     activityStatus,
     groupStatus,
+    groupScores,
     mode,
     takePhoto,
     fileId,

@@ -285,6 +285,8 @@ const autoScore = () => {
   
   // 只要完成提交，就给1星
   activity.ac4_stuResult.rating[0].score = 1
+  // 同步更新小组得分
+  status.groupScores.activity4 = 1
 }
 
 // 提交结果
@@ -332,6 +334,8 @@ async function onResetAll() {
   })
   activity.ac4_stuResult.hasSubmittedAll = false
   activity.ac4_stuResult.rating[0].score = 0
+  // 重置小组得分
+  status.groupScores.activity4 = 0
   
   ElMessage.success('已重置所有分类！')
 }

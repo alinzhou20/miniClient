@@ -34,7 +34,7 @@
       
       <!-- 动态渲染所有题目 -->
       <div class="survey-questions">
-        <div v-for="(question, qIndex) in questionnaire.questions" :key="question.id">
+        <div v-for="(question, qIndex) in visibleQuestions" :key="question.id">
           <!-- 题目项 -->
           <div 
             class="question-item" 
@@ -163,6 +163,19 @@ const descRef = ref<HTMLElement>()
 
 // 从 store 读取响应式问卷数据
 const questionnaire = computed(() => activity.questionnaire)
+
+// 根据可见性过滤题目（学生端过滤仅教师可见的题目）
+const visibleQuestions = computed(() => {
+  const questions = questionnaire.value.questions
+  
+  // 如果是学生端（非编辑模式），过滤掉仅教师可见的题目
+  if (!props.editable) {
+    return questions.filter(q => q.visibility !== 'teacher')
+  }
+  
+  // 教师端显示所有题目
+  return questions
+})
 
 // 判断题目是否需要高亮显示（duration、impact、design 类型）
 const shouldHighlight = (question: QuestionOption): boolean => {
@@ -671,8 +684,9 @@ const deleteQuestion = (questionId: number) => {
 /* 选项区域 */
 .question-options {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px 16px;
   padding-left: 28px;
   position: relative;
 }
@@ -680,25 +694,29 @@ const deleteQuestion = (questionId: number) => {
 .option-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   position: relative;
+  flex-shrink: 0;
+  padding: 4px 8px;
+  background: #f9fafb;
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
 /* 可答题的选项 */
 .option-item.answerable {
   cursor: pointer;
-  padding: 8px 12px;
-  margin: -8px -12px;
-  border-radius: 6px;
   transition: all 0.2s;
 }
 
 .option-item.answerable:hover {
-  background: #f0f9ff;
+  background: #e0f2fe;
+  transform: translateY(-1px);
 }
 
 .option-item.selected {
   background: #dbeafe;
+  border: 1px solid #0ea5e9;
 }
 
 /* 单选圆圈 */
@@ -768,9 +786,10 @@ const deleteQuestion = (questionId: number) => {
 }
 
 .option-text {
-  font-size: 15px;
+  font-size: 14px;
   color: #374151;
-  line-height: 1.6;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 /* 填空题 */

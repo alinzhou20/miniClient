@@ -22,7 +22,7 @@
             <span class="question-number">{{ getQuestionNumber(question.id) }}.</span>
             <span class="question-title">
               {{ question.title }}
-              <span v-if="question.type === 'multiple' && type === 'impact'" class="question-tip">（多选题，最多选3个）</span>
+              <span v-if="question.type === 'multiple' && type === 'impact'" class="question-tip">（多选题）</span>
             </span>
             <el-icon 
               class="check-icon"
@@ -93,7 +93,8 @@ const selectQuestion = (id: number) => {
       const existingIndex = activity.questionnaire.questions.findIndex(q => q.id === 3)
       const newQuestion: QuestionOption = {
         ...selectedQ,
-        id: 3  // 固定ID为3
+        id: 3,  // 固定ID为3
+        visibility: selectedQ.visibility || 'both'  // 保留原始可见性
       }
       
       if (existingIndex !== -1) {
@@ -122,7 +123,8 @@ const selectQuestion = (id: number) => {
         const existingIndex = activity.questionnaire.questions.findIndex(q => q.id === 4)
         const newQuestion: QuestionOption = {
           ...selectedQ,
-          id: 4  // 固定ID为4
+          id: 4,  // 固定ID为4
+          visibility: selectedQ.visibility || 'both'  // 保留原始可见性
         }
         
         if (existingIndex !== -1) {

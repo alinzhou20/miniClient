@@ -36,6 +36,7 @@ export interface QuestionOption {
   type: 'fill' | 'single' | 'multiple'
   questionType: 'duration' | 'impact' | 'grade' | 'gender' | 'design' 
   answer?: any
+  visibility?: 'teacher' | 'student' | 'both' // 可见性：仅教师、仅学生、都可见
 }
 
 // 完整调查问卷
@@ -112,14 +113,16 @@ const questionnaireInitialData: Questionnaire = {
     options: ['一年级', '二年级', '三年级', '四年级', '五年级', '六年级'],
     type: 'single',
     questionType: 'grade',
-    answer: ''
+    answer: '',
+    visibility: 'teacher'
   },{
     id: 2,
     title: '你的性别',
     options: ['男', '女'],
     type: 'single',
     questionType: 'gender',
-    answer: ''
+    answer: '',
+    visibility: 'teacher'
   }]
 }
 
@@ -132,36 +135,40 @@ export const questionnaireSecondData: Questionnaire = {
     options: ['一年级', '二年级', '三年级', '四年级', '五年级', '六年级'],
     type: 'single',
     questionType: 'grade',
-    answer: ''
+    answer: '',
+    visibility: 'teacher'
   },{
     id: 2,
     title: '你的性别',
     options: ['男', '女'],
     type: 'single',
     questionType: 'gender',
-    answer: ''
+    answer: '',
+    visibility: 'teacher'
   },{
     id: 3,
     title: '你每周使用数字设备的大概时间是_____。若没有，则填0（单位：分钟）',
     type: 'fill',
     questionType: 'duration',
-    answer: ''
+    answer: '',
+    visibility: 'both'
   }, {
     id: 4,
-    title: '你认为使用数字设备对你的学习和生活最主要的影响是什么？',
+    title: '在你的学习、生活中，数字设备带来的最主要的三个影响是什么？',
     options: [
-      '快速获取学习资料',
-      '便捷分享生活动态（如照片、视频）',
-      '提供多样化娱乐选择（游戏、短视频等）',
-      '作业时更依赖即时搜索而非独立思考',
-      '减少面对面交流时间',
-      '影响夜间睡眠质量',
-      '连续使用1小时后出现视觉疲劳',
-      '其他_______'
-    ],
+      '提升学习效率',
+      '方便线上沟通',
+      '方便获取更多信息',
+      '游戏成瘾',
+      '作业依赖“搜题”',
+      '作息不规律',
+      '影响视力',   
+      '其他___',
+  ],
     type: 'multiple',
     questionType: 'impact',
-    answer: ''
+    answer: '',
+    visibility: 'both'
   },]
 }
 
@@ -174,20 +181,22 @@ export const bank: QuestionBank = {
       title: '你每周使用数字设备的大概时间是_____。',
       type: 'fill',
       questionType: 'duration',
-      answer: ''
+      answer: '',
+      visibility: 'both'
     },
     {
       id: 2,
       title: '你每周使用数字设备的大概时间是_____。若没有，则填0（单位：分钟）',
       type: 'fill',
       questionType: 'duration',
-      answer: ''
+      answer: '',
+      visibility: 'both'
     }
   ],
   impactQuestions: [
     {
       id: 1,
-      title: '你认为使用数字设备对你的学习和生活最主要的影响是什么？',
+      title: '在你的学习、生活中，数字设备带来的最主要的三个影响是什么？',
       options: [
         '快速获取学习资料',
         '便捷分享生活动态（如照片、视频）',
@@ -195,11 +204,12 @@ export const bank: QuestionBank = {
       ],
       type: 'multiple',
       questionType: 'impact',
-      answer: ''
+      answer: '',
+      visibility: 'both'
     },
     {
       id: 2,
-      title: '你认为使用数字设备对你的学习和生活最主要的影响是什么？',
+      title: '在你的学习、生活中，数字设备带来的最主要的三个影响是什么？',
       options: [
         '作业时更依赖即时搜索而非独立思考',
         '减少面对面交流时间',
@@ -207,11 +217,12 @@ export const bank: QuestionBank = {
       ],
       type: 'multiple',
       questionType: 'impact',
-      answer: ''
+      answer: '',
+      visibility: 'both'
     },
     {
       id: 3,
-      title: '你认为使用数字设备对你的学习和生活最主要的影响是什么？',
+      title: '在你的学习、生活中，数字设备带来的最主要的三个影响是什么？',
       options: [
         '快速获取学习资料',
         '便捷分享生活动态（如照片、视频）',
@@ -222,14 +233,16 @@ export const bank: QuestionBank = {
       ],
       type: 'multiple',
       questionType: 'impact',
-      answer: ''
+      answer: '',
+      visibility: 'both'
     },
     {
       id: 4,
       title: '我认为以上题目都不合适。',
       type: 'fill',
       questionType: 'impact',
-      answer: ''
+      answer: '',
+      visibility: 'both'
     }
   ],
   usageQuestions: [
@@ -244,7 +257,8 @@ export const bank: QuestionBank = {
         '运动',
         '交流',
         '旅游'
-      ]
+      ],
+      visibility: 'both'
     },
     {
       id: 2,
@@ -257,7 +271,8 @@ export const bank: QuestionBank = {
         '娱乐',
         '交流',
         '旅游'
-      ]
+      ],
+      visibility: 'both'
     },
     {
       id: 3,
@@ -272,7 +287,8 @@ export const bank: QuestionBank = {
         '交流',
         '旅游',
         '其他_______'
-      ]
+      ],
+      visibility: 'both'
     }
   ]
 }

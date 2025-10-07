@@ -19,7 +19,7 @@
     <!-- 问卷预览和答题 -->
     <div class="questionnaire-section">
       <div class="section-header">
-        <h3>3. 填写问卷</h3>
+        <h3>1. 填写问卷，思考题目设计是否合理。</h3>
         <div class="submit-area">
           <span v-if="!canSubmit && !hasSubmitted" class="submit-hint">
             请完成所有题目（{{ unansweredCount }}题未完成）
@@ -124,6 +124,8 @@ const submitQuestionnaire = () => {
         if (activity.ac3_stuResult) {
           activity.ac3_stuResult.rating[0].score = 1
           activity.ac3_stuResult.submittedAt = Date.now()
+          // 同步更新小组得分
+          status.groupScores.activity3 = 1
         }
         
         ElMessage.success('问卷提交成功！恭喜你获得⭐')

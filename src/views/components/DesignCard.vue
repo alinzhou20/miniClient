@@ -4,9 +4,6 @@
     <div class="card-header">
       <div class="card-title">小敏老师</div>
       <div class="header-actions">
-        <button class="test-btn" @click="fillTestData">
-          {{ testMode === 'multiple' ? '测试填空题' : '测试选择题' }}
-        </button>
         <button class="clear-btn" @click="removePhoto" v-if="hasRecognitionResult">清空</button>
       </div>
     </div>
@@ -183,7 +180,8 @@ const handlePhotoUpload = async () => {
         options: resultData.output2.options || [],
         type: (resultData.output2.type || 'multiple') as 'fill' | 'single' | 'multiple',
         questionType: 'design' as const,  // 使用 'design' 标识学生设计的题目
-        answer: ''
+        answer: '',
+        visibility: 'both'
       }
       console.log('[DesignCard] 新题目:', newQuestion)
       
@@ -225,7 +223,8 @@ const submitChallenge = () => {
       const existingIndex = activity.questionnaire.questions.findIndex(q => q.id === 5)
       const newQuestionForQuestionnaire: QuestionOption = {
         ...designQuestion.value,
-        id: 5  // 固定ID为5（使用用途题目）
+        id: 5,  // 固定ID为5（使用用途题目）
+        visibility: designQuestion.value.visibility || 'both'  // 保留可见性
       }
       
       // 如果已存在就替换，否则添加
@@ -264,7 +263,8 @@ const fillTestData = () => {
       ],
       type: 'multiple',
       questionType: 'design',
-      answer: ''
+      answer: '',
+      visibility: 'both'
     }
     activity.ac2_2_stuDesignResult.designQuestion = testQuestion
     ElMessage.success('已填充选择题测试数据')
@@ -277,7 +277,8 @@ const fillTestData = () => {
       options: [],
       type: 'fill',
       questionType: 'design',
-      answer: ''
+      answer: '',
+      visibility: 'both'
     }
     activity.ac2_2_stuDesignResult.designQuestion = testQuestion
     ElMessage.success('已填充填空题测试数据')

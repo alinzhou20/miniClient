@@ -22,21 +22,13 @@
 
         <div class="action-buttons">
           <el-button 
-            type="success" 
-            size="large"
-            :icon="Plus"
-            @click="showTestDialog = true"
-          >
-            测试工具
-          </el-button>
-          <el-button 
             type="primary" 
             size="large"
             :icon="Download"
             @click="exportAllAnswers"
             :disabled="submittedGroupCount === 0"
           >
-            导出所有答题
+            导出数据
           </el-button>
           <el-button 
             type="warning" 

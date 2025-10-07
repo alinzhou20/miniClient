@@ -2,19 +2,17 @@
   <div class="main-content">
   
     <!-- 顶部区域：自我评价 -->
-    <div class="card evaluation-card">
-      <div class="evaluation-header">
-        <h3 class="card-title">评价标准</h3>
-        <div class="criteria-grid">
-          <div 
-            v-for="rating in activity.ac1_stuResult?.rating" 
-            :key="rating.index" 
-            class="criterion-item"
-            :class="{ 'completed': rating.score === 1 }"
-          >
-            <span class="criterion-text">{{ rating.criteria }}</span>
-            <span class="star">{{ rating.score === 1 ? '⭐' : '' }}</span>
-          </div>
+    <div class="evaluation-card">
+      <h3>评价标准</h3>
+      <div class="criteria-grid">
+        <div 
+          v-for="rating in activity.ac1_stuResult?.rating" 
+          :key="rating.index" 
+          class="criterion-item"
+          :class="{ 'completed': rating.score === 1 }"
+        >
+          <span class="criterion-text">{{ rating.criteria }}</span>
+          <span class="star">{{ rating.score === 1 ? '⭐' : '' }}</span>
         </div>
       </div>
     </div>
@@ -110,7 +108,6 @@ import { useActivity } from '@/store/activity'
 import { useSocket } from '@/store/socket'
 import { useCoze, WORKFLOW } from '@/utils/coze'
 import { ElMessage } from 'element-plus'
-import { Camera } from '@element-plus/icons-vue'
 import StudentCamera from '../components/StudentCamera.vue'
 import AIChatCard from '../components/AIChatCard.vue'
 import { EntityMode, EventType } from '@/types'
@@ -151,6 +148,8 @@ const startCamera = () => {
     activity.ac1_stuResult.viewpoint = null
     activity.ac1_stuResult.point = { 1: '', 2: '' }
     activity.ac1_stuResult.rating[0].score = 0
+    // 重置小组得分
+    status.groupScores.activity1 = 0
   }
   
   // 启动摄像头
@@ -238,6 +237,8 @@ const handlePhotoUpload = async () => {
 const autoScore = () => {
   if (activity.ac1_stuResult?.viewpoint && activity.ac1_stuResult?.point[1] && activity.ac1_stuResult?.point[2]) {
     activity.ac1_stuResult.rating[0].score = 1
+    // 同步更新小组得分
+    status.groupScores.activity1 = 1
   }
 }
 
@@ -287,9 +288,20 @@ const handleCameraExit = () => {
 }
 
 .evaluation-card {
-  background: linear-gradient(135deg, #fff7ed, #fef3c7);
-  border: 2px solid #fbbf24;
-  padding: 10px 20px;
+  background: #fffbeb;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  padding: 15px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.evaluation-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
 }
 
 .card-title {
@@ -358,44 +370,31 @@ const handleCameraExit = () => {
 }
 
 /* 评价标准 */
-.evaluation-header {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-
-.evaluation-header .card-title {
-  margin: 0;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
 .criteria-grid {
   display: flex;
-  align-items: center;
-  gap: 20px;
+  gap: 15px;
   flex: 1;
 }
 
 .criterion-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  background: #f9fafb;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #fff;
   border: 1px solid #e5e7eb;
-  transition: all 0.3s ease;
+  font-size: 14px;
 }
 
 .criterion-item.completed {
-  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  background: #fef3c7;
   border-color: #fbbf24;
+  font-weight: 600;
 }
 
 .criterion-item .star {
   font-size: 14px;
-  flex-shrink: 0;
 }
 
 .criterion-item .criterion-text {
@@ -406,7 +405,7 @@ const handleCameraExit = () => {
 }
 
 .criterion-item.completed .criterion-text {
-  color: #78350f;
+  color: #374151;
   font-weight: 600;
 }
 

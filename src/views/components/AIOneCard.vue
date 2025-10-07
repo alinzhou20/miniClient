@@ -86,7 +86,8 @@ const PRESET_QUESTIONS: QuestionOption[] = [
     options: ['学习', '运动', '交流', '旅游'],
     type: 'multiple',
     questionType: 'design',
-    answer: ''
+    answer: '',
+    visibility: 'both'
   },
   {
     id: 2,
@@ -94,7 +95,8 @@ const PRESET_QUESTIONS: QuestionOption[] = [
     options: ['学习', '娱乐'],
     type: 'multiple',
     questionType: 'design',
-    answer: ''
+    answer: '',
+    visibility: 'both'
   },
   {
     id: 3,
@@ -102,7 +104,8 @@ const PRESET_QUESTIONS: QuestionOption[] = [
     options: ['学习', '运动', '娱乐', '交流', '旅游', '其他_____'],
     type: 'multiple',
     questionType: 'design',
-    answer: ''
+    answer: '',
+    visibility: 'both'
   }
 ]
 
@@ -183,7 +186,8 @@ const submitChallenge = () => {
     const existingIndex = activity.questionnaire.questions.findIndex(q => q.id === 5)
     const newQuestionForQuestionnaire: QuestionOption = {
       ...selectedQuestion,
-      id: 5  // 固定ID为5（使用用途题目）
+      id: 5,  // 固定ID为5（使用用途题目）
+      visibility: selectedQuestion.visibility || 'both'  // 保留可见性
     }
     
     if (existingIndex !== -1) {
