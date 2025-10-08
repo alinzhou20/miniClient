@@ -29,7 +29,7 @@
           <!-- 正方卡片 -->
           <div class="opinion-card opinion-a">
             <div class="card-header">
-              <h3 class="card-title">正方</h3>
+              <h3 class="card-title">A</h3>
               <div v-if="activity.ac0_voteResult && totalCount > 0" class="card-count">
                 {{ activity.ac0_voteResult.countA }}人
               </div>
@@ -50,7 +50,7 @@
           <!-- 反方卡片 -->
           <div class="opinion-card opinion-b">
             <div class="card-header">
-              <h3 class="card-title">反方</h3>
+              <h3 class="card-title">B</h3>
               <div v-if="activity.ac0_voteResult && totalCount > 0" class="card-count">
                 {{ activity.ac0_voteResult.countB }}人
               </div>

@@ -20,10 +20,11 @@
           <span class="legend-color" style="background: #10b981;"></span>
           <span class="legend-text">活动三</span>
         </div>
-        <div class="legend-item">
+        <!-- 隐藏活动四标签 -->
+        <!-- <div class="legend-item">
           <span class="legend-color" style="background: #f59e0b;"></span>
           <span class="legend-text">活动四</span>
-        </div>
+        </div> -->
       </div>
     </div>
 
