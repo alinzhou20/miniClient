@@ -65,13 +65,13 @@
         <template v-if="!showChallengeMode">
           <QuestionBankCard
             title="使用时长题库"
-            description="以下是关于使用时长的调查问题，请选择一种合适的表述，并说明理由。"
+            description="以下是关于使用时长的调查问题，请选择一种合适的表述，并说明理由。（选中即可加入问卷）"
             :questions="QUESTION_BANK.durationQuestions"
             type="duration"
           />
           <QuestionBankCard
             title="使用影响题库"
-            description="以下是关于使用影响的调查问题，请选择一种合适的表述，并说明理由。"
+            description="以下是关于使用影响的调查问题，请选择一种合适的表述，并说明理由。（选中即可加入问卷）"
             :questions="QUESTION_BANK.impactQuestions"
             type="impact"
           />

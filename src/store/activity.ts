@@ -37,6 +37,7 @@ export interface QuestionOption {
   questionType: 'duration' | 'impact' | 'grade' | 'gender' | 'design' 
   answer?: any
   visibility?: 'teacher' | 'student' | 'both' // 可见性：仅教师、仅学生、都可见
+  limit?: number // 限制：多选题-最大可选项数量（正数限制，-1不限制）；填空题-输入类型（-2仅数字，-1不限制）
 }
 
 // 完整调查问卷
@@ -151,7 +152,8 @@ export const questionnaireSecondData: Questionnaire = {
     type: 'fill',
     questionType: 'duration',
     answer: '',
-    visibility: 'both'
+    visibility: 'both',
+    limit: -2  // 只能填入数字
   }, {
     id: 4,
     title: '在你的学习、生活中，数字设备带来的最主要的三个影响是什么？',
@@ -160,7 +162,7 @@ export const questionnaireSecondData: Questionnaire = {
       '方便线上沟通',
       '方便获取更多信息',
       '游戏成瘾',
-      '作业依赖“搜题”',
+      '作业依赖"搜题"',
       '作息不规律',
       '影响视力',   
       '其他___',
@@ -168,8 +170,9 @@ export const questionnaireSecondData: Questionnaire = {
     type: 'multiple',
     questionType: 'impact',
     answer: '',
-    visibility: 'both'
-  },]
+    visibility: 'both',
+    limit: 3  // 最多选择3个选项
+  }]
 }
 
 
@@ -182,7 +185,8 @@ export const bank: QuestionBank = {
       type: 'fill',
       questionType: 'duration',
       answer: '',
-      visibility: 'both'
+      visibility: 'both',
+      limit: -2  // 只能填入数字
     },
     {
       id: 2,
@@ -190,7 +194,8 @@ export const bank: QuestionBank = {
       type: 'fill',
       questionType: 'duration',
       answer: '',
-      visibility: 'both'
+      visibility: 'both',
+      limit: -2  // 只能填入数字
     }
   ],
   impactQuestions: [
@@ -205,7 +210,8 @@ export const bank: QuestionBank = {
       type: 'multiple',
       questionType: 'impact',
       answer: '',
-      visibility: 'both'
+      visibility: 'both',
+      limit: 3  // 最多选择3个选项
     },
     {
       id: 2,
@@ -218,7 +224,8 @@ export const bank: QuestionBank = {
       type: 'multiple',
       questionType: 'impact',
       answer: '',
-      visibility: 'both'
+      visibility: 'both',
+      limit: 3  // 最多选择3个选项
     },
     {
       id: 3,
@@ -234,7 +241,8 @@ export const bank: QuestionBank = {
       type: 'multiple',
       questionType: 'impact',
       answer: '',
-      visibility: 'both'
+      visibility: 'both',
+      limit: 3  // 最多选择3个选项
     },
     {
       id: 4,
@@ -258,7 +266,8 @@ export const bank: QuestionBank = {
         '交流',
         '旅游'
       ],
-      visibility: 'both'
+      visibility: 'both',
+      limit: 4  // 最多选择4个选项
     },
     {
       id: 2,
@@ -272,7 +281,8 @@ export const bank: QuestionBank = {
         '交流',
         '旅游'
       ],
-      visibility: 'both'
+      visibility: 'both',
+      limit: 4  // 最多选择4个选项
     },
     {
       id: 3,
@@ -288,7 +298,8 @@ export const bank: QuestionBank = {
         '旅游',
         '其他_______'
       ],
-      visibility: 'both'
+      visibility: 'both',
+      limit: 6  // 最多选择6个选项
     }
   ]
 }
@@ -489,7 +500,7 @@ export const useActivity = defineStore('activity', () => {
 
   // Activity 2.2 - 学生题目设计
   const ac2_2_stuDesignResult = ref<Activity2_2_designResult | null>({
-    designQuestion: null,  // 单个题目
+    designQuestion: null,  // 单个题目（最终提交的题目）
     rating: [
       {
         index: 1,
@@ -505,6 +516,12 @@ export const useActivity = defineStore('activity', () => {
     great: 0,
     submittedAt: 0
   })
+
+  // 挑战任务独立数据源（three-star）
+  const threeStarDraft = ref<QuestionOption | null>(null)
+  
+  // 基础任务独立数据源（two-star）
+  const twoStarDraft = ref<QuestionOption | null>(null)
 
   // Activity 3 - 学生问卷提交结果
   const ac3_stuResult = ref<Activity3Result | null>({
@@ -597,6 +614,8 @@ export const useActivity = defineStore('activity', () => {
       great: 0,
       submittedAt: 0
     }
+    threeStarDraft.value = null
+    twoStarDraft.value = null
     ac3_stuResult.value = {
       rating: [
         {
@@ -644,6 +663,8 @@ export const useActivity = defineStore('activity', () => {
     ac2_2_stuDesignResult,
     ac2_1_allSelectResult,
     ac2_2_allDesignResult,
+    threeStarDraft,
+    twoStarDraft,
     
     // Activity 3
     ac3_stuResult,

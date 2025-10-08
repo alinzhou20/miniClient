@@ -57,9 +57,9 @@ const socket = useSocket()
 const status = useStatus()
 const activity = useActivity()
 
-// 学生端活动列表：只包含 activity1-4（过滤掉不存在的 activity0）
+// 学生端活动列表：只包含 activity1-3（过滤掉 activity0 和 activity4）
 const studentActivities = computed<Activity[]>(() => {
-  return status.activityStatus.all.filter(a => a.id >= 1)
+  return status.activityStatus.all.filter(a => a.id >= 1 && a.id <= 3)
 })
 
 // 当前活动 ID（根据路由判断）

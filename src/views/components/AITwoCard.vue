@@ -385,7 +385,8 @@ const handleSuggestionClick = async (suggestion: string, index: number) => {
         type: 'multiple',
         questionType: 'design',
         answer: '',
-        visibility: 'both'
+        visibility: 'both',
+        limit: -1  // 学生设计的题目不限制选项数量
       })
       newQuestions.push({
         id: 2001,
@@ -394,7 +395,8 @@ const handleSuggestionClick = async (suggestion: string, index: number) => {
         type: 'multiple',
         questionType: 'design',
         answer: '',
-        visibility: 'both'
+        visibility: 'both',
+        limit: -1  // 学生设计的题目不限制选项数量
       })
       newQuestions.push({
         id: 2002,
@@ -403,7 +405,8 @@ const handleSuggestionClick = async (suggestion: string, index: number) => {
         type: 'multiple',
         questionType: 'design',
         answer: '',
-        visibility: 'both'
+        visibility: 'both',
+        limit: -1  // 学生设计的题目不限制选项数量
       })
     } else {
       // 填空题
@@ -414,7 +417,8 @@ const handleSuggestionClick = async (suggestion: string, index: number) => {
         type: 'fill',
         questionType: 'design',
         answer: '',
-        visibility: 'both'
+        visibility: 'both',
+        limit: -1  // 学生设计的填空题不限制输入内容和类型
       })
     }
     
@@ -545,14 +549,16 @@ const proceedToDesign = async (selectedDirection: string) => {
       
       if (resultData.output_s) {
         // 选择题（单个）
+        const options = resultData.output_s.o || []
         newQuestions.push({
           id: 2000,  // 临时ID，提交时会设为5
           title: resultData.output_s.q || '',
-          options: resultData.output_s.o || [],
+          options: options,
           type: 'multiple',
           questionType: 'design',
           answer: '',
-          visibility: 'both'
+          visibility: 'both',
+          limit: -1  // 学生设计的题目不限制选项数量
         })
       } else if (resultData.output_i) {
         // 填空题（数组，包含三道题）
@@ -565,7 +571,8 @@ const proceedToDesign = async (selectedDirection: string) => {
             type: 'fill',
             questionType: 'design',
             answer: '',
-            visibility: 'both'
+            visibility: 'both',
+            limit: -1  // 学生设计的填空题不限制输入内容和类型
           })
         })
       }
@@ -599,21 +606,29 @@ const proceedToDesign = async (selectedDirection: string) => {
 const saveQuestion = () => {
   if (designedQuestions.value.length === 0 || !activity.ac2_2_stuDesignResult) return
   
-  // 保存选中的题目
+  // 保存选中的题目到基础任务独立数据源
   const selectedQuestion = designedQuestions.value[selectedQuestionIndex.value]
-  activity.ac2_2_stuDesignResult.designQuestion = selectedQuestion
+  activity.twoStarDraft = selectedQuestion
   
-  // 将题目加入问卷（固定ID=5）
-  const existingIndex = activity.questionnaire.questions.findIndex(q => q.id === 5)
+  // 1. 同步到 designQuestion（最终提交的题目）
+  activity.ac2_2_stuDesignResult.designQuestion = { ...selectedQuestion }
+  
+  // 2. 覆盖问卷中 questionType 为 'design' 的题目
+  const existingDesignIndex = activity.questionnaire.questions.findIndex(q => q.questionType === 'design')
   const newQuestionForQuestionnaire: QuestionOption = {
     ...selectedQuestion,
-    id: 5  // 固定ID为5（使用用途题目）
+    id: existingDesignIndex !== -1 ? activity.questionnaire.questions[existingDesignIndex].id : 5,  // 保留原ID或使用5
+    visibility: selectedQuestion.visibility || 'both'
   }
   
-  if (existingIndex !== -1) {
-    activity.questionnaire.questions[existingIndex] = newQuestionForQuestionnaire
+  if (existingDesignIndex !== -1) {
+    // 覆盖已存在的 design 题目
+    activity.questionnaire.questions[existingDesignIndex] = newQuestionForQuestionnaire
+    console.log('[AITwoCard] 覆盖已存在的 design 题目')
   } else {
+    // 添加新的 design 题目
     activity.questionnaire.questions.push(newQuestionForQuestionnaire)
+    console.log('[AITwoCard] 添加新的 design 题目到问卷')
   }
   
   ElMessage.success('题目已加入问卷！请点击"提交设计"按钮完成提交')

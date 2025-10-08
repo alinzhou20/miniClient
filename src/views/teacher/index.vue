@@ -61,9 +61,9 @@ const socket = useSocket()
 const status = useStatus()
 const activity = useActivity()
 
-// 教师端活动列表：直接使用 status 中的活动列表（包含 activity0-4）
+// 教师端活动列表：包含 activity0-3（暂时隐藏 activity4）
 const teacherActivities = computed<Activity[]>(() => {
-  return status.activityStatus.all
+  return status.activityStatus.all.filter(a => a.id <= 3)
 })
 
 // 是否在看板页面
@@ -106,8 +106,6 @@ const selectActivity = (id: number) => {
       to: {}
     })
   }
-
-  const activityName = teacherActivities.value.find(a => a.id === id)?.title || '活动'
 }
 
 // 跳转到看板

@@ -112,9 +112,9 @@ const bodyRef = ref<HTMLElement>()
 const isRecognizing = ref(false)
 const testMode = ref<'multiple' | 'fill'>('multiple')
 
-// 获取设计的单个题目
+// 获取挑战任务的独立数据源（three-star）
 const designQuestion = computed(() => {
-  return activity.ac2_2_stuDesignResult?.designQuestion || null
+  return activity.threeStarDraft || null
 })
 
 // 判断是否有识别结果
@@ -171,22 +171,27 @@ const handlePhotoUpload = async () => {
     const resultData = JSON.parse(result)
     // console.log('[DesignCard] 识别结果:', resultData)
  
-    // 4. 存入 pinia - 保存单个题目
-    if (resultData.output2 && activity.ac2_2_stuDesignResult) {
+    // 4. 存入 pinia - 保存到挑战任务独立数据源
+    if (resultData.output2) {
+      const questionType = (resultData.output2.type || 'multiple') as 'fill' | 'single' | 'multiple'
+      const options = resultData.output2.options || []
+      
       // 构建题目对象（使用 'design' 类型标识这是学生设计的题目）
       const newQuestion: QuestionOption = {
         id: 1,
         title: resultData.output2.question || '',
-        options: resultData.output2.options || [],
-        type: (resultData.output2.type || 'multiple') as 'fill' | 'single' | 'multiple',
+        options: options,
+        type: questionType,
         questionType: 'design' as const,  // 使用 'design' 标识学生设计的题目
         answer: '',
-        visibility: 'both'
+        visibility: 'both',
+        // 学生设计的题目不限制：多选题不限制选项数量，填空题不限制输入内容和类型（-1 表示不限制）
+        limit: questionType === 'single' ? undefined : -1
       }
       console.log('[DesignCard] 新题目:', newQuestion)
       
-      // 直接赋值给 designQuestion（覆盖旧的）
-      activity.ac2_2_stuDesignResult.designQuestion = newQuestion
+      // 保存到挑战任务独立数据源（不影响基础任务）
+      activity.threeStarDraft = newQuestion
       
       ElMessage.success('题目识别成功！')
     } else {
@@ -208,9 +213,7 @@ const handleCameraExit = () => {
 
 // 清空题目和照片
 const removePhoto = () => {
-  if (activity.ac2_2_stuDesignResult) {
-    activity.ac2_2_stuDesignResult.designQuestion = null
-  }
+  activity.threeStarDraft = null
   status.takePhoto = null
   ElMessage.info('已清空题目')
 }
@@ -219,24 +222,26 @@ const removePhoto = () => {
 const submitChallenge = () => {
   if (canSubmit.value && activity.ac2_2_stuDesignResult && designQuestion.value) {
     try {
-      // 1. 将设计的题目加入到问卷中（固定ID=5）
-      const existingIndex = activity.questionnaire.questions.findIndex(q => q.id === 5)
+      // 1. 同步到 designQuestion（最终提交的题目）
+      activity.ac2_2_stuDesignResult.designQuestion = { ...designQuestion.value }
+      
+      // 2. 覆盖问卷中 questionType 为 'design' 的题目
+      const existingDesignIndex = activity.questionnaire.questions.findIndex(q => q.questionType === 'design')
       const newQuestionForQuestionnaire: QuestionOption = {
         ...designQuestion.value,
-        id: 5,  // 固定ID为5（使用用途题目）
-        visibility: designQuestion.value.visibility || 'both'  // 保留可见性
+        id: existingDesignIndex !== -1 ? activity.questionnaire.questions[existingDesignIndex].id : 5,  // 保留原ID或使用5
+        visibility: designQuestion.value.visibility || 'both'
       }
       
-      // 如果已存在就替换，否则添加
-      if (existingIndex !== -1) {
-        activity.questionnaire.questions[existingIndex] = newQuestionForQuestionnaire
-        // console.log('[DesignCard] 替换已存在的设计题目')
+      if (existingDesignIndex !== -1) {
+        // 覆盖已存在的 design 题目
+        activity.questionnaire.questions[existingDesignIndex] = newQuestionForQuestionnaire
+        console.log('[DesignCard] 覆盖已存在的 design 题目')
       } else {
+        // 添加新的 design 题目
         activity.questionnaire.questions.push(newQuestionForQuestionnaire)
-        // console.log('[DesignCard] 添加新的设计题目到问卷')
+        console.log('[DesignCard] 添加新的 design 题目到问卷')
       }
-      
-      // console.log('[DesignCard] 当前问卷题目:', activity.questionnaire.questions)
       
       ElMessage.success('题目已加入问卷！请点击"提交设计"按钮完成提交')
     } catch (error: any) {
@@ -248,8 +253,6 @@ const submitChallenge = () => {
 
 // 填充测试数据
 const fillTestData = () => {
-  if (!activity.ac2_2_stuDesignResult) return
-  
   if (testMode.value === 'multiple') {
     // 填充选择题测试数据
     const testQuestion: QuestionOption = {
@@ -264,9 +267,10 @@ const fillTestData = () => {
       type: 'multiple',
       questionType: 'design',
       answer: '',
-      visibility: 'both'
+      visibility: 'both',
+      limit: -1  // 学生设计的题目不限制选项数量
     }
-    activity.ac2_2_stuDesignResult.designQuestion = testQuestion
+    activity.threeStarDraft = testQuestion
     ElMessage.success('已填充选择题测试数据')
     testMode.value = 'fill'
   } else {
@@ -278,9 +282,10 @@ const fillTestData = () => {
       type: 'fill',
       questionType: 'design',
       answer: '',
-      visibility: 'both'
+      visibility: 'both',
+      limit: -1  // 学生设计的填空题不限制输入内容和类型
     }
-    activity.ac2_2_stuDesignResult.designQuestion = testQuestion
+    activity.threeStarDraft = testQuestion
     ElMessage.success('已填充填空题测试数据')
     testMode.value = 'multiple'
   }

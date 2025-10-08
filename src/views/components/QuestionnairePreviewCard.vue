@@ -119,9 +119,10 @@
             <el-input 
               v-if="props.answerable"
               v-model="question.answer"
-              placeholder="请输入答案"
+              :placeholder="getFillPlaceholder(question)"
               size="large"
               class="fill-input"
+              @input="handleFillInput(question, $event)"
             />
             <span v-else class="blank-line">_______________</span>
           </div>
@@ -244,7 +245,14 @@ const handleOptionClick = (question: QuestionOption, index: number) => {
         // 已选中，取消选择
         answers.splice(letterIndex, 1)
       } else {
-        // 未选中，添加选择
+        // 未选中，检查是否超过限制
+        const limit = question.limit
+        // limit 为 -1 表示不限制，undefined 或 null 也表示不限制
+        if (limit && limit > 0 && answers.length >= limit) {
+          ElMessage.warning(`最多只能选择 ${limit} 个选项`)
+          return
+        }
+        // 添加选择
         answers.push(letter)
       }
       
@@ -257,6 +265,31 @@ const handleOptionClick = (question: QuestionOption, index: number) => {
     question.answer = letter
   }
   // 因为 question 是 Pinia store 中的响应式对象，修改会自动触发更新
+}
+
+// ==================== 填空题功能 ====================
+
+// 获取填空题的 placeholder
+const getFillPlaceholder = (question: QuestionOption): string => {
+  if (question.limit === -2) {
+    return '请输入数字'
+  }
+  return '请输入答案'
+}
+
+// 处理填空题输入（验证数字）
+const handleFillInput = (question: QuestionOption, value: string) => {
+  // 如果 limit 为 -2，表示只能输入数字
+  if (question.limit === -2) {
+    // 移除所有非数字字符
+    const numericValue = value.replace(/[^\d]/g, '')
+    
+    // 如果输入了非数字字符，显示提示并更新为过滤后的值
+    if (value !== numericValue) {
+      ElMessage.warning('该题目只能输入数字')
+      question.answer = numericValue
+    }
+  }
 }
 
 // ==================== 编辑模式功能 ====================
@@ -664,6 +697,18 @@ const deleteQuestion = (questionId: number) => {
   font-size: 14px;
   color: #6b7280;
   margin-left: 4px;
+}
+
+/* 多选题限制标签 */
+.limit-badge {
+  font-size: 12px;
+  padding: 2px 10px;
+  background: #eff6ff;
+  color: #3b82f6;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  font-weight: 500;
+  margin-left: 8px;
 }
 
 /* 题目分类标签 */
