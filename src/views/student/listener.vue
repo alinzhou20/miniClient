@@ -79,7 +79,7 @@ function onActivity2_2LikeDiscuss(payload: any) {
   if (!payload || payload.messageType !== 'activity2_2_like_discuss') return
   
   const data = payload.data || {}
-  const groupNo = data.groupNo
+  const groupNo = data.targetGroupNo
   
   if (!groupNo) return
   
@@ -87,8 +87,23 @@ function onActivity2_2LikeDiscuss(payload: any) {
   const groupResult = activity.ac2_2_allDesignResult[groupNo]
   if (groupResult) {
     groupResult.great = data.great || 0
+    groupResult.likedByGroups = data.likedByGroups || []
     // console.log(`[Student Listener] 第${groupNo}组点赞数更新为 ${groupResult.great}`)
   }
+}
+
+// 监听教师开放/关闭点赞
+function onLikeEnabledChanged(payload: any) {
+  if (!payload || payload.messageType !== 'like_enabled_changed') return
+  
+  const likeEnabled = payload.data?.likeEnabled
+  if (typeof likeEnabled !== 'boolean') return
+  
+  // 更新点赞开放状态
+  activity.ac2_2_likeEnabled = likeEnabled
+  
+  // console.log(`[Student Listener] 点赞状态已更新: ${likeEnabled ? '开放' : '关闭'}`)
+  ElMessage.info(likeEnabled ? '教师已开放点赞' : '教师已关闭点赞')
 }
 
 // 统一的 dispatch 事件处理
@@ -105,6 +120,9 @@ function handleDispatch(payload: any) {
       break
     case 'take_photo':
       onTakePhoto(payload)
+      break
+    case 'like_enabled_changed':
+      onLikeEnabledChanged(payload)
       break
   }
 }

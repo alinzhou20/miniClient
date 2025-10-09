@@ -144,11 +144,12 @@ function onStudentSubmit(payload: any) {
       case 'activity2_2_like_submit':
         // Activity 2.2 - 点赞
         if (data && activity.ac2_2_allDesignResult) {
-          const targetGroupNo = data.groupNo
+          const targetGroupNo = data.targetGroupNo
           const groupResult = activity.ac2_2_allDesignResult[targetGroupNo]
           
           if (groupResult) {
             groupResult.great = data.great || 0
+            groupResult.likedByGroups = data.likedByGroups || []
             // console.log(`[Teacher Listener] 第${targetGroupNo}组点赞数更新为 ${groupResult.great}`)
           }
         }

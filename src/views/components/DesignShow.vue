@@ -1,36 +1,19 @@
 <template>
   <div class="design-show-container">
     <div class="show-header">
-      <h2>为各个小组投票</h2>
-      <div class="vote-info">
-        <span class="vote-remaining">剩余票数：</span>
-        <span class="vote-count" :class="{ 'vote-warning': remainingVotes <= 2 }">
-          {{ remainingVotes }} / {{ MAX_VOTES }}
-        </span>
-      </div>
+      <h2>题目展示</h2>
     </div>
     
-    <div class="groups-grid">
+    <div v-if="groups.length > 0" class="groups-grid">
       <div 
         v-for="group in groups" 
         :key="group.id"
-        class="group-card"
+        class="group-card has-design"
         :class="{ 
-          'has-design': group.hasDesign,
-          'is-current': group.id === currentGroupNo
+          'is-current': group.groupNo === currentGroupNo
         }"
       >
-        <div class="group-header">
-          <span class="group-number">{{ group.id }}组</span>
-          <div class="header-right">
-            <span v-if="group.taskType === 'challenge'" class="task-badge challenge">挑战任务</span>
-            <span v-else-if="group.taskType === 'basic'" class="task-badge basic">基础任务</span>
-            <span v-if="group.hasDesign" class="status-badge">已提交</span>
-            <span v-else class="status-badge pending">未提交</span>
-          </div>
-        </div>
-        
-        <div v-if="group.hasDesign && group.question" class="group-content">
+        <div class="group-content">
           <div class="question-type">{{ getQuestionTypeText(group.question.type) }}</div>
           <div class="question-title">{{ group.question.title }}</div>
           
@@ -45,24 +28,24 @@
           </div>
           
           <!-- 点赞区域 -->
-          <div class="like-section">
+          <div class="like-section" v-if="activity.ac2_2_likeEnabled">
             <button 
               class="like-btn"
-              :class="{ 'is-current-group': group.id === currentGroupNo }"
-              :disabled="group.id === currentGroupNo"
-              @click="handleLike(group.id)"
+              :class="{ 'already-liked': hasLiked(group.groupNo) }"
+              :disabled="hasLiked(group.groupNo)"
+              @click="handleLike(group.groupNo)"
             >
               <span class="like-icon">👍</span>
               <span class="like-count">{{ group.great }}</span>
             </button>
           </div>
         </div>
-        
-        <div v-else class="empty-state">
-          <span class="empty-icon">📝</span>
-          <span class="empty-text">等待设计中...</span>
-        </div>
       </div>
+    </div>
+    
+    <div v-else class="no-designs">
+      <span class="empty-icon">📝</span>
+      <span class="empty-text">还没有小组提交设计...</span>
     </div>
   </div>
 </template>
@@ -82,65 +65,69 @@ const socket = useSocket()
 // 当前小组编号
 const currentGroupNo = computed(() => status.userStatus?.groupNo || '')
 
-// 当前小组已投票数
-const votedCount = ref(0)
+// 记录当前组已经点赞过的题目（按groupNo记录）
+const likedGroups = ref<Set<string>>(new Set())
 
-// 最大投票数限制
-const MAX_VOTES = 5
-
-// 剩余可投票数
-const remainingVotes = computed(() => MAX_VOTES - votedCount.value)
-
-// 生成12个小组的数据 - 从 activity store 读取
+// 按时间顺序生成设计列表（已在提交时去重）
 const groups = computed(() => {
-  const groupsList = []
-  for (let i = 1; i <= 12; i++) {
-    const groupId = `${i}`
-    const designResult = activity.ac2_2_allDesignResult[groupId]
-    
-    // 根据rating或challengeLevel判断任务类型
-    let taskType = ''
-    
-    // 优先使用challengeLevel判断
-    if (designResult?.challengeLevel) {
-      if (designResult.challengeLevel === 'three') {
-        taskType = 'challenge' // 挑战任务
-      } else if (designResult.challengeLevel === 'two') {
-        taskType = 'basic' // 基础任务
-      }
-    } 
-    // 如果没有challengeLevel，使用rating判断
-    else if (designResult?.rating) {
-      const challengeItem = designResult.rating.find(r => r.index === 1 && r.score === 2)
-      const basicItem = designResult.rating.find(r => r.index === 2 && r.score === 1)
+  const allDesigns: any[] = []
+  
+  // 收集所有有效的设计
+  Object.entries(activity.ac2_2_allDesignResult).forEach(([groupId, designResult]: [string, any]) => {
+    if (designResult?.designQuestion && designResult.submittedAt > 0) {
+      // 根据rating或challengeLevel判断任务类型
+      let taskType = ''
       
-      if (challengeItem) {
-        taskType = 'challenge' // 挑战任务
-      } else if (basicItem) {
-        taskType = 'basic' // 基础任务
+      // 优先使用challengeLevel判断
+      if (designResult?.challengeLevel) {
+        if (designResult.challengeLevel === 'three') {
+          taskType = 'challenge' // 挑战任务
+        } else if (designResult.challengeLevel === 'two') {
+          taskType = 'basic' // 基础任务
+        }
+      } 
+      // 如果没有challengeLevel，使用rating判断
+      else if (designResult?.rating) {
+        const challengeItem = designResult.rating.find((r: any) => r.index === 1 && r.score === 2)
+        const basicItem = designResult.rating.find((r: any) => r.index === 2 && r.score === 1)
+        
+        if (challengeItem) {
+          taskType = 'challenge' // 挑战任务
+        } else if (basicItem) {
+          taskType = 'basic' // 基础任务
+        }
       }
-    }
-    
-    // 计算得分
-    let score = 0
-    if (designResult?.rating) {
-      designResult.rating.forEach(r => {
-        if (r.score > 0) score = r.score
+      
+      // 计算得分
+      let score = 0
+      if (designResult?.rating) {
+        designResult.rating.forEach((r: any) => {
+          if (r.score > 0) score = r.score
+        })
+      }
+      
+      allDesigns.push({
+        id: groupId,
+        groupNo: groupId,
+        hasDesign: true,
+        question: designResult.designQuestion,
+        great: designResult.great || 0,
+        submittedAt: designResult.submittedAt,
+        rating: designResult.rating || [],
+        taskType: taskType,
+        score: score
       })
     }
-    
-    groupsList.push({
-      id: groupId,
-      hasDesign: !!designResult?.designQuestion,
-      question: designResult?.designQuestion || null,
-      great: designResult?.great || 0,
-      submittedAt: designResult?.submittedAt || 0,
-      rating: designResult?.rating || [],
-      taskType: taskType,
-      score: score
-    })
-  }
-  return groupsList
+  })
+  
+  // 按提交时间排序（早提交的在前）
+  allDesigns.sort((a, b) => a.submittedAt - b.submittedAt)
+  
+  // 添加显示顺序
+  return allDesigns.map((design, index) => ({
+    ...design,
+    displayOrder: index + 1
+  }))
 })
 
 // 获取题型文本
@@ -153,17 +140,22 @@ const getQuestionTypeText = (type: string) => {
   return typeMap[type] || '未知题型'
 }
 
+// 检查是否已经给某个题目点赞
+const hasLiked = (groupId: string) => {
+  return likedGroups.value.has(groupId)
+}
+
 // 点赞功能
 const handleLike = (groupId: string) => {
-  // 不能给自己点赞
-  if (groupId === currentGroupNo.value) {
-    ElMessage.warning('不能给自己的设计点赞哦~')
+  // 检查教师是否开放了点赞
+  if (!activity.ac2_2_likeEnabled) {
+    ElMessage.warning('教师还未开放点赞')
     return
   }
   
-  // 检查是否已达到投票上限
-  if (votedCount.value >= MAX_VOTES) {
-    ElMessage.warning(`每个小组最多只能投 ${MAX_VOTES} 票哦~`)
+  // 检查是否已经点赞过这道题
+  if (hasLiked(groupId)) {
+    ElMessage.warning('已经给这道题点过赞了')
     return
   }
   
@@ -173,11 +165,19 @@ const handleLike = (groupId: string) => {
     return
   }
   
-  // 增加投票计数
-  votedCount.value++
+  // 记录已点赞
+  likedGroups.value.add(groupId)
   
   // 增加点赞数
   designResult.great = (designResult.great || 0) + 1
+  
+  // 记录点赞的小组
+  if (!designResult.likedByGroups) {
+    designResult.likedByGroups = []
+  }
+  if (currentGroupNo.value && !designResult.likedByGroups.includes(currentGroupNo.value)) {
+    designResult.likedByGroups.push(currentGroupNo.value)
+  }
   
   // 1. 发送给教师
   socket.submit({
@@ -186,8 +186,10 @@ const handleLike = (groupId: string) => {
     messageType: 'activity2_2_like_submit',
     activityIndex: '2-2',
     data: {
-      groupNo: groupId,
-      great: designResult.great
+      targetGroupNo: groupId,
+      fromGroupNo: currentGroupNo.value,
+      great: designResult.great,
+      likedByGroups: designResult.likedByGroups
     },
     from: {
       id: `${status.userStatus?.studentNo}_${status.userStatus?.groupNo}`,
@@ -205,8 +207,10 @@ const handleLike = (groupId: string) => {
     messageType: 'activity2_2_like_discuss',
     activityIndex: '2-2',
     data: {
-      groupNo: groupId,
-      great: designResult.great
+      targetGroupNo: groupId,
+      fromGroupNo: currentGroupNo.value,
+      great: designResult.great,
+      likedByGroups: designResult.likedByGroups
     },
     from: {
       id: `${status.userStatus?.studentNo}_${status.userStatus?.groupNo}`,
@@ -217,7 +221,7 @@ const handleLike = (groupId: string) => {
     to: {}
   })
   
-  ElMessage.success(`已为第${groupId}组投票！剩余 ${remainingVotes.value} 票`)
+  ElMessage.success(`已为第${groupId}组点赞！`)
 }
 </script>
 
@@ -249,7 +253,20 @@ const handleLike = (groupId: string) => {
 .show-subtitle {
   font-size: 14px;
   color: #6b7280;
-  margin: 0;
+  margin: 8px 0 0 0;
+}
+
+/* 无设计状态 */
+.no-designs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 60px 20px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 2px dashed #d1d5db;
 }
 
 /* 投票信息 */
@@ -259,49 +276,32 @@ const handleLike = (groupId: string) => {
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  border: 2px solid #93c5fd;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 2px solid #6ee7b7;
   border-radius: 20px;
   margin: 0 auto;
   width: fit-content;
 }
 
-.vote-remaining {
+.vote-info.locked {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border: 2px solid #cbd5e1;
+}
+
+.vote-status {
   font-size: 15px;
   font-weight: 600;
-  color: #1e40af;
+  color: #065f46;
 }
 
-.vote-count {
-  font-size: 18px;
-  font-weight: 800;
-  color: #2563eb;
-  padding: 2px 12px;
-  background: white;
-  border-radius: 12px;
-  min-width: 60px;
-  text-align: center;
+.vote-info.locked .vote-status {
+  color: #6b7280;
 }
 
-.vote-count.vote-warning {
-  color: #dc2626;
-  background: #fee2e2;
-  animation: votePulse 1s ease-in-out infinite;
-}
-
-@keyframes votePulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-}
-
-/* 网格布局：4列3行 */
+/* 网格布局：自适应列数 */
 .groups-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
 
@@ -365,6 +365,16 @@ const handleLike = (groupId: string) => {
 
 .status-badge.pending {
   background: #94a3b8;
+}
+
+/* 小组标签 */
+.group-label {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #6b7280;
+  color: white;
 }
 
 /* 任务类型徽章 */
@@ -472,11 +482,13 @@ const handleLike = (groupId: string) => {
   transform: translateY(0);
 }
 
-.like-btn.is-current-group {
+.like-btn:disabled,
+.like-btn.already-liked {
   background: #f3f4f6;
   border-color: #d1d5db;
   color: #9ca3af;
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .like-icon {

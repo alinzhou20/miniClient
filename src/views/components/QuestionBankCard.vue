@@ -22,7 +22,6 @@
             <span class="question-number">{{ getQuestionNumber(question.id) }}.</span>
             <span class="question-title">
               {{ question.title }}
-              <span v-if="question.type === 'multiple' && type === 'impact'" class="question-tip">（多选题）</span>
             </span>
             <el-icon 
               class="check-icon"

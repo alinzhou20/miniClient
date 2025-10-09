@@ -60,22 +60,12 @@
                 <el-option label="B 使用数字设备弊大于利" value="B" />
               </el-select>
             </el-form-item>
-            <el-form-item label="理由一：">
+            <el-form-item label="理由：">
               <el-input
                 v-model="activity.ac1_stuResult!.point[1]"
                 type="textarea"
-                :rows="2"
-                placeholder="请输入理由一"
-                maxlength="200"
-                show-word-limit
-              />
-            </el-form-item>
-            <el-form-item label="理由二：">
-              <el-input
-                v-model="activity.ac1_stuResult!.point[2]"
-                type="textarea"
-                :rows="2"
-                placeholder="请输入理由二"
+                :rows="4"
+                placeholder="请输入理由"
                 maxlength="200"
                 show-word-limit
               />
@@ -126,18 +116,15 @@ const recognitionResult = ref<any>(null)
 const hasRecognitionResult = computed(() => {
   return !!(
     activity.ac1_stuResult?.viewpoint || 
-    activity.ac1_stuResult?.point[1] || 
-    activity.ac1_stuResult?.point[2]
+    activity.ac1_stuResult?.point[1]
   )
 })
 
 // 判断是否可以提交
 const canSubmit = computed(() => {
   return !!(
-    activity.ac1_stuResult?.viewpoint && (
-      activity.ac1_stuResult?.point[1] || 
-      activity.ac1_stuResult?.point[2]
-    )
+    activity.ac1_stuResult?.viewpoint && 
+    activity.ac1_stuResult?.point[1]
   )
 })
 
@@ -146,7 +133,7 @@ const startCamera = () => {
   // 重置 ac1_stuResult
   if (activity.ac1_stuResult) {
     activity.ac1_stuResult.viewpoint = null
-    activity.ac1_stuResult.point = { 1: '', 2: '' }
+    activity.ac1_stuResult.point = { 1: '' }
     activity.ac1_stuResult.rating[0].score = 0
     // 重置小组得分
     status.groupScores.activity1 = 0
@@ -220,8 +207,7 @@ const handlePhotoUpload = async () => {
     if (resultData.output1 && activity.ac1_stuResult) {
       const { q1, q2 } = resultData.output1
       activity.ac1_stuResult.viewpoint = q1
-      activity.ac1_stuResult.point[1] = q2.q2_1
-      activity.ac1_stuResult.point[2] = q2.q2_2
+      activity.ac1_stuResult.point[1] = q2.q2_1 || ''
     }
     
     ElMessage.success('手写识别完成！已自动保存')
@@ -235,7 +221,7 @@ const handlePhotoUpload = async () => {
 
 // 自动打分
 const autoScore = () => {
-  if (activity.ac1_stuResult?.viewpoint && activity.ac1_stuResult?.point[1] && activity.ac1_stuResult?.point[2]) {
+  if (activity.ac1_stuResult?.viewpoint && activity.ac1_stuResult?.point[1]) {
     activity.ac1_stuResult.rating[0].score = 1
     // 同步更新小组得分
     status.groupScores.activity1 = 1

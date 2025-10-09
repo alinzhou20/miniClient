@@ -16,14 +16,20 @@
               <div class="preview-header">
                 <div class="preview-header-left">
                   <h3 class="preview-title">问卷编辑 - 可修改学生选择的题目</h3>
-                  <span class="edit-hint">💡 点击任意文本即可编辑，修改会实时保存</span>
                 </div>
                 <div class="header-actions">
+                  <button 
+                    class="like-toggle-btn"
+                    :class="{ 'active': activity.ac2_2_likeEnabled }"
+                    @click="toggleLikeEnabled"
+                  >
+                    <span class="btn-text">{{ activity.ac2_2_likeEnabled ? '关闭点赞' : '开放点赞' }}</span>
+                  </button>
                   <button class="send-btn" @click="sendQuestionnaireToStudents">
-                    📤 发送问卷给学生
+                    发送问卷
                   </button>
                   <button class="back-btn" @click="navigateToActivity2_2">
-                    ← 返回题库统计
+                    返回统计
                   </button>
                 </div>
               </div>
@@ -39,7 +45,7 @@
               <h3 class="design-list-title">📝 学生设计的题目</h3>
               <span class="design-count">{{ studentDesignCount }}个</span>
             </div>
-            <p class="design-hint">💡 点击题目卡片即可添加到问卷</p>
+            <p class="design-hint">💡 点击题目卡片即可添加到问卷 · 按提交时间顺序展示</p>
             
             <div v-if="studentDesignCount > 0" class="design-items">
               <div 
@@ -53,7 +59,7 @@
                 @click="design.designQuestion && handleDesignClick(design)"
               >
                 <div class="design-item-header">
-                  <span class="group-info">第{{ design.groupNo }}组 · 👍{{ design.great || 0 }}</span>
+                  <span class="like-info">👍 {{ design.great || 0 }}</span>
                   <span v-if="design.designQuestion" class="question-type" :class="design.taskType">
                     {{ design.taskType === 'challenge' ? '挑战' : design.taskType === 'basic' ? '基础' : '' }} · {{ getQuestionTypeText(design.designQuestion.type) }}
                   </span>
@@ -195,7 +201,7 @@ import { reactive, computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSocket } from '@/store/socket'
 import { useStatus } from '@/store/status'
-// import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus'
 // import { Plus } from '@element-plus/icons-vue'
 import { bank, useActivity, questionnaireSecondData, type QuestionOption } from '@/store/activity'
 import { EntityMode, EventType } from '@/types'
@@ -242,7 +248,7 @@ const impactQuestions = bank.impactQuestions
 
 // 活动2.1选择结果数据（新的，基于小组）
 const selectResults = computed(() => {
-  return Object.entries(activity.ac2_1_allSelectResult).map(([groupNo, result]) => ({
+  return Object.entries(activity.ac2_1_allSelectResult).map(([groupNo, result]: [string, any]) => ({
     groupNo,
     ...result
   }))
@@ -356,7 +362,7 @@ function navigateToActivity2_2() {
 function sendQuestionnaireToStudents() {
   try {
     // 1. 在发送前，将所有题目的可见性改为 'both'
-    activity.questionnaire.questions.forEach(question => {
+    activity.questionnaire.questions.forEach((question: any) => {
       question.visibility = 'both'
     })
     
@@ -409,13 +415,16 @@ const selectedDesignGroupNo = ref<string | null>(null)
 
 // 学生设计题目数量
 const studentDesignCount = computed(() => {
-  return Object.keys(activity.ac2_2_allDesignResult).length
+  return sortedDesignResults.value.length
 })
 
-// 排序后的设计结果（按点赞数降序，相同点赞数按提交时间升序）
+// 排序后的设计结果（按提交时间排序，已在提交时去重）
 const sortedDesignResults = computed(() => {
-  return Object.entries(activity.ac2_2_allDesignResult)
-    .map(([groupNo, result]) => {
+  const allDesigns: any[] = []
+  
+  // 收集所有有效的设计
+  Object.entries(activity.ac2_2_allDesignResult).forEach(([groupNo, result]: [string, any]) => {
+    if (result?.designQuestion && result.submittedAt > 0) {
       // 根据rating或challengeLevel判断任务类型
       let taskType = ''
       
@@ -429,8 +438,8 @@ const sortedDesignResults = computed(() => {
       } 
       // 如果没有challengeLevel，使用rating判断
       else if (result.rating) {
-        const challengeItem = result.rating.find(r => r.index === 1 && r.score === 2)
-        const basicItem = result.rating.find(r => r.index === 2 && r.score === 1)
+        const challengeItem = result.rating.find((r: any) => r.index === 1 && r.score === 2)
+        const basicItem = result.rating.find((r: any) => r.index === 2 && r.score === 1)
         
         if (challengeItem) {
           taskType = 'challenge' // 挑战任务
@@ -439,24 +448,18 @@ const sortedDesignResults = computed(() => {
         }
       }
       
-      return {
+      allDesigns.push({
         groupNo,
         ...result,
         taskType
-      }
-    })
-    .sort((a, b) => {
-      // 先按点赞数降序
-      const greatA = a.great || 0
-      const greatB = b.great || 0
-      
-      if (greatB !== greatA) {
-        return greatB - greatA
-      }
-      
-      // 点赞数相同，按提交时间升序（早的排前面）
-      return (a.submittedAt || 0) - (b.submittedAt || 0)
-    })
+      })
+    }
+  })
+  
+  // 按提交时间排序（早提交的在前）
+  allDesigns.sort((a, b) => (a.submittedAt || 0) - (b.submittedAt || 0))
+  
+  return allDesigns
 })
 
 // 格式化时间
@@ -502,11 +505,11 @@ function handleDesignClick(design: any) {
 }
 
 // 添加题目到问卷
-function addQuestionToQuestionnaire(question: QuestionOption) {
+function addQuestionToQuestionnaire(question: any) {
   try {
     // 查找是否已存在 design 类型的题目
     const existingDesignIndex = activity.questionnaire.questions.findIndex(
-      q => q.questionType === 'design'
+      (q: any) => q.questionType === 'design'
     )
     
     if (existingDesignIndex !== -1) {
@@ -543,6 +546,26 @@ function addQuestionToQuestionnaire(question: QuestionOption) {
     console.error('[Activity2 Teacher] 添加题目失败:', error)
     // ElMessage.error(`添加失败: ${error.message}`)
   }
+}
+
+// 切换点赞开放状态
+function toggleLikeEnabled() {
+  activity.ac2_2_likeEnabled = !activity.ac2_2_likeEnabled
+  
+  // 广播给所有学生
+  socket.dispatch({
+    mode: EntityMode.STUDENT,
+    eventType: EventType.DISPATCH,
+    messageType: 'like_enabled_changed',
+    activityIndex: '2-2',
+    data: {
+      likeEnabled: activity.ac2_2_likeEnabled
+    },
+    from: null,
+    to: {}
+  })
+  
+  ElMessage.success(activity.ac2_2_likeEnabled ? '已开放点赞' : '已关闭点赞')
 }
 </script>
 
@@ -1026,14 +1049,18 @@ function addQuestionToQuestionnaire(question: QuestionOption) {
   justify-content: space-between;
 }
 
-.group-info {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 6px;
-  background: #e5e7eb;
-  color: #374151;
+.like-info {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #fbbf24;
+  color: #92400e;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .question-type {
@@ -1125,6 +1152,54 @@ function addQuestionToQuestionnaire(question: QuestionOption) {
   margin: 0;
   font-size: 14px;
   font-style: italic;
+}
+
+/* 点赞控制 */
+.like-control {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 2px solid #f3f4f6;
+}
+
+.like-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #9ca3af, #6b7280);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+}
+
+.like-toggle-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.like-toggle-btn.active {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.like-toggle-btn.active:hover {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.like-toggle-btn .btn-icon {
+  font-size: 16px;
+}
+
+.like-toggle-btn .btn-text {
+  font-size: 14px;
 }
 
 /* 响应式设计 */

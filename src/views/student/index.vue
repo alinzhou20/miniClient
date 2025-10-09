@@ -25,8 +25,8 @@
         
         <!-- 总星数显示 -->
         <div class="total-stars">
-          <span class="total-label">总星数</span>
-          <span class="total-count">{{ totalStars }}</span>
+          <span class="total-label">第 {{ status.userStatus!.groupNo }} 组共获得</span>
+          <span class="total-count">{{ totalStars }} / 5 </span>
         </div>
         
         <el-button @click="handleLogout" class="logout-btn">
@@ -215,8 +215,18 @@ const handleLogout = () => {
   background: rgba(255, 255, 255, 0.95);
   border: 2px solid white;
   border-radius: 16px;
-  padding: 8px 20px;
+  padding: 12px 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.group-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1976d2;
+  white-space: nowrap;
+  padding: 4px 12px;
+  background: #e3f2fd;
+  border-radius: 12px;
 }
 
 .total-label {

@@ -124,10 +124,9 @@
                     :key="item.id"
                     class="opinion-card card-a"
                   >
-                    <div class="card-group">{{ item.groupNo }}组</div>
+                    <div class="card-group">{{ getCardLabel(item.groupNo) }}</div>
                     <div class="card-reasons">
                       <div v-if="item.result.point[1]" class="reason">{{ item.result.point[1] }}</div>
-                      <div v-if="item.result.point[2]" class="reason">{{ item.result.point[2] }}</div>
                     </div>
                   </div>
                 </template>
@@ -260,10 +259,9 @@
                     :key="item.id"
                     class="opinion-card card-b"
                   >
-                    <div class="card-group">{{ item.groupNo }}组</div>
+                    <div class="card-group">{{ getCardLabel(item.groupNo) }}</div>
                     <div class="card-reasons">
                       <div v-if="item.result.point[1]" class="reason">{{ item.result.point[1] }}</div>
-                      <div v-if="item.result.point[2]" class="reason">{{ item.result.point[2] }}</div>
                     </div>
                   </div>
                 </template>
@@ -274,6 +272,9 @@
         </div>
       </div>
     </div>
+    
+    <!-- 统一搜索模拟器 -->
+    <UnifiedSearchSimulator />
   </div>
 </template>
 
@@ -282,6 +283,7 @@ import { computed, ref } from 'vue'
 // import { ElMessage } from 'element-plus'
 import { useActivity, type Activity1Result } from '@/store/activity'
 import { useCoze, WORKFLOW, type ViewpointWorkflow } from '@/utils/coze'
+import UnifiedSearchSimulator from '@/views/components/UnifiedSearchSimulator.vue'
 
 const activity = useActivity()
 const { runWorkflow } = useCoze()
@@ -293,32 +295,145 @@ interface SubmissionItem {
   result: Activity1Result
 }
 
+// 获取卡片标签
+const getCardLabel = (groupNo: string): string => {
+  if (groupNo.includes('网络搜索')) {
+    const parts = groupNo.split('_')
+    if (parts.length === 2) {
+      const cardNum = parts[1]
+      return `🌐 网络搜索 ${cardNum}`
+    }
+    return '🌐 网络搜索'
+  }
+  return groupNo + '组'
+}
+
 const viewpointA = computed(() => {
   const items: SubmissionItem[] = []
   for (const [groupNo, result] of Object.entries(activity.ac1_allResult)) {
     if (result.viewpoint === 'A') {
-      items.push({ 
-        id: groupNo, 
-        groupNo, 
-        result 
-      })
+      // 如果是网络搜索结果，拆分成3张卡片
+      if (groupNo.includes('网络搜索')) {
+        // 第一张卡片：观点1-2
+        if (result.point[1] || result.point[2]) {
+          items.push({
+            id: `${groupNo}_1`,
+            groupNo: `${groupNo}_1`,
+            result: {
+              ...result,
+              point: {
+                1: result.point[1] || '',
+                2: result.point[2] || ''
+              }
+            }
+          })
+        }
+        // 第二张卡片：观点3-4
+        if (result.point[3] || result.point[4]) {
+          items.push({
+            id: `${groupNo}_2`,
+            groupNo: `${groupNo}_2`,
+            result: {
+              ...result,
+              point: {
+                1: result.point[3] || '',
+                2: result.point[4] || ''
+              }
+            }
+          })
+        }
+        // 第三张卡片：观点5-6
+        if (result.point[5] || result.point[6]) {
+          items.push({
+            id: `${groupNo}_3`,
+            groupNo: `${groupNo}_3`,
+            result: {
+              ...result,
+              point: {
+                1: result.point[5] || '',
+                2: result.point[6] || ''
+              }
+            }
+          })
+        }
+      } else {
+        items.push({ 
+          id: groupNo, 
+          groupNo, 
+          result 
+        })
+      }
     }
   }
-  return items.sort((a, b) => parseInt(a.groupNo) - parseInt(b.groupNo))
+  return items.sort((a, b) => {
+    const aNum = parseInt(a.groupNo.split('_')[0].replace(/[^\d]/g, ''))
+    const bNum = parseInt(b.groupNo.split('_')[0].replace(/[^\d]/g, ''))
+    return aNum - bNum
+  })
 })
 
 const viewpointB = computed(() => {
   const items: SubmissionItem[] = []
   for (const [groupNo, result] of Object.entries(activity.ac1_allResult)) {
     if (result.viewpoint === 'B') {
-      items.push({ 
-        id: groupNo, 
-        groupNo, 
-        result 
-      })
+      // 如果是网络搜索结果，拆分成3张卡片
+      if (groupNo.includes('网络搜索')) {
+        // 第一张卡片：观点1-2
+        if (result.point[1] || result.point[2]) {
+          items.push({
+            id: `${groupNo}_1`,
+            groupNo: `${groupNo}_1`,
+            result: {
+              ...result,
+              point: {
+                1: result.point[1] || '',
+                2: result.point[2] || ''
+              }
+            }
+          })
+        }
+        // 第二张卡片：观点3-4
+        if (result.point[3] || result.point[4]) {
+          items.push({
+            id: `${groupNo}_2`,
+            groupNo: `${groupNo}_2`,
+            result: {
+              ...result,
+              point: {
+                1: result.point[3] || '',
+                2: result.point[4] || ''
+              }
+            }
+          })
+        }
+        // 第三张卡片：观点5-6
+        if (result.point[5] || result.point[6]) {
+          items.push({
+            id: `${groupNo}_3`,
+            groupNo: `${groupNo}_3`,
+            result: {
+              ...result,
+              point: {
+                1: result.point[5] || '',
+                2: result.point[6] || ''
+              }
+            }
+          })
+        }
+      } else {
+        items.push({ 
+          id: groupNo, 
+          groupNo, 
+          result 
+        })
+      }
     }
   }
-  return items.sort((a, b) => parseInt(a.groupNo) - parseInt(b.groupNo))
+  return items.sort((a, b) => {
+    const aNum = parseInt(a.groupNo.split('_')[0].replace(/[^\d]/g, ''))
+    const bNum = parseInt(b.groupNo.split('_')[0].replace(/[^\d]/g, ''))
+    return aNum - bNum
+  })
 })
 
 // 统计A和B的数量
@@ -569,13 +684,33 @@ const extractAllReasons = () => {
   const reasonsA: string[] = []
   const reasonsB: string[] = []
   
-  for (const [, result] of Object.entries(activity.ac1_allResult)) {
+  for (const [groupNo, result] of Object.entries(activity.ac1_allResult)) {
     if (result.viewpoint === 'A') {
-      if (result.point[1]) reasonsA.push(result.point[1])
-      if (result.point[2]) reasonsA.push(result.point[2])
+      // 如果是网络搜索结果，提取全部6条观点
+      if (groupNo.includes('网络搜索')) {
+        if (result.point[1]) reasonsA.push(result.point[1])
+        if (result.point[2]) reasonsA.push(result.point[2])
+        if (result.point[3]) reasonsA.push(result.point[3])
+        if (result.point[4]) reasonsA.push(result.point[4])
+        if (result.point[5]) reasonsA.push(result.point[5])
+        if (result.point[6]) reasonsA.push(result.point[6])
+      } else {
+        // 普通卡片只提取1条
+        if (result.point[1]) reasonsA.push(result.point[1])
+      }
     } else if (result.viewpoint === 'B') {
-      if (result.point[1]) reasonsB.push(result.point[1])
-      if (result.point[2]) reasonsB.push(result.point[2])
+      // 如果是网络搜索结果，提取全部6条观点
+      if (groupNo.includes('网络搜索')) {
+        if (result.point[1]) reasonsB.push(result.point[1])
+        if (result.point[2]) reasonsB.push(result.point[2])
+        if (result.point[3]) reasonsB.push(result.point[3])
+        if (result.point[4]) reasonsB.push(result.point[4])
+        if (result.point[5]) reasonsB.push(result.point[5])
+        if (result.point[6]) reasonsB.push(result.point[6])
+      } else {
+        // 普通卡片只提取1条
+        if (result.point[1]) reasonsB.push(result.point[1])
+      }
     }
   }
   
@@ -737,7 +872,7 @@ const playOrganizeAnimation = async () => {
 }
 
 .stats-section {
-  padding: 40px 0;
+  padding: 40px 0 20px 0;
 }
 
 .activity-header {

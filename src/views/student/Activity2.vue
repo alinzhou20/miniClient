@@ -35,7 +35,7 @@
               :loading="isSubmitting2_1"
               @click="submitActivity2_1"
             >
-              {{ activity2_1Submitted ? '已提交 ✓' : '提交选择' }}
+              提交选择
             </el-button>
             <!-- 活动2-2提交按钮 -->
             <el-button 
@@ -168,7 +168,6 @@ const selectedChallenge = ref<'one' | 'two' | 'three' | null>(null)
 
 // 活动2-1提交状态
 const isSubmitting2_1 = ref(false)
-const activity2_1Submitted = ref(false)
 
 // 活动2-2提交状态
 const isSubmitting2_2 = ref(false)
@@ -181,8 +180,8 @@ const showDesignPanel = ref(false)
 const QUESTION_BANK = bank
 
 const challengeItems: Array<{ level: 'one' | 'two' | 'three', stars: string, name: string }> = [
-  { level: 'two', stars: '⭐', name: '基础任务' },
   { level: 'three', stars: '⭐⭐', name: '挑战任务' },
+  { level: 'two', stars: '⭐', name: '基础任务' },
 ]
 
 const challengeDescriptions = {
@@ -295,7 +294,7 @@ const reasonConfirmed = ref<boolean | null>(null)
 
 // 提交活动2-1
 const submitActivity2_1 = async () => {
-  if (isSubmitting2_1.value || activity2_1Submitted.value) return
+  if (isSubmitting2_1.value) return
   
   const result = activity.ac2_1_stuSelectResult
   if (!result) {
@@ -384,7 +383,6 @@ const confirmSubmit = async () => {
       to: null
     })
     
-    activity2_1Submitted.value = true
     // 同步更新小组得分
     status.groupScores.activity2_1 = score
     ElMessage.success(`提交成功！获得 ${score} 分`)
@@ -394,6 +392,51 @@ const confirmSubmit = async () => {
   } finally {
     isSubmitting2_1.value = false
   }
+}
+
+// 检查题目是否与已有题目重复（题目标题和所有选项都必须完全相同）
+const isDuplicateQuestion = (newQuestion: any, existingQuestions: any[]) => {
+  if (!newQuestion) return false
+  
+  for (const existing of existingQuestions) {
+    // 1. 首先检查题目标题是否相同（忽略空格和标点）
+    const newTitle = newQuestion.title?.trim().replace(/[。？！，、；：""''（）\s]/g, '')
+    const existingTitle = existing.title?.trim().replace(/[。？！，、；：""''（）\s]/g, '')
+    
+    // 如果标题不同，直接跳过
+    if (!newTitle || !existingTitle || newTitle !== existingTitle) {
+      continue
+    }
+    
+    // 2. 标题相同，继续检查选项
+    const newOptions = newQuestion.options || []
+    const existingOptions = existing.options || []
+    
+    // 如果选项数量不同，则不是重复
+    if (newOptions.length !== existingOptions.length) {
+      continue
+    }
+    
+    // 3. 如果都没有选项（填空题），标题相同即为重复
+    if (newOptions.length === 0 && existingOptions.length === 0) {
+      return true
+    }
+    
+    // 4. 如果有选项，检查所有选项是否完全一致
+    const normalizedNewOptions = newOptions.map((o: string) => o.trim().replace(/\s/g, '')).sort()
+    const normalizedExistingOptions = existingOptions.map((o: string) => o.trim().replace(/\s/g, '')).sort()
+    
+    const optionsMatch = normalizedNewOptions.every((opt: string, idx: number) => 
+      opt === normalizedExistingOptions[idx]
+    )
+    
+    // 5. 标题和选项都相同才算重复
+    if (optionsMatch) {
+      return true
+    }
+  }
+  
+  return false
 }
 
 // 提交活动2-2
@@ -417,6 +460,13 @@ const submitActivity2_2 = async () => {
     ElMessage.warning('请先选择挑战级别')
     return
   }
+  
+  // 检查是否与已提交的题目重复
+  const existingQuestions = Object.values(activity.ac2_2_allDesignResult)
+    .filter(r => r?.designQuestion)
+    .map(r => r.designQuestion)
+  
+  const isDuplicate = isDuplicateQuestion(result.designQuestion, existingQuestions)
   
   // 根据选择的挑战级别设置评分
   const rating = result.rating || []
@@ -450,7 +500,7 @@ const submitActivity2_2 = async () => {
     
     const groupNo = status.userStatus?.groupNo || ''
     
-    // 1. 发送给教师
+    // 1. 发送给教师（无论是否重复都要发送）
     socket.submit({
       mode: status.mode,
       eventType: EventType.SUBMIT,
@@ -472,47 +522,65 @@ const submitActivity2_2 = async () => {
       to: null
     })
     
-    // 2. 广播给所有学生
-    socket.discuss({
-      mode: status.mode,
-      eventType: EventType.DISCUSS,
-      messageType: 'activity2_2_discuss',
-      activityIndex: '2-2',
-      data: {
-        groupNo: groupNo,
-        designQuestion: result.designQuestion,
-        rating: result.rating,
-        great: result.great,
-        submittedAt: result.submittedAt,
-        challengeLevel: selectedChallenge.value // 添加挑战级别信息
-      },
-      from: {
-        id: `${status.userStatus?.studentNo}_${groupNo}`,
-        groupNo: groupNo,
-        studentNo: status.userStatus?.studentNo,
-        studentRole: status.userStatus?.studentRole
-      },
-      to: {} // 发送给所有学生
-    })
-    
-    // 3. 更新本地的 ac2_2_allDesignResult
-    if (groupNo) {
-      activity.ac2_2_allDesignResult[groupNo] = {
-        designQuestion: result.designQuestion,
-        rating: result.rating,
-        great: result.great,
-        submittedAt: result.submittedAt,
-        challengeLevel: selectedChallenge.value // 添加挑战级别信息
+    // 2. 只有不重复的题目才广播给所有学生并加入 ac2_2_allDesignResult
+    if (!isDuplicate) {
+      // 广播给所有学生
+      socket.discuss({
+        mode: status.mode,
+        eventType: EventType.DISCUSS,
+        messageType: 'activity2_2_discuss',
+        activityIndex: '2-2',
+        data: {
+          groupNo: groupNo,
+          designQuestion: result.designQuestion,
+          rating: result.rating,
+          great: result.great,
+          submittedAt: result.submittedAt,
+          challengeLevel: selectedChallenge.value // 添加挑战级别信息
+        },
+        from: {
+          id: `${status.userStatus?.studentNo}_${groupNo}`,
+          groupNo: groupNo,
+          studentNo: status.userStatus?.studentNo,
+          studentRole: status.userStatus?.studentRole
+        },
+        to: {} // 发送给所有学生
+      })
+      
+      // 更新本地的 ac2_2_allDesignResult
+      if (groupNo) {
+        activity.ac2_2_allDesignResult[groupNo] = {
+          designQuestion: result.designQuestion,
+          rating: result.rating,
+          great: result.great,
+          submittedAt: result.submittedAt,
+          challengeLevel: selectedChallenge.value // 添加挑战级别信息
+        }
       }
     }
     
     activity2_2Submitted.value = true
     // 同步更新小组得分
     status.groupScores.activity2_2 = score
-    ElMessage.success(`提交成功！获得 ${score} 分`)
     
-    // 提交成功后显示展示面板
+    // 根据是否重复显示不同的提示信息
+    if (isDuplicate) {
+      ElMessage.success(`提交成功！获得 ${score} 分（题目与其他小组重复，不在展示区显示）`)
+    } else {
+      ElMessage.success(`提交成功！获得 ${score} 分`)
+    }
+    
+    // 提交成功后显示展示面板并自动滚动到展示区域
     showDesignPanel.value = true
+    
+    // 等待 DOM 更新后滚动到展示面板
+    await nextTick()
+    setTimeout(() => {
+      const designShowEl = document.querySelector('.design-show-container')
+      if (designShowEl) {
+        designShowEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 100)
   } catch (error) {
     console.error('[Activity 2-2] 提交失败:', error)
     ElMessage.error('提交失败，请重试')

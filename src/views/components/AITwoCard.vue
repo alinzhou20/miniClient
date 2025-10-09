@@ -35,107 +35,56 @@
         <div v-else class="msg-content">{{ msg.content }}</div>
       </div>
       
-      <!-- 设计结果展示 - 可编辑 -->
-      <!-- 单个题目显示（选择题） - 可编辑 -->
-      <div v-if="designedQuestions.length === 1" class="question-body editable">
+      <!-- 设计结果展示 - 可点击加入问卷 -->
+      <!-- 单个题目显示（选择题或填空题） - 点击加入问卷 -->
+      <div 
+        v-if="designedQuestions.length === 1" 
+        :class="['question-body', 'clickable', { 'saved': isSaved }]"
+        @click="handleQuestionClick(0)"
+      >
         <!-- 题型标题 -->
         <div class="question-type-title">
           {{ designedQuestions[0].type === 'fill' ? '填空题' : '多选题' }}
         </div>
         
-        <el-form label-width="45px">
-          <el-form-item label="题目">
-            <el-input
-              v-model="designedQuestions[0].title"
-              type="textarea"
-              :rows="2"
-              placeholder="请输入题目"
-              maxlength="200"
-              show-word-limit
-            />
-          </el-form-item>
-          <el-form-item 
-            v-for="(_option, optIndex) in (designedQuestions[0].options || [])" 
-            :key="optIndex"
-            :label="String.fromCharCode(65 + optIndex)"
-          >
-            <el-input
-              v-model="designedQuestions[0].options![optIndex]"
-              type="textarea"
-              :rows="1"
-              :placeholder="`请输入选项${String.fromCharCode(65 + optIndex)}`"
-              maxlength="100"
-              show-word-limit
-            />
-          </el-form-item>
-        </el-form>
+        <div class="question-title-text">{{ designedQuestions[0].title }}</div>
         
-        <el-button type="primary" @click="saveQuestion" class="save-btn">
-          保存到问卷
-        </el-button>
+        <div v-if="designedQuestions[0].options && designedQuestions[0].options.length > 0" class="question-options-preview">
+          <div v-for="(opt, idx) in designedQuestions[0].options" :key="idx" class="option-preview">
+            {{ String.fromCharCode(65 + idx) }}. {{ opt }}
+          </div>
+        </div>
+        
+        <div v-if="isSaved" class="saved-badge">✓ 已加入问卷</div>
+        <div v-else class="click-hint">💡 点击加入问卷</div>
       </div>
       
-      <!-- 多个题目显示（可以是填空题或选择题） -->
+      <!-- 多个题目显示（可以是填空题或选择题） - 点击加入问卷 -->
       <div v-else-if="designedQuestions.length > 1" class="fill-questions-wrapper">
         <div 
           v-for="(question, qIdx) in designedQuestions" 
           :key="qIdx"
-          :class="['question-body', 'selectable', { 'selected': selectedQuestionIndex === qIdx }]"
-          @click="selectedQuestionIndex = qIdx"
+          :class="['question-body', 'clickable', { 'selected': selectedQuestionIndex === qIdx, 'saved': isSaved && selectedQuestionIndex === qIdx }]"
+          @click="handleQuestionClick(qIdx)"
         >
           <div class="question-number">题目 {{ qIdx + 1 }}</div>
           
-          <!-- 选中的题目可以编辑 -->
-          <template v-if="selectedQuestionIndex === qIdx">
-            <!-- 题型标题 -->
-            <div class="question-type-title">{{ question.type === 'fill' ? '填空题' : '多选题' }}</div>
-            
-            <el-form label-width="45px">
-              <el-form-item label="题目">
-                <el-input
-                  v-model="question.title"
-                  type="textarea"
-                  :rows="2"
-                  placeholder="请输入题目"
-                  maxlength="200"
-                  show-word-limit
-                />
-              </el-form-item>
-              <!-- 如果是选择题，显示选项编辑 -->
-              <el-form-item 
-                v-if="question.type === 'multiple' && question.options"
-                v-for="(_option, optIndex) in question.options" 
-                :key="optIndex"
-                :label="String.fromCharCode(65 + optIndex)"
-              >
-                <el-input
-                  v-model="question.options![optIndex]"
-                  type="textarea"
-                  :rows="1"
-                  :placeholder="`请输入选项${String.fromCharCode(65 + optIndex)}`"
-                  maxlength="100"
-                  show-word-limit
-                />
-              </el-form-item>
-            </el-form>
-            
-            <div class="selected-badge">✓ 已选中</div>
-          </template>
+          <!-- 题型标题 -->
+          <div class="question-type-title">{{ question.type === 'fill' ? '填空题' : '多选题' }}</div>
           
-          <!-- 未选中的题目显示标题和选项预览 -->
-          <template v-else>
-            <div class="question-title">{{ question.title }}</div>
-            <div v-if="question.options && question.options.length > 0" class="question-options-preview">
-              <span v-for="(opt, idx) in question.options" :key="idx" class="option-preview">
-                {{ String.fromCharCode(65 + idx) }}. {{ opt }}
-              </span>
+          <div class="question-title-text">{{ question.title }}</div>
+          
+          <div v-if="question.options && question.options.length > 0" class="question-options-preview">
+            <div v-for="(opt, idx) in question.options" :key="idx" class="option-preview">
+              {{ String.fromCharCode(65 + idx) }}. {{ opt }}
             </div>
-          </template>
+          </div>
+          
+          <div v-if="isSaved && selectedQuestionIndex === qIdx" class="saved-badge">✓ 已加入问卷</div>
+          <div v-else-if="selectedQuestionIndex === qIdx" class="selected-badge">✓ 已选中</div>
         </div>
         
-        <el-button type="primary" @click="saveQuestion" class="save-btn-multiple">
-          保存到问卷
-        </el-button>
+        <div class="click-hint-multiple">💡 点击任意题目即可加入问卷</div>
       </div>
       
       <div v-if="isAsking" class="msg ai">
@@ -200,6 +149,7 @@ const direction = ref<string>('') // 调查方向
 const suggestions = ref<string[]>(['设计一道调查数字设备使用用途的选择题', '设计一道调查数字设备使用用途的填空题']) // 动态猜你想问
 const designedQuestions = ref<QuestionOption[]>([]) // 设计好的题目列表（填空题为数组）
 const selectedQuestionIndex = ref(0) // 选中的题目索引
+const isSaved = ref(false) // 是否已保存到问卷
 
 // 计算当前建议（根据状态）
 const currentSuggestions = computed(() => {
@@ -424,11 +374,12 @@ const handleSuggestionClick = async (suggestion: string, index: number) => {
     
     designedQuestions.value = newQuestions
     selectedQuestionIndex.value = 0
+    isSaved.value = false // 重置保存状态
     
     isAsking.value = false
     const tipMsg = newQuestions.length > 1 
-      ? `已为你设计了 ${newQuestions.length} 道题目！请选择一道保存到问卷。` 
-      : '题目已设计完成！请查看下方结果。'
+      ? `已为你设计了 ${newQuestions.length} 道题目！点击任意题目即可加入问卷。` 
+      : '题目已设计完成！点击题目即可加入问卷。'
     await typeWriter(tipMsg, `design_${Date.now()}`)
     
     // 等待题目卡片渲染后再滚动
@@ -580,9 +531,10 @@ const proceedToDesign = async (selectedDirection: string) => {
       if (newQuestions.length > 0) {
         designedQuestions.value = newQuestions
         selectedQuestionIndex.value = 0 // 默认选中第一个
+        isSaved.value = false // 重置保存状态
         const tipMsg = newQuestions.length > 1 
-          ? `已为你设计了 ${newQuestions.length} 道题目！请选择一道保存到问卷。` 
-          : '题目已设计完成！请查看下方结果。'
+          ? `已为你设计了 ${newQuestions.length} 道题目！点击任意题目即可加入问卷。` 
+          : '题目已设计完成！点击题目即可加入问卷。'
         await typeWriter(tipMsg, `design_${Date.now()}`)
         // 等待题目卡片渲染后再滚动
         await nextTick()
@@ -600,6 +552,15 @@ const proceedToDesign = async (selectedDirection: string) => {
     isAsking.value = false
     await typeWriter('抱歉，题目设计失败，请重试。', `e${Date.now()}`)
   }
+}
+
+// 处理题目点击 - 选中并保存到问卷
+const handleQuestionClick = (qIdx: number) => {
+  // 更新选中的题目索引
+  selectedQuestionIndex.value = qIdx
+  
+  // 自动保存到问卷
+  saveQuestion()
 }
 
 // 保存题目到问卷
@@ -631,10 +592,10 @@ const saveQuestion = () => {
     console.log('[AITwoCard] 添加新的 design 题目到问卷')
   }
   
-  ElMessage.success('题目已加入问卷！请点击"提交设计"按钮完成提交')
+  // 标记为已保存
+  isSaved.value = true
   
-  // 可以选择重置状态或保留
-  // resetConversation()
+  ElMessage.success('题目已加入问卷！请点击"提交设计"按钮完成提交')
 }
 
 const clearChat = () => {
@@ -654,6 +615,7 @@ const clearChat = () => {
   suggestions.value = ['设计一道调查数字设备使用用途的选择题', '设计一道调查数字设备使用用途的填空题']
   designedQuestions.value = []
   selectedQuestionIndex.value = 0
+  isSaved.value = false
   
   // 重新显示欢迎词的打字机效果
   typeWriter(WELCOME_STATE_1, 'welcome')
@@ -873,40 +835,39 @@ const clearChat = () => {
 
 .question-body {
   background: white;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 16px;
   margin-bottom: 16px;
   position: relative;
+  border: 2px solid #e5e7eb;
+  transition: all 0.3s ease;
 }
 
-.question-body.editable {
-  padding: 20px;
-  background: white;
-  border-radius: 12px;
+.question-body.clickable {
+  cursor: pointer;
   border: 2px solid #bae6fd;
+  background: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   animation: fadeInSuggestions 0.5s ease;
   margin-bottom: 0;
 }
 
-.question-body.selectable {
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
-  margin-bottom: 0;
-}
-
-.question-body.selectable:hover {
+.question-body.clickable:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
   border-color: #7dd3fc;
 }
 
-.question-body.selectable.selected {
+.question-body.clickable.selected {
   border-color: #0ea5e9;
   background: linear-gradient(135deg, #ffffff, #f0f9ff);
   box-shadow: 0 4px 16px rgba(14, 165, 233, 0.3);
-  padding: 20px;
+}
+
+.question-body.clickable.saved {
+  border-color: #10b981;
+  background: linear-gradient(135deg, #ffffff, #f0fdf4);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
 }
 
 .question-number {
@@ -931,12 +892,64 @@ const clearChat = () => {
   animation: fadeIn 0.3s ease;
 }
 
+.saved-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #10b981;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  animation: fadeIn 0.3s ease;
+}
+
 .question-title {
   font-size: 15px;
   font-weight: 600;
   color: #1f2937;
   margin-bottom: 8px;
   line-height: 1.6;
+}
+
+.question-title-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 12px 0;
+  line-height: 1.6;
+}
+
+.click-hint {
+  text-align: center;
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 12px;
+  padding: 8px;
+  background: #f9fafb;
+  border-radius: 6px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.click-hint-multiple {
+  text-align: center;
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 12px;
+  padding: 8px;
+  background: #f9fafb;
+  border-radius: 6px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .question-options-preview {
@@ -950,19 +963,7 @@ const clearChat = () => {
   font-size: 13px;
   color: #4b5563;
   line-height: 1.5;
-  padding: 2px 0;
-}
-
-.save-btn {
-  width: 100%;
-  font-weight: 600;
-  margin-top: 8px;
-}
-
-.save-btn-multiple {
-  width: 100%;
-  font-weight: 600;
-  margin-top: 12px;
+  padding: 4px 0;
 }
 
 .ai-footer {
