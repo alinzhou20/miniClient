@@ -82,7 +82,7 @@ export function cameraUtils(config: CameraConfig = {}) {
         video: true
       })
 
-      console.log('[Camera] 摄像头流:', stream)
+      console.log('[Camera] 摄像头流:', stream)               
       
       mediaStream.value = stream
       

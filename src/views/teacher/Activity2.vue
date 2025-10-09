@@ -39,27 +39,24 @@
               <h3 class="design-list-title">📝 学生设计的题目</h3>
               <span class="design-count">{{ studentDesignCount }}个</span>
             </div>
+            <p class="design-hint">💡 点击题目卡片即可添加到问卷</p>
             
             <div v-if="studentDesignCount > 0" class="design-items">
               <div 
                 v-for="design in sortedDesignResults" 
                 :key="design.groupNo"
                 class="design-item-card"
+                :class="{ 
+                  'no-question': !design.designQuestion,
+                  'selected': selectedDesignGroupNo === design.groupNo
+                }"
+                @click="design.designQuestion && handleDesignClick(design)"
               >
                 <div class="design-item-header">
-                  <span class="group-label">第{{ design.groupNo }}组</span>
-                  <span v-if="design.designQuestion" class="type-badge">{{ getQuestionTypeText(design.designQuestion.type) }}</span>
-                  <span class="like-badge">👍 {{ design.great || 0 }}</span>
-                  <el-button 
-                    v-if="design.designQuestion"
-                    type="primary" 
-                    size="small"
-                    :icon="Plus"
-                    class="add-btn"
-                    @click="addQuestionToQuestionnaire(design.designQuestion)"
-                  >
-                    添加到问卷
-                  </el-button>
+                  <span class="group-info">第{{ design.groupNo }}组 · 👍{{ design.great || 0 }}</span>
+                  <span v-if="design.designQuestion" class="question-type" :class="design.taskType">
+                    {{ design.taskType === 'challenge' ? '挑战' : design.taskType === 'basic' ? '基础' : '' }} · {{ getQuestionTypeText(design.designQuestion.type) }}
+                  </span>
                   <span class="design-time">{{ formatTime(design.submittedAt) }}</span>
                 </div>
                 
@@ -80,7 +77,7 @@
                   </div>
                 </div>
                 
-                <div v-else class="no-question">
+                <div v-else class="no-design">
                   <span>暂未设计题目</span>
                 </div>
               </div>
@@ -199,7 +196,7 @@ import { useRouter } from 'vue-router'
 import { useSocket } from '@/store/socket'
 import { useStatus } from '@/store/status'
 // import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+// import { Plus } from '@element-plus/icons-vue'
 import { bank, useActivity, questionnaireSecondData, type QuestionOption } from '@/store/activity'
 import { EntityMode, EventType } from '@/types'
 import QuestionnairePreviewCard from '../components/QuestionnairePreviewCard.vue'
@@ -407,6 +404,9 @@ function sendQuestionnaireToStudents() {
 }
 
 // ==================== 学生设计题目相关 ====================
+// 当前选中的设计
+const selectedDesignGroupNo = ref<string | null>(null)
+
 // 学生设计题目数量
 const studentDesignCount = computed(() => {
   return Object.keys(activity.ac2_2_allDesignResult).length
@@ -415,10 +415,36 @@ const studentDesignCount = computed(() => {
 // 排序后的设计结果（按点赞数降序，相同点赞数按提交时间升序）
 const sortedDesignResults = computed(() => {
   return Object.entries(activity.ac2_2_allDesignResult)
-    .map(([groupNo, result]) => ({
-      groupNo,
-      ...result
-    }))
+    .map(([groupNo, result]) => {
+      // 根据rating或challengeLevel判断任务类型
+      let taskType = ''
+      
+      // 优先使用challengeLevel判断
+      if (result.challengeLevel) {
+        if (result.challengeLevel === 'three') {
+          taskType = 'challenge' // 挑战任务
+        } else if (result.challengeLevel === 'two') {
+          taskType = 'basic' // 基础任务
+        }
+      } 
+      // 如果没有challengeLevel，使用rating判断
+      else if (result.rating) {
+        const challengeItem = result.rating.find(r => r.index === 1 && r.score === 2)
+        const basicItem = result.rating.find(r => r.index === 2 && r.score === 1)
+        
+        if (challengeItem) {
+          taskType = 'challenge' // 挑战任务
+        } else if (basicItem) {
+          taskType = 'basic' // 基础任务
+        }
+      }
+      
+      return {
+        groupNo,
+        ...result,
+        taskType
+      }
+    })
     .sort((a, b) => {
       // 先按点赞数降序
       const greatA = a.great || 0
@@ -462,6 +488,17 @@ function getQuestionTypeText(type: 'fill' | 'single' | 'multiple'): string {
     'multiple': '多选题'
   }
   return typeMap[type] || '未知'
+}
+
+// 处理设计卡片点击
+function handleDesignClick(design: any) {
+  if (!design.designQuestion) return
+  
+  // 设置选中状态
+  selectedDesignGroupNo.value = design.groupNo
+  
+  // 添加到问卷
+  addQuestionToQuestionnaire(design.designQuestion)
 }
 
 // 添加题目到问卷
@@ -926,6 +963,16 @@ function addQuestionToQuestionnaire(question: QuestionOption) {
   border-radius: 12px;
 }
 
+.design-hint {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0 0 16px 0;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border-left: 3px solid #3b82f6;
+}
+
 .design-items {
   display: flex;
   flex-direction: column;
@@ -940,11 +987,35 @@ function addQuestionToQuestionnaire(question: QuestionOption) {
   border-radius: 12px;
   padding: 16px;
   transition: all 0.3s ease;
+  cursor: pointer;
 }
 
 .design-item-card:hover {
   border-color: #3b82f6;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  background: #f7faff;
+}
+
+.design-item-card.no-question {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.design-item-card.no-question:hover {
+  border-color: #e5e7eb;
+  box-shadow: none;
+  background: #fafafa;
+}
+
+.design-item-card.selected {
+  border-color: #10b981;
+  background: #f0fdf4;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.design-item-card.selected:hover {
+  border-color: #10b981;
+  background: #f0fdf4;
 }
 
 .design-item-header {
@@ -952,52 +1023,35 @@ function addQuestionToQuestionnaire(question: QuestionOption) {
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
-  flex-wrap: wrap;
+  justify-content: space-between;
 }
 
-.group-label {
+.group-info {
   font-size: 12px;
-  font-weight: 700;
-  color: #1e40af;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  font-weight: 600;
   padding: 3px 10px;
   border-radius: 6px;
-  border: 2px solid #93c5fd;
+  background: #e5e7eb;
+  color: #374151;
   flex-shrink: 0;
 }
 
-.design-item-header .type-badge {
-  display: inline-block;
-  font-size: 11px;
+.question-type {
+  font-size: 12px;
   font-weight: 600;
-  color: #0ea5e9;
-  background: #e0f2fe;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
   flex-shrink: 0;
 }
 
-.design-item-header .like-badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
+.question-type.challenge {
+  background: #fef3c7;
   color: #92400e;
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border: 1px solid #fbbf24;
-  padding: 2px 8px;
-  border-radius: 10px;
-  flex-shrink: 0;
 }
 
-.design-item-header .add-btn {
-  font-size: 11px;
-  padding: 3px 10px;
-  height: auto;
-  flex-shrink: 0;
-}
-
-.design-item-header .add-btn:deep(.el-button) {
-  padding: 3px 10px;
+.question-type.basic {
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .design-time {
@@ -1048,7 +1102,7 @@ function addQuestionToQuestionnaire(question: QuestionOption) {
   line-height: 1.5;
 }
 
-.no-question {
+.no-design {
   text-align: center;
   padding: 20px;
   color: #9ca3af;

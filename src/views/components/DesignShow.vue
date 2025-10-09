@@ -23,6 +23,8 @@
         <div class="group-header">
           <span class="group-number">{{ group.id }}组</span>
           <div class="header-right">
+            <span v-if="group.taskType === 'challenge'" class="task-badge challenge">挑战任务</span>
+            <span v-else-if="group.taskType === 'basic'" class="task-badge basic">基础任务</span>
             <span v-if="group.hasDesign" class="status-badge">已提交</span>
             <span v-else class="status-badge pending">未提交</span>
           </div>
@@ -96,12 +98,46 @@ const groups = computed(() => {
     const groupId = `${i}`
     const designResult = activity.ac2_2_allDesignResult[groupId]
     
+    // 根据rating或challengeLevel判断任务类型
+    let taskType = ''
+    
+    // 优先使用challengeLevel判断
+    if (designResult?.challengeLevel) {
+      if (designResult.challengeLevel === 'three') {
+        taskType = 'challenge' // 挑战任务
+      } else if (designResult.challengeLevel === 'two') {
+        taskType = 'basic' // 基础任务
+      }
+    } 
+    // 如果没有challengeLevel，使用rating判断
+    else if (designResult?.rating) {
+      const challengeItem = designResult.rating.find(r => r.index === 1 && r.score === 2)
+      const basicItem = designResult.rating.find(r => r.index === 2 && r.score === 1)
+      
+      if (challengeItem) {
+        taskType = 'challenge' // 挑战任务
+      } else if (basicItem) {
+        taskType = 'basic' // 基础任务
+      }
+    }
+    
+    // 计算得分
+    let score = 0
+    if (designResult?.rating) {
+      designResult.rating.forEach(r => {
+        if (r.score > 0) score = r.score
+      })
+    }
+    
     groupsList.push({
       id: groupId,
       hasDesign: !!designResult?.designQuestion,
       question: designResult?.designQuestion || null,
       great: designResult?.great || 0,
-      submittedAt: designResult?.submittedAt || 0
+      submittedAt: designResult?.submittedAt || 0,
+      rating: designResult?.rating || [],
+      taskType: taskType,
+      score: score
     })
   }
   return groupsList
@@ -329,6 +365,27 @@ const handleLike = (groupId: string) => {
 
 .status-badge.pending {
   background: #94a3b8;
+}
+
+/* 任务类型徽章 */
+.task-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  margin-right: 4px;
+}
+
+.task-badge.challenge {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #fbbf24;
+  color: #92400e;
+}
+
+.task-badge.basic {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border: 1px solid #60a5fa;
+  color: #1e40af;
 }
 
 /* 内容区 */

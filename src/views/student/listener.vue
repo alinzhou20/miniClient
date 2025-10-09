@@ -62,12 +62,13 @@ function onActivity2_2Discuss(payload: any) {
   
   if (!groupNo) return
   
-  // 更新 ac2_2_allDesignResult
+  // 更新 ac2_2_allDesignResult（包含rating和挑战级别信息）
   activity.ac2_2_allDesignResult[groupNo] = {
     designQuestion: data.designQuestion || null,
     rating: data.rating || [],
     great: data.great || 0,
-    submittedAt: data.submittedAt || Date.now()
+    submittedAt: data.submittedAt || Date.now(),
+    challengeLevel: data.challengeLevel || null
   }
   
   // console.log(`[Student Listener] 收到第${groupNo}组的设计`)

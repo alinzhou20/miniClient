@@ -460,7 +460,8 @@ const submitActivity2_2 = async () => {
         designQuestion: result.designQuestion,
         rating: result.rating,
         great: result.great,
-        submittedAt: result.submittedAt
+        submittedAt: result.submittedAt,
+        challengeLevel: selectedChallenge.value // 添加挑战级别信息
       },
       from: {
         id: `${status.userStatus?.studentNo}_${groupNo}`,
@@ -482,7 +483,8 @@ const submitActivity2_2 = async () => {
         designQuestion: result.designQuestion,
         rating: result.rating,
         great: result.great,
-        submittedAt: result.submittedAt
+        submittedAt: result.submittedAt,
+        challengeLevel: selectedChallenge.value // 添加挑战级别信息
       },
       from: {
         id: `${status.userStatus?.studentNo}_${groupNo}`,
@@ -499,7 +501,8 @@ const submitActivity2_2 = async () => {
         designQuestion: result.designQuestion,
         rating: result.rating,
         great: result.great,
-        submittedAt: result.submittedAt
+        submittedAt: result.submittedAt,
+        challengeLevel: selectedChallenge.value // 添加挑战级别信息
       }
     }
     

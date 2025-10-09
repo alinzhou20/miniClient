@@ -70,6 +70,7 @@ export interface Activity2_2_designResult {
   rating: Rating[]
   great: number
   submittedAt: number
+  challengeLevel?: 'one' | 'two' | 'three' | null  // 挑战级别
 }
 
 // ==================== Activity 3 - 问卷填写 ====================

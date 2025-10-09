@@ -16,7 +16,7 @@
           <!-- 正方卡片容器 -->
           <div class="opinion-side side-a">
             <div class="side-header">
-              <h3 class="side-title">正方</h3>
+              <h3 class="side-title">A 利大于弊</h3>
               <div class="side-badge">{{ countA }}组</div>
             </div>
             
@@ -29,11 +29,8 @@
                 <span class="dot"></span>
               </div>
               <!-- 数据加载完成后显示打字机效果 -->
-              <div v-else class="summary-items">
-                <div v-for="(item, index) in typedSummaryA" :key="index" class="summary-item">
-                  <span class="summary-number">{{ index + 1 }}.</span>
-                  <span class="summary-text">{{ item }}</span>
-                </div>
+              <div v-else class="summary-content">
+                <span class="summary-text">{{ typedSummaryA }}</span>
               </div>
             </div>
             
@@ -155,7 +152,7 @@
           <!-- 反方卡片容器 -->
           <div class="opinion-side side-b">
             <div class="side-header">
-              <h3 class="side-title">反方</h3>
+              <h3 class="side-title">B 弊大于利</h3>
               <div class="side-badge">{{ countB }}组</div>
             </div>
             
@@ -168,11 +165,8 @@
                 <span class="dot"></span>
               </div>
               <!-- 数据加载完成后显示打字机效果 -->
-              <div v-else class="summary-items">
-                <div v-for="(item, index) in typedSummaryB" :key="index" class="summary-item">
-                  <span class="summary-number">{{ index + 1 }}.</span>
-                  <span class="summary-text">{{ item }}</span>
-                </div>
+              <div v-else class="summary-content">
+                <span class="summary-text">{{ typedSummaryB }}</span>
               </div>
             </div>
             
@@ -364,13 +358,13 @@ const isOrganizeMode = ref(false)
 // 整理动画阶段：0=未开始, 1=显示items, 2=显示卡片框, 3=显示标题
 const organizeAnimationStage = ref(0)
 
-// 提炼卡片数据 - 改为数组存储三条信息
-const summaryCardA = ref<string[]>([])
-const summaryCardB = ref<string[]>([])
+// 提炼卡片数据 - 只存储第一条信息
+const summaryCardA = ref<string>('')
+const summaryCardB = ref<string>('')
 
 // 打字机效果的显示文本
-const typedSummaryA = ref<string[]>(['', '', ''])
-const typedSummaryB = ref<string[]>(['', '', ''])
+const typedSummaryA = ref<string>('')
+const typedSummaryB = ref<string>('')
 
 // 是否正在加载提炼数据
 const isLoadingSummaryA = ref(false)
@@ -415,21 +409,16 @@ const titleNames = {
 }
 
 // 提炼卡片打字机效果
-const typeSummaryText = async (texts: string[], target: 'A' | 'B') => {
-  const typedArray = target === 'A' ? typedSummaryA : typedSummaryB
+const typeSummaryText = async (text: string, target: 'A' | 'B') => {
+  const typedRef = target === 'A' ? typedSummaryA : typedSummaryB
   
   // 重置
-  typedArray.value = ['', '', '']
+  typedRef.value = ''
   
-  // 依次打印每条文本
-  for (let i = 0; i < texts.length; i++) {
-    const text = texts[i]
-    for (let j = 0; j <= text.length; j++) {
-      typedArray.value[i] = text.substring(0, j)
-      await new Promise(resolve => setTimeout(resolve, 50)) // 每个字50ms
-    }
-    // 每条之间稍微停顿
-    await new Promise(resolve => setTimeout(resolve, 200))
+  // 逐字打印文本
+  for (let i = 0; i <= text.length; i++) {
+    typedRef.value = text.substring(0, i)
+    await new Promise(resolve => setTimeout(resolve, 50)) // 每个字30ms
   }
 }
 
@@ -544,13 +533,9 @@ const handleSummary = async () => {
     console.log('[提炼卡片] 解析后 A:', summaryA)
     console.log('[提炼卡片] 解析后 B:', summaryB)
     
-    // 5. 提取 option 中的 o1, o2, o3
-    if (summaryA?.option) {
-      summaryCardA.value = [
-        summaryA.option.o1 || '',
-        summaryA.option.o2 || '',
-        summaryA.option.o3 || ''
-      ]
+    // 5. 提取 option 中的 o1（只需要第一条）
+    if (summaryA?.option?.o1) {
+      summaryCardA.value = summaryA.option.o1
       console.log('[提炼卡片] 提取的 A:', summaryCardA.value)
       
       // 停止加载，开始打字机效果
@@ -558,12 +543,8 @@ const handleSummary = async () => {
       typeSummaryText(summaryCardA.value, 'A')
     }
     
-    if (summaryB?.option) {
-      summaryCardB.value = [
-        summaryB.option.o1 || '',
-        summaryB.option.o2 || '',
-        summaryB.option.o3 || ''
-      ]
+    if (summaryB?.option?.o1) {
+      summaryCardB.value = summaryB.option.o1
       console.log('[提炼卡片] 提取的 B:', summaryCardB.value)
       
       // 停止加载，开始打字机效果
@@ -1047,43 +1028,22 @@ const playOrganizeAnimation = async () => {
   }
 }
 
-/* 提炼卡片的三条信息 */
-.summary-items {
+/* 提炼卡片内容 */
+.summary-content {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.summary-item {
-  display: flex;
-  align-items: start;
-  gap: 10px;
-  padding: 2px 0;
-  min-height: 28px;
-}
-
-.summary-number {
-  font-weight: 700;
-  flex-shrink: 0;
-  font-size: 18px;
-  line-height: 1.5;
-}
-
-.summary-card.card-a .summary-number {
-  color: #3b82f6;
-}
-
-.summary-card.card-b .summary-number {
-  color: #ef4444;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  min-height: 32px;
 }
 
 .summary-text {
-  flex: 1;
-  font-size: 18px;
-  line-height: 1.5;
+  font-size: 20px;
+  line-height: 1.6;
   word-break: break-word;
   color: #1f2937;
-  font-weight: 500;
+  font-weight: 600;
+  text-align: center;
 }
 
 /* 卡片容器 - 弹性居中布局 */
