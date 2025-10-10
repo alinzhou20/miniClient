@@ -152,7 +152,7 @@
           <div class="bank-header">
             <div class="bank-header-left">
               <span class="bank-icon">💡</span>
-              <span class="bank-title">使用影响</span>
+              <span class="bank-title">设备类型</span>
             </div>
           </div>
           <div class="question-list">

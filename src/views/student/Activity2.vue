@@ -25,7 +25,7 @@
       <!-- 问卷预览 -->
       <div class="preview-panel">
         <div class="panel-header">
-          <h3>{{ showChallengeMode ? '2. 为"使用用途"设计调查问题。你可以挑战不同难度。' : '1. 为"使用时长"和"使用影响"选择合适的调查问题，并说明你的理由。' }}</h3>
+          <h3>{{ showChallengeMode ? '2. 为"使用用途"设计调查问题。你可以挑战不同难度。' : '1. 为"使用时长"选择合适的调查问题，并说明你的理由。' }}</h3>
           <div class="header-actions">
             <!-- 活动2-1提交按钮 -->
             <el-button 
@@ -64,14 +64,14 @@
         <!-- 题库模式 -->
         <template v-if="!showChallengeMode">
           <QuestionBankCard
-            title="使用时长题库"
+            title="使用时长"
             description="以下是关于使用时长的调查问题，请选择一种合适的表述，并说明理由。（选中即可加入问卷）"
             :questions="QUESTION_BANK.durationQuestions"
             type="duration"
           />
           <QuestionBankCard
-            title="使用影响题库"
-            description="以下是关于使用影响的调查问题，请选择一种合适的表述，并说明理由。（选中即可加入问卷）"
+            title="设备类型"
+            description="以下是关于设备类型的调查问题，请选择一种合适的表述，并说明理由。（选中即可加入问卷）"
             :questions="QUESTION_BANK.impactQuestions"
             type="impact"
           />

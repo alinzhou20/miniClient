@@ -158,13 +158,13 @@ export const questionnaireSecondData: Questionnaire = {
     limit: -2  // 只能填入数字
   }, {
     id: 4,
-    title: '在你的学习、生活中，数字设备带来的最主要的影响是什么？（多选题，最多选3个）',
+    title: '你最常使用哪种数字设备？（多选题，最多选3个）',
     options: [
-      '提升学习效率',
-      '方便获取更多信息',
-      '游戏成瘾',
-      '作业依赖"搜题"',
-      '影响视力',   
+      '电话手表',
+      '手机',
+      '平板',
+      '电视',
+      '电脑',   
       '其他___',
   ],
     type: 'multiple',
@@ -201,10 +201,10 @@ export const bank: QuestionBank = {
   impactQuestions: [
     {
       id: 1,
-      title: '在你的学习、生活中，数字设备带来的最主要的影响是什么？',
+      title: '你最常使用哪种数字设备？',
       options: [
-        '提升学习效率',
-        '方便获取更多信息',
+        '手机',
+        '平板',
       ],
       type: 'single',
       questionType: 'impact',
@@ -214,10 +214,10 @@ export const bank: QuestionBank = {
     },
     {
       id: 2,
-      title: '在你的学习、生活中，数字设备带来的最主要的影响是什么？',
+      title: '你最常使用哪种数字设备？',
       options: [
-        '游戏成瘾',
-        '作业依赖“搜题”',
+        '电视',
+        '电脑',
       ],
       type: 'single',
       questionType: 'impact',
@@ -227,12 +227,13 @@ export const bank: QuestionBank = {
     },
     {
       id: 3,
-      title: '在你的学习、生活中，数字设备带来的最主要的影响是什么？（多选题，最多选3个）',
+      title: '你最常使用哪种数字设备？（多选题，最多选3个）',
       options: [
-        '提升学习效率',
-        '方便获取更多信息',
-        '游戏成瘾',
-        '作业依赖“搜题”',
+        '电话手表',
+        '手机',
+        '平板',
+        '电视',
+        '电脑',
         '其他___',
       ],
       type: 'multiple',

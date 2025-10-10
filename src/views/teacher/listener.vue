@@ -64,18 +64,18 @@ function onStudentSubmit(payload: any) {
         }
         break
         
-      case 'student_logout':
-        // 学生离线通知（只关心操作员）
-        if (data && from) {
-          const { groupNo, studentRole } = data
+      // case 'student_logout':
+      //   // 学生离线通知（只关心操作员）
+      //   if (data && from) {
+      //     const { groupNo, studentRole } = data
           
-          // 更新小组状态（只关心操作员）
-          if (studentRole === 'operator' && status.groupStatus[groupNo]) {
-            status.groupStatus[groupNo].isOnline = false
-          }
+      //     // 更新小组状态（只关心操作员）
+      //     if (studentRole === 'operator' && status.groupStatus[groupNo]) {
+      //       status.groupStatus[groupNo].isOnline = false
+      //     }
           
-        }
-        break
+      //   }
+      //   break
         
       case 'activity1_submit':
         // Activity 1 - 观点交锋

@@ -88,7 +88,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ElMessageBox } from 'element-plus'
-import { Download, Refresh, Plus } from '@element-plus/icons-vue'
+import { Download, Refresh } from '@element-plus/icons-vue'
 import { useActivity, type QuestionnaireAnswer, type QuestionOption } from '@/store/activity'
 import QuestionnaireAnswerCard from '../components/QuestionnaireAnswerCard.vue'
 // @ts-ignore
@@ -232,10 +232,23 @@ function exportAllAnswers() {
     detailData.push([`完成率：${completionRate.value}%`])
     detailData.push([]) // 空行
     
-    // 表头行
+    // 表头行 - 多选题按选项展开
     const headers = ['小组号', '学号', '角色', '提交时间']
+    const headerMapping: Array<{ questionIdx: number, optionIdx?: number }> = []
+    
     activity.questionnaire.questions.forEach((q, idx) => {
-      headers.push(`题${idx + 1}：${q.title}`)
+      if (q.type === 'multiple' && q.options) {
+        // 多选题：每个选项占一列
+        q.options.forEach((option, optIdx) => {
+          const letter = String.fromCharCode(65 + optIdx)
+          headers.push(`题${idx + 1}-${letter}：${option}`)
+          headerMapping.push({ questionIdx: idx, optionIdx: optIdx })
+        })
+      } else {
+        // 单选题和填空题：一列
+        headers.push(`题${idx + 1}：${q.title}`)
+        headerMapping.push({ questionIdx: idx })
+      }
     })
     detailData.push(headers)
     
@@ -256,47 +269,43 @@ function exportAllAnswers() {
         new Date(answer.submittedAt).toLocaleString('zh-CN', { hour12: false })
       ]
       
-      // 每道题的答案
-      answer.questions.forEach((question) => {
-        let answerText = ''
+      // 根据headerMapping填充每一列
+      headerMapping.forEach(({ questionIdx, optionIdx }) => {
+        const question = answer.questions[questionIdx]
         
-        if (question.type === 'fill') {
-          answerText = question.answer || '未填写'
-        } else if (question.type === 'single') {
-          // 单选题：显示选项字母和内容
-          if (question.answer && question.options) {
-            const idx = question.answer.charCodeAt(0) - 65
-            answerText = `${question.answer}. ${question.options[idx] || ''}`
-          } else {
-            answerText = '未选择'
-          }
-        } else if (question.type === 'multiple') {
-          // 多选题：显示所有选择的选项
-          if (question.answer && question.options) {
-            let letters: string[] = []
-            
-            // 支持数组格式（如 ['A', 'B']）或字符串格式（如 'A、B'）
+        if (optionIdx !== undefined) {
+          // 多选题的某个选项列
+          const letter = String.fromCharCode(65 + optionIdx)
+          let isSelected = false
+          
+          if (question?.answer) {
             if (Array.isArray(question.answer)) {
-              letters = question.answer.filter(l => l && l.trim())
-            } else if (typeof question.answer === 'string' && question.answer.trim()) {
-              letters = question.answer.split('、').filter(l => l && l.trim())
+              isSelected = question.answer.includes(letter)
+            } else if (typeof question.answer === 'string') {
+              const letters = question.answer.split('、').filter(l => l && l.trim())
+              isSelected = letters.includes(letter)
             }
-            
-            if (letters.length > 0) {
-              const selectedOptions = letters.map(letter => {
-                const idx = letter.charCodeAt(0) - 65
-                return `${letter}. ${question.options![idx] || ''}`
-              })
-              answerText = selectedOptions.join('; ')
+          }
+          
+          row.push(isSelected ? '√' : '×')
+        } else {
+          // 单选题或填空题
+          let answerText = ''
+          
+          if (question?.type === 'fill') {
+            answerText = question.answer || '未填写'
+          } else if (question?.type === 'single') {
+            // 单选题：显示选项字母和内容
+            if (question.answer && question.options) {
+              const idx = question.answer.charCodeAt(0) - 65
+              answerText = `${question.answer}. ${question.options[idx] || ''}`
             } else {
               answerText = '未选择'
             }
-          } else {
-            answerText = '未选择'
           }
+          
+          row.push(answerText)
         }
-        
-        row.push(answerText)
       })
       
       detailData.push(row)
@@ -311,8 +320,18 @@ function exportAllAnswers() {
       { wch: 10 },  // 角色
       { wch: 20 },  // 提交时间
     ]
-    activity.questionnaire.questions.forEach(() => {
-      colWidths.push({ wch: 30 }) // 每道题的答案列宽度
+    
+    // 根据题目类型设置列宽
+    activity.questionnaire.questions.forEach((q) => {
+      if (q.type === 'multiple' && q.options) {
+        // 多选题：每个选项列宽度为25（展示完整选项内容）
+        q.options.forEach(() => {
+          colWidths.push({ wch: 25 })
+        })
+      } else {
+        // 单选题和填空题：列宽度为30
+        colWidths.push({ wch: 30 })
+      }
     })
     ws1['!cols'] = colWidths
     

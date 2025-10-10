@@ -197,7 +197,7 @@ const getTypeText = (type: 'fill' | 'single' | 'multiple'): string => {
 const getQuestionTypeLabel = (questionType: string): { text: string; class: string } | null => {
   const labelMap: Record<string, { text: string; class: string }> = {
     'duration': { text: '使用时长', class: '' },
-    'impact': { text: '使用影响', class: '' },
+    'impact': { text: '设备类型', class: '' },
     'design': { text: '使用用途', class: 'usage' }
   }
   return labelMap[questionType] || null

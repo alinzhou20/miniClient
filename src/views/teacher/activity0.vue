@@ -31,7 +31,7 @@
             <div class="card-header">
               <h3 class="card-title">A</h3>
               <div v-if="activity.ac0_voteResult && totalCount > 0" class="card-count">
-                {{ activity.ac0_voteResult.countA }}人
+                {{ activity.ac0_voteResult.countA }}组
               </div>
             </div>
             <div class="card-content">
@@ -52,7 +52,7 @@
             <div class="card-header">
               <h3 class="card-title">B</h3>
               <div v-if="activity.ac0_voteResult && totalCount > 0" class="card-count">
-                {{ activity.ac0_voteResult.countB }}人
+                {{ activity.ac0_voteResult.countB }}组
               </div>
             </div>
             <div class="card-content">

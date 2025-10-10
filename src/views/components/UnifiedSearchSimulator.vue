@@ -326,7 +326,7 @@ const getFavicon = (domain: string) => {
 // 最终观点
 const positivePoints = [
   { icon: '⏰', text: '规定时间玩，能学能玩两不误' },
-  { icon: '📚', text: '可以查资料，看名师课堂学习' },
+  { icon: '📚', text: '用电脑可以查资料，看网课学习' },
   { icon: '🎓', text: '是学习新知识的好帮手' },
   { icon: '🎨', text: '能发展画画、编程等兴趣爱好' },
   { icon: '🚀', text: '帮我们接触未来，变得更聪明' },
@@ -334,10 +334,10 @@ const positivePoints = [
 ]
 
 const negativePoints = [
-  { icon: '⏱️', text: '玩得太久，耽误学习和睡觉' },
+  { icon: '⏱️', text: '平板玩得太久，耽误学习和睡觉' },
   { icon: '🎮', text: '总是想玩游戏和刷短视频' },
   { icon: '📉', text: '上课容易分心，成绩会下降' },
-  { icon: '👓', text: '长时间看屏幕，眼睛会近视' },
+  { icon: '👓', text: '长时间看手机，眼睛会近视' },
   { icon: '😟', text: '可能会变得焦虑，不开心' },
   { icon: '👨‍👩‍👧', text: '和家人交流变少，容易吵架' }
 ]

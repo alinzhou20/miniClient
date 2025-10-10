@@ -17,7 +17,7 @@
           <div class="opinion-side side-a">
             <div class="side-header">
               <h3 class="side-title">A 利大于弊</h3>
-              <div class="side-badge">{{ countA }}组</div>
+              <div class="side-badge">{{ countA }}条</div>
             </div>
             
             <!-- 提炼卡片 - 只在提炼模式显示 -->
@@ -152,7 +152,7 @@
           <div class="opinion-side side-b">
             <div class="side-header">
               <h3 class="side-title">B 弊大于利</h3>
-              <div class="side-badge">{{ countB }}组</div>
+              <div class="side-badge">{{ countB }}条</div>
             </div>
             
             <!-- 提炼卡片 - 只在提炼模式显示 -->
@@ -312,49 +312,21 @@ const viewpointA = computed(() => {
   const items: SubmissionItem[] = []
   for (const [groupNo, result] of Object.entries(activity.ac1_allResult)) {
     if (result.viewpoint === 'A') {
-      // 如果是网络搜索结果，拆分成3张卡片
+      // 如果是网络搜索结果，拆分成6张卡片，每张1条
       if (groupNo.includes('网络搜索')) {
-        // 第一张卡片：观点1-2
-        if (result.point[1] || result.point[2]) {
-          items.push({
-            id: `${groupNo}_1`,
-            groupNo: `${groupNo}_1`,
-            result: {
-              ...result,
-              point: {
-                1: result.point[1] || '',
-                2: result.point[2] || ''
+        for (let i = 1; i <= 6; i++) {
+          if (result.point[i]) {
+            items.push({
+              id: `${groupNo}_${i}`,
+              groupNo: `${groupNo}_${i}`,
+              result: {
+                ...result,
+                point: {
+                  1: result.point[i]
+                }
               }
-            }
-          })
-        }
-        // 第二张卡片：观点3-4
-        if (result.point[3] || result.point[4]) {
-          items.push({
-            id: `${groupNo}_2`,
-            groupNo: `${groupNo}_2`,
-            result: {
-              ...result,
-              point: {
-                1: result.point[3] || '',
-                2: result.point[4] || ''
-              }
-            }
-          })
-        }
-        // 第三张卡片：观点5-6
-        if (result.point[5] || result.point[6]) {
-          items.push({
-            id: `${groupNo}_3`,
-            groupNo: `${groupNo}_3`,
-            result: {
-              ...result,
-              point: {
-                1: result.point[5] || '',
-                2: result.point[6] || ''
-              }
-            }
-          })
+            })
+          }
         }
       } else {
         items.push({ 
@@ -376,49 +348,21 @@ const viewpointB = computed(() => {
   const items: SubmissionItem[] = []
   for (const [groupNo, result] of Object.entries(activity.ac1_allResult)) {
     if (result.viewpoint === 'B') {
-      // 如果是网络搜索结果，拆分成3张卡片
+      // 如果是网络搜索结果，拆分成6张卡片，每张1条
       if (groupNo.includes('网络搜索')) {
-        // 第一张卡片：观点1-2
-        if (result.point[1] || result.point[2]) {
-          items.push({
-            id: `${groupNo}_1`,
-            groupNo: `${groupNo}_1`,
-            result: {
-              ...result,
-              point: {
-                1: result.point[1] || '',
-                2: result.point[2] || ''
+        for (let i = 1; i <= 6; i++) {
+          if (result.point[i]) {
+            items.push({
+              id: `${groupNo}_${i}`,
+              groupNo: `${groupNo}_${i}`,
+              result: {
+                ...result,
+                point: {
+                  1: result.point[i]
+                }
               }
-            }
-          })
-        }
-        // 第二张卡片：观点3-4
-        if (result.point[3] || result.point[4]) {
-          items.push({
-            id: `${groupNo}_2`,
-            groupNo: `${groupNo}_2`,
-            result: {
-              ...result,
-              point: {
-                1: result.point[3] || '',
-                2: result.point[4] || ''
-              }
-            }
-          })
-        }
-        // 第三张卡片：观点5-6
-        if (result.point[5] || result.point[6]) {
-          items.push({
-            id: `${groupNo}_3`,
-            groupNo: `${groupNo}_3`,
-            result: {
-              ...result,
-              point: {
-                1: result.point[5] || '',
-                2: result.point[6] || ''
-              }
-            }
-          })
+            })
+          }
         }
       } else {
         items.push({ 
@@ -514,11 +458,11 @@ const typingTitles = ref({
 
 const titleNames = {
   a1: '使用时长',
-  a2: '使用影响',
+  a2: '设备类型',
   a3: '使用用途',
   a4: '使用安全',
   b1: '使用时长',
-  b2: '使用影响',
+  b2: '设备类型',
   b3: '使用用途',
   b4: '使用安全'
 }
@@ -1024,7 +968,7 @@ const playOrganizeAnimation = async () => {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
-  min-height: 400px;
+  min-height: 300px;
 }
 
 .side-a {
@@ -1184,13 +1128,13 @@ const playOrganizeAnimation = async () => {
 /* 卡片容器 - 弹性居中布局 */
 .cards-wrapper {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
   justify-content: center;
   align-content: start;
   max-width: 100%;
   flex: 1;
-  min-height: 200px;
+  min-height: 150px;
   transition: all 0.5s ease;
 }
 
@@ -1257,7 +1201,7 @@ const playOrganizeAnimation = async () => {
   width: 100%;
   max-width: 300px;
   min-width: 200px;
-  height: 200px;
+  min-height: 80px;
   padding: 12px;
   border-radius: 12px;
   background: #ffffff;
@@ -1321,38 +1265,21 @@ const playOrganizeAnimation = async () => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow-y: auto;
   padding: 4px 2px;
 }
 
-.card-reasons::-webkit-scrollbar {
-  width: 4px;
-}
-
-.card-reasons::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.card-reasons::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 2px;
-}
-
-.card-reasons::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
 .reason {
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.5;
   color: #1f2937;
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: white;
   border-radius: 8px;
   border-left: 4px solid #d1d5db;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
   font-weight: 500;
   transition: all 0.2s ease;
+  word-break: break-word;
 }
 
 .reason:hover {
@@ -1608,14 +1535,14 @@ const playOrganizeAnimation = async () => {
 /* 空状态 */
 .empty-state {
   width: 100%;
-  padding: 60px 20px;
+  padding: 40px 20px;
   text-align: center;
   color: #9ca3af;
   font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
+  min-height: 120px;
 }
 
 /* VS 分隔符 */
@@ -1755,14 +1682,14 @@ const playOrganizeAnimation = async () => {
   }
 
   .cards-wrapper {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     justify-content: center;
-    gap: 12px;
+    gap: 10px;
   }
   
   .opinion-card {
-    min-width: 200px;
-    max-width: 300px;
+    min-width: 180px;
+    max-width: 100%;
   }
 
   .organize-content {

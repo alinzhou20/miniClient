@@ -31,8 +31,11 @@
           <div class="like-section" v-if="activity.ac2_2_likeEnabled">
             <button 
               class="like-btn"
-              :class="{ 'already-liked': hasLiked(group.groupNo) }"
-              :disabled="hasLiked(group.groupNo)"
+              :class="{ 
+                'already-liked': hasLiked(group.groupNo),
+                'limit-reached': !hasLiked(group.groupNo) && likedGroups.size >= 2
+              }"
+              :disabled="hasLiked(group.groupNo) || likedGroups.size >= 2"
               @click="handleLike(group.groupNo)"
             >
               <span class="like-icon">👍</span>
@@ -159,6 +162,12 @@ const handleLike = (groupId: string) => {
     return
   }
   
+  // 检查点赞数量是否已达上限
+  if (likedGroups.value.size >= 2) {
+    ElMessage.warning('最多只能点赞2个题目')
+    return
+  }
+  
   const designResult = activity.ac2_2_allDesignResult[groupId]
   if (!designResult) {
     ElMessage.warning('该小组暂未提交设计')
@@ -248,6 +257,38 @@ const handleLike = (groupId: string) => {
   font-weight: 700;
   color: #1f2937;
   margin: 0 0 12px 0;
+}
+
+.like-info {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+  padding: 8px 20px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #fbbf24;
+  border-radius: 20px;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.like-tip {
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.like-remaining {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f59e0b;
+  padding: 2px 10px;
+  background: white;
+  border-radius: 12px;
+  min-width: 60px;
+  text-align: center;
 }
 
 .show-subtitle {
@@ -489,6 +530,14 @@ const handleLike = (groupId: string) => {
   color: #9ca3af;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.like-btn.limit-reached {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .like-icon {
