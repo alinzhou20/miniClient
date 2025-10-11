@@ -21,17 +21,13 @@
     <!-- 任务区域 -->
     <div class="task-section">
       <div class="section-header">
-        <h3>试一试</h3>
+        <h3></h3>
         <el-button type="success" @click="onResetAll" :disabled="!hasAnySelection">
           <el-icon><RefreshLeft /></el-icon> 重置全部
         </el-button>
       </div>
       
       <div class="task-content">
-        <p class="task-text">
-          <span class="highlight">拖动</span>数据获取方式，放入对应的场景中（每个场景可以放入多个方式）
-        </p>
-        
         <!-- 数据获取方式（可拖拽） -->
         <div class="methods-area">
           <div class="area-label">数据获取方式</div>

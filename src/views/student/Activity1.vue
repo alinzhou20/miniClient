@@ -18,73 +18,69 @@
     </div>
     <!-- 底部区域：左右分栏 -->
     <div class="bottom-section">
-      <!-- 左侧任务区 -->
-    <div class="left-panel">
-
-      <!-- 第一步 -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">1. 小组讨论，将理由写在纸质调查问卷上。</h3>
-        </div>
+      <!-- 左侧：摄像头卡片 -->
+      <div class="left-panel">
+        <StudentCamera 
+          @upload="handlePhotoUpload"
+          @reset="handleReset"
+        />
       </div>
-      <!-- 第二步 -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">2. 点击"拍照上传"（问卷拍完整、清晰）</h3>
-          <div class="header-btns">
-            <el-button type="primary" @click="startCamera">
-              {{ hasRecognitionResult ? '重新拍摄' : '拍照上传' }}
-            </el-button>
-            <el-button type="success" @click="submitResult" :disabled="!canSubmit">
+
+      <!-- 右侧：识别结果区 -->
+      <div class="right-panel">
+        <div class="card">
+          <h3 class="result-title">文字识别结果</h3>
+
+          <!-- 识别中加载动画 -->
+          <div v-if="isRecognizing" class="recognition-form loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">正在识别手写内容...</div>
+          </div>
+
+          <!-- 识别结果表单 -->
+          <div v-else-if="hasRecognitionResult" class="recognition-form">
+            <el-form label-width="100px">
+              <el-form-item label="小组观点：">
+                <el-select 
+                  v-model="activity.ac1_stuResult!.viewpoint" 
+                  placeholder="请选择观点"
+                  style="width: 100%"
+                >
+                  <el-option label="A 使用数字设备利大于弊" value="A" />
+                  <el-option label="B 使用数字设备弊大于利" value="B" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="理由：">
+                <el-input
+                  v-model="activity.ac1_stuResult!.point[1]"
+                  type="textarea"
+                  :rows="10"
+                  placeholder="请输入理由"
+                  maxlength="200"
+                  show-word-limit
+                />
+              </el-form-item>
+            </el-form>
+          </div>
+
+          <!-- 空状态 -->
+          <div v-else class="recognition-form empty">
+            <div class="empty-text">暂无识别结果</div>
+          </div>
+
+          <!-- 提交按钮 -->
+          <div class="submit-area">
+            <el-button 
+              type="success" 
+              size="large" 
+              class="submit-btn"
+              @click="submitResult" 
+              :disabled="!canSubmit"
+            >
               提交
             </el-button>
           </div>
         </div>
-    
-        <!-- 识别中加载动画 -->
-        <div v-if="isRecognizing" class="recognition-form loading">
-          <div class="loading-spinner"></div>
-          <div class="loading-text">正在识别手写内容...</div>
-        </div>
-
-        <!-- 可编辑表单 -->
-        <div v-else class="recognition-form">
-          <el-form label-width="100px">
-            <el-form-item label="小组观点：">
-              <el-select 
-                v-model="activity.ac1_stuResult!.viewpoint" 
-                placeholder="请选择观点"
-                style="width: 100%"
-              >
-                <el-option label="A 使用数字设备利大于弊" value="A" />
-                <el-option label="B 使用数字设备弊大于利" value="B" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="理由：">
-              <el-input
-                v-model="activity.ac1_stuResult!.point[1]"
-                type="textarea"
-                :rows="4"
-                placeholder="请输入理由"
-                maxlength="200"
-                show-word-limit
-              />
-            </el-form-item>
-          </el-form>
-        </div>
-        <!-- 摄像头组件 -->
-        <StudentCamera 
-          v-model="showCamera" 
-          @upload="handlePhotoUpload" 
-          @exit="handleCameraExit" 
-        />
-      </div>
-
-      <!-- 提交按钮 -->
-  </div>
-    <!-- 右侧AI助手 -->
-    <div class="right-panel">
-        <AIChatCard />
       </div>
     </div>
     
@@ -99,7 +95,6 @@ import { useSocket } from '@/store/socket'
 import { useCoze, WORKFLOW } from '@/utils/coze'
 import { ElMessage } from 'element-plus'
 import StudentCamera from '../components/StudentCamera.vue'
-import AIChatCard from '../components/AIChatCard.vue'
 import { EntityMode, EventType } from '@/types'
 
 const status = useStatus()
@@ -108,7 +103,6 @@ const socket = useSocket()
 const { uploadFile, runWorkflow } = useCoze()
 
 // 摄像头和识别
-const showCamera = ref(false)
 const isRecognizing = ref(false)
 const recognitionResult = ref<any>(null)
 
@@ -128,9 +122,8 @@ const canSubmit = computed(() => {
   )
 })
 
-// 启动摄像头并重置数据
-const startCamera = () => {
-  // 重置 ac1_stuResult
+// 处理重置事件（从 StudentCamera 组件触发）
+const handleReset = () => {
   if (activity.ac1_stuResult) {
     activity.ac1_stuResult.viewpoint = null
     activity.ac1_stuResult.point = { 1: '' }
@@ -138,10 +131,6 @@ const startCamera = () => {
     // 重置小组得分
     status.groupScores.activity1 = 0
   }
-  
-  // 启动摄像头
-  showCamera.value = true
-  // ElMessage.info('已重置数据，请重新拍摄')
 }
 
 // 提交结果
@@ -178,11 +167,7 @@ const submitResult = () => {
 
 // 处理摄像头上传事件
 const handlePhotoUpload = async () => {
-  // console.log('[Activity1] 收到上传照片')
-  showCamera.value = false
-  
   if (!status.takePhoto) {
-    // ElMessage.warning('照片未拍摄成功')
     return
   }
 
@@ -228,11 +213,6 @@ const autoScore = () => {
   }
 }
 
-// 处理摄像头退出事件
-const handleCameraExit = () => {
-  // console.log('[Activity1] 用户退出摄像头')
-  showCamera.value = false
-}
 </script>
 
 <style scoped>
@@ -245,23 +225,20 @@ const handleCameraExit = () => {
 
 .bottom-section {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: auto 1fr;
   gap: 24px;
   align-items: start;
-  height: 400px;
 }
 
 .left-panel {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  height: 100%;
-  overflow-y: auto;
 }
 
 .right-panel {
-  height: 100%;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  height: 576px;
 }
 
 /* 卡片样式 */
@@ -271,6 +248,18 @@ const handleCameraExit = () => {
   border-radius: 16px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.result-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
 }
 
 .evaluation-card {
@@ -317,17 +306,43 @@ const handleCameraExit = () => {
 /* 可编辑表单 */
 .recognition-form {
   padding: 24px;
-  margin-top: 16px;
   background: #f9fafb;
   border-radius: 12px;
   border: 2px dashed #d1d5db;
-  min-height: 210px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 空状态 */
+.recognition-form.empty {
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  border-color: #e5e7eb;
+}
+
+.empty-text {
+  font-size: 16px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+/* 提交按钮区域 */
+.submit-area {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: center;
+}
+
+.submit-btn {
+  min-width: 200px;
 }
 
 /* 加载状态 */
 .recognition-form.loading {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #f0f9ff, #e0f2fe);

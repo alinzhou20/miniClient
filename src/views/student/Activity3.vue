@@ -19,7 +19,7 @@
     <!-- 问卷预览和答题 -->
     <div class="questionnaire-section">
       <div class="section-header">
-        <h3>1. 填写问卷，思考题目设计是否合理。</h3>
+        <h3></h3>
         <div class="submit-area">
           <span v-if="!canSubmit && !hasSubmitted" class="submit-hint">
             请完成所有题目（{{ unansweredCount }}题未完成）

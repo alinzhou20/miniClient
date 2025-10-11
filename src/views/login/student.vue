@@ -35,14 +35,9 @@
       </el-form>
 
       <div class="switch">
-        <el-button @click="showCameraDialog = true" link>检查摄像头</el-button>
-        <span class="divider">|</span>
         <el-button @click="goToTeacher" link>切换到教师登录</el-button>
       </div>
     </div>
-
-    <!-- 摄像头弹窗 -->
-    <StudentCamera v-model="showCameraDialog" />
   </div>
 </template>
 
@@ -52,7 +47,6 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useStatus } from '@/store/status'
 import { useSocket } from '@/store/socket'
-import StudentCamera from '@/views/components/StudentCamera.vue'
 
 const router = useRouter()
 const status = useStatus()
@@ -60,7 +54,6 @@ const socketStore = useSocket()
 const { socket, connect } = socketStore
 
 const formRef = ref<FormInstance>()
-const showCameraDialog = ref(false)
 const isLogging = ref(false)
 const form = ref({ 
   groupNo: '', 

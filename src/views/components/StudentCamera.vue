@@ -1,21 +1,27 @@
 <template>
-  <el-dialog 
-    v-model="visible" 
-    :show-close="false"
-    :close-on-click-modal="false"
-    width="500px"
-    height="400px"
-    @close="handleClose"
-  >
+  <div class="camera-card">
     <div class="camera-container">
+      <!-- 未打开摄像头的占位界面 - 可点击启动 -->
+      <div 
+        v-if="!cameraStarted && !status.takePhoto" 
+        class="camera-placeholder"
+        @click="startCamera"
+      >
+        <div class="placeholder-icon">📷</div>
+        <p class="placeholder-text">点击开始拍摄</p>
+      </div>
+
+      <!-- 摄像头视频流 -->
       <video 
-        v-show="!status.takePhoto"
+        v-show="cameraStarted && !status.takePhoto"
         ref="videoRef" 
         autoplay 
         muted 
         playsinline
         :style="videoStyle"
       ></video>
+
+      <!-- 拍摄的照片 -->
       <img 
         v-if="status.takePhoto" 
         :src="status.takePhoto" 
@@ -23,63 +29,59 @@
         class="captured-photo"
         :style="photoStyle"
       />
-      <el-button class="exit-button" @click="handleExit">退出</el-button>
-      <el-button class="action-button" v-if="!status.takePhoto" type="primary" @click="capturePhoto">拍摄</el-button>
-      <div v-else class="photo-actions">
-        <el-button type="success" @click="uploadPhoto">上传</el-button>
-        <el-button type="danger" @click="resetPhoto">重置</el-button>
+
+      <!-- 操作按钮 -->
+      <el-button 
+        v-if="cameraStarted && !status.takePhoto" 
+        class="action-button" 
+        type="primary" 
+        @click="capturePhoto"
+      >
+        拍摄
+      </el-button>
+      <div v-else-if="status.takePhoto" class="photo-actions">
+        <el-button type="success" @click="uploadPhoto">确定</el-button>
+        <el-button type="danger" @click="resetPhoto">重拍</el-button>
       </div>
     </div>
-  </el-dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useStatus } from '@/store/status'
 
 const emit = defineEmits<{
   upload: [photo: string]
-  exit: []
+  reset: []  // 重置事件
 }>()
-
-const visible = defineModel<boolean>({ default: false })
 
 const status = useStatus()
 const videoRef = ref<HTMLVideoElement>()
 const stream = ref<MediaStream | null>(null)
-const videoWidth = ref(0)
-const videoHeight = ref(0)
+const cameraStarted = ref(false)
 
-// 计算视频样式（考虑90度旋转后的宽高互换）
+// 计算视频样式（旋转-90度，宽高互换以填满容器）
 const videoStyle = computed(() => {
-  if (videoWidth.value && videoHeight.value) {
-    // 因为旋转了-90度，宽高需要互换来计算宽高比
-    const aspectRatio = videoHeight.value / videoWidth.value
-    return {
-      width: '100%',
-      height: '100%',
-      transform: 'rotate(-90deg)',
-      objectFit: 'contain' as const,
-      aspectRatio: aspectRatio.toString()
-    }
-  }
+  // video旋转-90度后，宽高互换
+  // 容器是 432×768，所以video原始尺寸应该是 768×432
+  // 这样旋转后刚好变成 432×768，完美填充容器
   return {
-    width: '100%',
-    height: '100%',
+    width: '768px',
+    height: '432px',
     transform: 'rotate(-90deg)',
-    objectFit: 'contain' as const
+    transformOrigin: 'center center',
+    objectFit: 'cover' as const
   }
 })
 
 const photoStyle = computed(() => videoStyle.value)
 
-watch(visible, (newVal) => {
-  if (newVal) {
-    initCamera()
-  } else {
-    cleanup()
-  }
-})
+const startCamera = async () => {
+  if (cameraStarted.value) return
+  await initCamera()
+  cameraStarted.value = true
+}
 
 const initCamera = async () => {
   try {
@@ -102,20 +104,6 @@ const initCamera = async () => {
     
     if (videoRef.value) {
       videoRef.value.srcObject = stream.value
-      
-      // 等待视频元数据加载完成，获取实际尺寸
-      await new Promise<void>((resolve) => {
-        if (videoRef.value) {
-          videoRef.value.onloadedmetadata = () => {
-            if (videoRef.value) {
-              videoWidth.value = videoRef.value.videoWidth
-              videoHeight.value = videoRef.value.videoHeight
-              console.log(`[StudentCamera] Video元素显示尺寸: ${videoWidth.value} x ${videoHeight.value}`)
-            }
-            resolve()
-          }
-        }
-      })
     }
   } catch (error) {
     console.error('摄像头启动失败:', error)
@@ -139,71 +127,104 @@ const capturePhoto = () => {
 
 const resetPhoto = () => {
   status.takePhoto = null
+  // 发送重置事件，让父组件清空识别结果
+  emit('reset')
+  // 重置后重新启动摄像头
+  startCamera()
 }
 
 const uploadPhoto = () => {
   if (status.takePhoto) {
     emit('upload', status.takePhoto)
+    // 上传后关闭摄像头
+    cleanup()
+    cameraStarted.value = false
   }
-}
-
-const handleExit = () => {
-  cleanup()
-  status.takePhoto = null
-  visible.value = false
 }
 
 const cleanup = () => {
   if (stream.value) {
     stream.value.getTracks().forEach(track => track.stop())
+    stream.value = null
   }
-}
-
-const handleClose = () => {
-  cleanup()
-  status.takePhoto = null
 }
 </script>
 
 <style scoped>
+.camera-card {
+  width: 324px;
+  height: 576px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
 .camera-container {
   position: relative;
-  width: 480px;
-  height: 360px;
-  margin: 60px auto;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  overflow: hidden;
 }
 
-video, .captured-photo {
-  max-width: 100%;
-  max-height: 100%;
-  /* transform 和 object-fit 由动态样式控制 */
+/* 占位界面 - 可点击 */
+.camera-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #1e293b, #334155);
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.exit-button {
-  position: absolute;
-  top: -50px;
-  right: 70px;
-  z-index: 10;
-  opacity: 0.8;
+.camera-placeholder:hover {
+  background: linear-gradient(135deg, #334155, #475569);
+}
+
+.camera-placeholder:hover .placeholder-icon {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.placeholder-icon {
+  font-size: 80px;
+  opacity: 0.6;
+  transition: all 0.3s ease;
+}
+
+.placeholder-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin: 0;
+  text-align: center;
+  padding: 0 32px;
 }
 
 .action-button {
   position: absolute;
-  bottom: -40px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
-  opacity: 0.8;
 }
 
 .photo-actions {
   position: absolute;
-  bottom: -40px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
   display: flex;
   gap: 20px;
-  opacity: 0.8;
 }
 </style>

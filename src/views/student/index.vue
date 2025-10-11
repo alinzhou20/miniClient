@@ -140,7 +140,7 @@ const handleLogout = () => {
   border-radius: 20px;
   padding: 6px 14px;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 18px;
 }
 
 .title {

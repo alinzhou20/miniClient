@@ -22,10 +22,58 @@
 
     <!-- 左右分栏 -->
     <div v-if="!showDesignPanel" class="content-grid">
+      <!-- 设计区 -->
+      <div class="design-panel">
+        <!-- 题库模式 -->
+        <template v-if="!showChallengeMode">
+          <QuestionBankCard
+            title="使用时长"
+            description=""
+            :questions="QUESTION_BANK.durationQuestions"
+            type="duration"
+          />
+          <QuestionBankCard
+            title="设备类型"
+            description=""
+            :questions="QUESTION_BANK.impactQuestions"
+            type="impact"
+          />
+        </template>
+
+        <!-- 挑战模式 -->
+        <template v-else>
+          <div class="challenge-card">
+            <h3>选择难度</h3>            
+            <!-- 按钮区域 -->
+            <div class="challenge-buttons">
+              <el-button
+                v-for="item in challengeItems" 
+                :key="item.level"
+                :type="selectedChallenge === item.level ? 'primary' : 'default'"
+                size="default"
+                class="challenge-btn"
+                :class="item.level"
+                @click="selectChallenge(item.level)"
+              >
+                <div class="btn-content">
+                  <span class="star-text">{{ item.stars }}</span>
+                  <span class="btn-label">{{ item.name }}</span>
+                </div>
+              </el-button>
+            </div>
+
+          </div>
+          <div class="help-card">
+          <ThreeStarChallenge v-if="selectedChallenge === 'three'" />
+          <TwoStarChallenge v-if="selectedChallenge === 'two'" />
+        </div>
+        </template>
+      </div>
+
       <!-- 问卷预览 -->
       <div class="preview-panel">
         <div class="panel-header">
-          <h3>{{ showChallengeMode ? '2. 为"使用用途"设计调查问题。你可以挑战不同难度。' : '1. 为"使用时长"选择合适的调查问题，并说明你的理由。' }}</h3>
+          <h3></h3>
           <div class="header-actions">
             <!-- 活动2-1提交按钮 -->
             <el-button 
@@ -57,59 +105,6 @@
           </div>
         </div>
         <QuestionnairePreview />
-      </div>
-
-      <!-- 设计区 -->
-      <div class="design-panel">
-        <!-- 题库模式 -->
-        <template v-if="!showChallengeMode">
-          <QuestionBankCard
-            title="使用时长"
-            description="以下是关于使用时长的调查问题，请选择一种合适的表述，并说明理由。（选中即可加入问卷）"
-            :questions="QUESTION_BANK.durationQuestions"
-            type="duration"
-          />
-          <QuestionBankCard
-            title="设备类型"
-            description="以下是关于设备类型的调查问题，请选择一种合适的表述，并说明理由。（选中即可加入问卷）"
-            :questions="QUESTION_BANK.impactQuestions"
-            type="impact"
-          />
-        </template>
-
-        <!-- 挑战模式 -->
-        <template v-else>
-          <div class="challenge-card">
-            <h3>选择难度</h3>            
-            <!-- 按钮区域 -->
-            <div class="challenge-buttons">
-              <el-button
-                v-for="item in challengeItems" 
-                :key="item.level"
-                :type="selectedChallenge === item.level ? 'primary' : 'default'"
-                size="default"
-                class="challenge-btn"
-                :class="item.level"
-                @click="selectChallenge(item.level)"
-              >
-                <div class="btn-content">
-                  <span class="star-text">{{ item.stars }}</span>
-                  <span class="btn-label">{{ item.name }}</span>
-                </div>
-              </el-button>
-            </div>
-
-            <!-- 描述区域 -->
-            <div class="challenge-description">
-              <div class="desc-title">具体要求</div>
-              <div class="desc-content">{{ currentChallengeDesc }}</div>
-            </div>
-          </div>
-          <div class="help-card">
-          <ThreeStarChallenge v-if="selectedChallenge === 'three'" />
-          <TwoStarChallenge v-if="selectedChallenge === 'two'" />
-        </div>
-        </template>
       </div>
     </div>
 
@@ -183,16 +178,6 @@ const challengeItems: Array<{ level: 'one' | 'two' | 'three', stars: string, nam
   { level: 'three', stars: '⭐⭐', name: '挑战任务' },
   { level: 'two', stars: '⭐', name: '基础任务' },
 ]
-
-const challengeDescriptions = {
-  three: '将自己设计的题目填写在"使用用途题目设计模版"中，并拍照上传。',
-  two: '借助小敏老师（AI智能体）对话，共同完成问题设计。',
-  one: '从AI推荐的"使用用途"题目中任选其一。'
-}
-
-const currentChallengeDesc = computed(() => {
-  return selectedChallenge.value ? challengeDescriptions[selectedChallenge.value] : ''
-})
 
 // 当前评分（根据模式切换）
 const currentRating = computed(() => {
@@ -658,7 +643,7 @@ const submitActivity2_2 = async () => {
 
 .content-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr 2fr;
   gap: 20px;
 }
 
