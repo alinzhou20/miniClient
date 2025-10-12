@@ -2,11 +2,7 @@
   <div class="page">
     <div class="card">
       <div class="header">
-        <h1>信息科技课堂 · 管理端</h1>
-        <p>教师登录</p>
-        <el-tag :type="connectionStatusType" size="small" effect="plain">
-          {{ connectionStatusText }}
-        </el-tag>
+        <h1>萧山区信息科技平台</h1>
       </div>
 
       <el-form ref="formRef" :model="form" :rules="rules" class="form">

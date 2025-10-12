@@ -90,7 +90,7 @@ import { computed, ref } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import { Download, Refresh } from '@element-plus/icons-vue'
 import { useActivity, type QuestionnaireAnswer, type QuestionOption } from '@/store/activity'
-import QuestionnaireAnswerCard from '../components/QuestionnaireAnswerCard.vue'
+import QuestionnaireAnswerCard from './answer.vue'
 // @ts-ignore
 import * as XLSX from 'xlsx'
 
@@ -106,7 +106,7 @@ const testForm = ref({
 
 // 已提交学生数
 const submittedGroupCount = computed(() => {
-  return Object.keys(activity.ac3_allQuestionnaireAnswer).length
+  return Object.keys(activity.ac4_allQuestionnaireAnswer).length
 })
 
 // 完成率（假设总共24个学生：6组*4人）
@@ -120,7 +120,7 @@ function addTestData() {
   const studentId = `${groupNo}-${studentNo}`
   
   // 检查是否已存在
-  if (activity.ac3_allQuestionnaireAnswer[studentId]) {
+  if (activity.ac4_allQuestionnaireAnswer[studentId]) {
     // ElMessage.warning(`学生 ${studentId} 已存在，将覆盖原数据`)
   }
   
@@ -159,7 +159,7 @@ function addTestData() {
     submittedAt: Date.now()
   }
   
-  activity.ac3_allQuestionnaireAnswer[studentId] = questionnaireAnswer
+  activity.ac4_allQuestionnaireAnswer[studentId] = questionnaireAnswer
   
   // ElMessage.success(`成功添加测试数据：第${groupNo}组-${studentNo}号`)
   showTestDialog.value = false
@@ -205,7 +205,7 @@ function addBatchTestData() {
       submittedAt: Date.now() - i * 1000
     }
     
-    activity.ac3_allQuestionnaireAnswer[studentId] = questionnaireAnswer
+    activity.ac4_allQuestionnaireAnswer[studentId] = questionnaireAnswer
   }
   
   // ElMessage.success(`成功批量添加5个学生的测试数据（第${baseGroup}组）`)
@@ -253,7 +253,7 @@ function exportAllAnswers() {
     detailData.push(headers)
     
     // 按学生ID排序
-    const sortedAnswers = Object.entries(activity.ac3_allQuestionnaireAnswer)
+    const sortedAnswers = Object.entries(activity.ac4_allQuestionnaireAnswer)
       .sort((a, b) => {
         const [groupA, noA] = a[0].split('-').map(Number)
         const [groupB, noB] = b[0].split('-').map(Number)
@@ -424,7 +424,7 @@ function exportAllAnswers() {
     
     // ElMessage.success(`已导出 ${submittedGroupCount.value} 名学生的答题到 Excel 文件`)
   } catch (error: any) {
-    console.error('[Activity3] 导出失败:', error)
+    console.error('[Activity4] 导出失败:', error)
     // ElMessage.error(`导出失败: ${error.message}`)
   }
 }
@@ -441,7 +441,7 @@ function clearData() {
     }
   )
     .then(() => {
-      activity.ac3_allQuestionnaireAnswer = {}
+      activity.ac4_allQuestionnaireAnswer = {}
       // ElMessage.success('数据已清空')
     })
     .catch(() => {
@@ -575,3 +575,4 @@ function clearData() {
   }
 }
 </style>
+

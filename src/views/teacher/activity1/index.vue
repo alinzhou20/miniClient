@@ -283,7 +283,7 @@ import { computed, ref } from 'vue'
 // import { ElMessage } from 'element-plus'
 import { useActivity, type Activity1Result } from '@/store/activity'
 import { useCoze, WORKFLOW, type ViewpointWorkflow } from '@/utils/coze'
-import UnifiedSearchSimulator from '@/views/components/UnifiedSearchSimulator.vue'
+import UnifiedSearchSimulator from '@/views/teacher/activity1/search.vue'
 
 const activity = useActivity()
 const { runWorkflow } = useCoze()

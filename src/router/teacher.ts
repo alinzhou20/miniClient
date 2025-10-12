@@ -4,11 +4,11 @@
 
 import type { RouteRecordRaw } from 'vue-router'
 import TeacherHome from '@/views/teacher/index.vue'
-import Activity0 from '@/views/teacher/activity0.vue'
-import Activity1 from '@/views/teacher/activity1.vue'
-import Activity2 from '@/views/teacher/activity2.vue'
-import Activity3 from '@/views/teacher/activity3.vue'
-import Activity4 from '@/views/teacher/activity4.vue'
+import Activity0 from '@/views/teacher/activity0/index.vue'
+import Activity1 from '@/views/teacher/activity1/index.vue'
+import Activity2 from '@/views/teacher/activity2/index.vue'
+import Activity3 from '@/views/teacher/activity3/index.vue'
+import Activity4 from '@/views/teacher/activity4/index.vue'
 import Watch from '@/views/teacher/watch.vue'
 
 export const teacherRoutes: RouteRecordRaw[] = [

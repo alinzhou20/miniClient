@@ -28,7 +28,7 @@
           </div>
           
           <!-- 点赞区域 -->
-          <div class="like-section" v-if="activity.ac2_2_likeEnabled">
+          <div class="like-section" v-if="activity.ac3_likeEnabled">
             <button 
               class="like-btn"
               :class="{ 
@@ -76,17 +76,17 @@ const groups = computed(() => {
   const allDesigns: any[] = []
   
   // 收集所有有效的设计
-  Object.entries(activity.ac2_2_allDesignResult).forEach(([groupId, designResult]: [string, any]) => {
+  Object.entries(activity.ac3_allResult).forEach(([groupId, designResult]: [string, any]) => {
     if (designResult?.designQuestion && designResult.submittedAt > 0) {
       // 根据rating或challengeLevel判断任务类型
       let taskType = ''
       
       // 优先使用challengeLevel判断
       if (designResult?.challengeLevel) {
-        if (designResult.challengeLevel === 'three') {
-          taskType = 'challenge' // 挑战任务
-        } else if (designResult.challengeLevel === 'two') {
-          taskType = 'basic' // 基础任务
+        if (designResult.challengeLevel === 'two') {
+          taskType = 'challenge' // 2星难度
+        } else if (designResult.challengeLevel === 'one') {
+          taskType = 'basic' // 1星难度
         }
       } 
       // 如果没有challengeLevel，使用rating判断
@@ -151,7 +151,7 @@ const hasLiked = (groupId: string) => {
 // 点赞功能
 const handleLike = (groupId: string) => {
   // 检查教师是否开放了点赞
-  if (!activity.ac2_2_likeEnabled) {
+  if (!activity.ac3_likeEnabled) {
     ElMessage.warning('教师还未开放点赞')
     return
   }
@@ -168,7 +168,7 @@ const handleLike = (groupId: string) => {
     return
   }
   
-  const designResult = activity.ac2_2_allDesignResult[groupId]
+  const designResult = activity.ac3_allResult[groupId]
   if (!designResult) {
     ElMessage.warning('该小组暂未提交设计')
     return
@@ -241,7 +241,7 @@ const handleLike = (groupId: string) => {
   margin: 20px auto;
   padding: 24px;
   background: #fff;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid #e5e7eb;
 }
 

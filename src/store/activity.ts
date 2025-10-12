@@ -5,11 +5,30 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-// ==================== 公共类型 ====================
+// 评价
 export interface Rating {
   index: number
   criteria: string
   score: number
+}
+
+// 问卷题目
+export interface QuestionOption {
+  id: number
+  title: string
+  options?: string[]
+  type: 'fill' | 'single' | 'multiple'
+  questionType: 'duration' | 'type' | 'design' 
+  answer?: any
+  visibility?: 'teacher' | 'student' | 'both' // 可见性：仅教师、仅学生、都可见
+  limit?: number // 限制：多选题-最大可选项数量（正数限制，-1不限制）；填空题-输入类型（-2仅数字，-1不限制）
+}
+
+// 调查问卷
+export interface Questionnaire {
+  title: string
+  description: string
+  questions: QuestionOption[]
 }
 
 // ==================== Activity 0 - 现场投票 ====================
@@ -19,7 +38,7 @@ export interface VoteResult {
   timestamp: number
 }
 
-// ==================== Activity 1 - 观点交锋方法初探 ====================
+// ==================== Activity 1 - 观点获取 ====================
 export interface Activity1Result {
   viewpoint: 'A' | 'B' | null
   point: Record<number, string>
@@ -27,35 +46,8 @@ export interface Activity1Result {
   submittedAt: number
 }
 
-// ==================== Activity 2 - 问卷设计 ====================
-// 题目
-export interface QuestionOption {
-  id: number
-  title: string
-  options?: string[]
-  type: 'fill' | 'single' | 'multiple'
-  questionType: 'duration' | 'impact' | 'grade' | 'gender' | 'design' 
-  answer?: any
-  visibility?: 'teacher' | 'student' | 'both' // 可见性：仅教师、仅学生、都可见
-  limit?: number // 限制：多选题-最大可选项数量（正数限制，-1不限制）；填空题-输入类型（-2仅数字，-1不限制）
-}
-
-// 完整调查问卷
-export interface Questionnaire {
-  title: string
-  description: string
-  questions: QuestionOption[]
-}
-
-// 题库数据
-export interface QuestionBank {
-  durationQuestions: QuestionOption[]
-  impactQuestions: QuestionOption[]
-  usageQuestions: QuestionOption[]
-}
-
-// Activity 2.1 - 学生选择的题目
-export interface Activity2_1_selectResult {
+// ==================== Activity 2 - 题目选择 ====================
+export interface Activity2Result {
   selectedDurationQuestion: number | null  // 使用时长题目ID
   selectedImpactQuestion: number | null    // 使用影响题目ID
   durationReason: string  // 使用时长选择理由
@@ -64,8 +56,8 @@ export interface Activity2_1_selectResult {
   submittedAt: number
 }
 
-// Activity 2.2 - 学生设计的题目
-export interface Activity2_2_designResult {
+// ==================== Activity 3 - 题目设计 ====================
+export interface Activity3Result {
   designQuestion: QuestionOption | null  // 单个题目，不是数组
   rating: Rating[]
   great: number
@@ -74,7 +66,7 @@ export interface Activity2_2_designResult {
   likedByGroups?: string[]  // 点赞的小组列表
 }
 
-// ==================== Activity 3 - 问卷填写 ====================
+// ==================== Activity 4 - 问卷填写 ====================
 // 问卷答案（学生提交的完整问卷）
 export interface QuestionnaireAnswer {
   groupNo: string
@@ -84,215 +76,22 @@ export interface QuestionnaireAnswer {
   submittedAt: number
 }
 
-// Activity 3 - 学生问卷提交结果（包含评价）
-export interface Activity3Result {
-  rating: Rating[]
-  submittedAt: number
-}
-
-// ==================== Activity 4 - 数据获取方式 ====================
-export type BoxId = 'A' | 'B' | 'C' | 'D'
-export type ElementId =
-  | 'get_viewpoints'      // 获取正反方观点
-  | 'ai_organize'         // 借助智能体梳理理由
-  | 'get_group_reasons'   // 获取各小组理由
-  | 'survey_devices'      // 获取学生数字设备使用情况
-
+// Activity 4 - 学生问卷提交结果（包含评价）
 export interface Activity4Result {
-  selections: Record<ElementId, BoxId[]>  // 每个场景可以有多个分类
-  hasSubmittedAll: boolean
   rating: Rating[]
   submittedAt: number
 }
 
-// ==================== Activity 2 数据常量 ====================
+// ==================== 问卷数据常量 ====================
 // 问卷初始数据
 const questionnaireInitialData: Questionnaire = {
   title: '学生数字设备使用情况调查问卷',
   description: '为了更好地了解同学们使用数字设备的情况，用于分析，得出合理建议，提升使用数字设备自我管理意识，特设计此问卷。希望同学们如实填写，感谢大家的积极参与。',
-  questions: [{
-    id: 1,
-    title: '就读年级',
-    options: ['一年级', '二年级', '三年级', '四年级', '五年级', '六年级'],
-    type: 'single',
-    questionType: 'grade',
-    answer: '',
-    visibility: 'teacher'
-  },{
-    id: 2,
-    title: '你的性别',
-    options: ['男', '女'],
-    type: 'single',
-    questionType: 'gender',
-    answer: '',
-    visibility: 'teacher'
-  }]
+  questions: []
 }
 
-export const questionnaireSecondData: Questionnaire = {
-  title: '学生数字设备使用情况调查问卷',
-  description: '为了更好地了解同学们使用数字设备的情况，用于分析，得出合理建议，提升使用数字设备自我管理意识，特设计此问卷。希望同学们如实填写，感谢大家的积极参与。',
-  questions: [{
-    id: 1,
-    title: '就读年级',
-    options: ['一年级', '二年级', '三年级', '四年级', '五年级', '六年级'],
-    type: 'single',
-    questionType: 'grade',
-    answer: '',
-    visibility: 'teacher'
-  },{
-    id: 2,
-    title: '你的性别',
-    options: ['男', '女'],
-    type: 'single',
-    questionType: 'gender',
-    answer: '',
-    visibility: 'teacher'
-  },{
-    id: 3,
-    title: '你每周使用数字设备的大概时间是_____。（单位：分钟）',
-    type: 'fill',
-    questionType: 'duration',
-    answer: '',
-    visibility: 'both',
-    limit: -2  // 只能填入数字
-  }, {
-    id: 4,
-    title: '你最常使用哪种数字设备？（多选题，最多选3个）',
-    options: [
-      '电话手表',
-      '手机',
-      '平板',
-      '电视',
-      '电脑',   
-      '其他___',
-  ],
-    type: 'multiple',
-    questionType: 'impact',
-    answer: '',
-    visibility: 'both',
-    limit: 3  // 最多选择3个选项
-  }]
-}
-
-
-// 题库数据
-export const bank: QuestionBank = {
-  durationQuestions: [
-    {
-      id: 1,
-      title: '你每周使用数字设备的大概时间是_____。',
-      type: 'fill',
-      questionType: 'duration',
-      answer: '',
-      visibility: 'both',
-      limit: -2  // 只能填入数字
-    },
-    {
-      id: 2,
-      title: '你每周使用数字设备的大概时间是_____。（单位：分钟）',
-      type: 'fill',
-      questionType: 'duration',
-      answer: '',
-      visibility: 'both',
-      limit: -2  // 只能填入数字
-    }
-  ],
-  impactQuestions: [
-    {
-      id: 1,
-      title: '你最常使用哪种数字设备？',
-      options: [
-        '手机',
-        '平板',
-      ],
-      type: 'single',
-      questionType: 'impact',
-      answer: '',
-      visibility: 'both',
-      limit: 1  // 最多选择1个选项
-    },
-    {
-      id: 2,
-      title: '你最常使用哪种数字设备？',
-      options: [
-        '电视',
-        '电脑',
-      ],
-      type: 'single',
-      questionType: 'impact',
-      answer: '',
-      visibility: 'both',
-      limit: 1  // 最多选择1个选项
-    },
-    {
-      id: 3,
-      title: '你最常使用哪种数字设备？（多选题，最多选3个）',
-      options: [
-        '电话手表',
-        '手机',
-        '平板',
-        '电视',
-        '电脑',
-        '其他___',
-      ],
-      type: 'multiple',
-      questionType: 'impact',
-      answer: '',
-      visibility: 'both',
-      limit: 3  // 最多选择3个选项
-    }
-  ],
-  usageQuestions: [
-    {
-      id: 1,
-      title: '你使用数字设备主要用于哪些场景？（可多选）',
-      type: 'multiple',
-      questionType: 'design',
-      answer: '',
-      options: [
-        '学习',
-        '运动',
-        '交流',
-        '旅游'
-      ],
-      visibility: 'both',
-      limit: 4  // 最多选择4个选项
-    },
-    {
-      id: 2,
-      title: '你使用数字设备主要用于哪些场景？（可多选）',
-      type: 'multiple',
-      questionType: 'design',
-      answer: '',
-      options: [
-        '学习',
-        '娱乐',
-        '交流',
-        '旅游'
-      ],
-      visibility: 'both',
-      limit: 4  // 最多选择4个选项
-    },
-    {
-      id: 3,
-      title: '你使用数字设备主要用于哪些场景？（可多选）',
-      type: 'multiple',
-      questionType: 'design',
-      answer: '',
-      options: [
-        '学习',
-        '运动',
-        '娱乐',
-        '交流',
-        '旅游',
-        '其他_______'
-      ],
-      visibility: 'both',
-      limit: 6  // 最多选择6个选项
-    }
-  ]
-}
+// 导出供教师端使用
+export const questionnaireSecondData: Questionnaire = questionnaireInitialData
 
 // ==================== 统一活动状态管理 ====================
 export const useActivity = defineStore('activity', () => {
@@ -330,20 +129,17 @@ export const useActivity = defineStore('activity', () => {
 
   const ac1_allResult = ref<Record<string, Activity1Result>>({})
   
-  // Activity 2.1 - 教师接收所有学生的选择结果
-  const ac2_1_allSelectResult = ref<Record<string, Activity2_1_selectResult>>({})
+  // Activity 2 - 教师接收所有学生的选择结果
+  const ac2_allResult = ref<Record<string, Activity2Result>>({})
   
-  // Activity 2.2 - 教师接收所有学生的设计结果（已在提交时去重，只包含不重复的题目）
-  const ac2_2_allDesignResult = ref<Record<string, Activity2_2_designResult>>({})
+  // Activity 3 - 教师接收所有学生的设计结果（已在提交时去重，只包含不重复的题目）
+  const ac3_allResult = ref<Record<string, Activity3Result>>({})
   
-  // Activity 3 - 教师接收学生的问卷答案
-  const ac3_allQuestionnaireAnswer = ref<Record<string, QuestionnaireAnswer>>({})
-    
-  // Activity 4 - 教师接收所有分类结果
-  const ac4_allResult = ref<Record<string, Activity4Result>>({})
+  // Activity 4 - 教师接收学生的问卷答案
+  const ac4_allQuestionnaireAnswer = ref<Record<string, QuestionnaireAnswer>>({})
 
-  // Activity 2.1 - 学生题目选择
-  const ac2_1_stuSelectResult = ref<Activity2_1_selectResult | null>({
+  // Activity 2 - 学生题目选择
+  const ac2_stuResult = ref<Activity2Result | null>({
     selectedDurationQuestion: null,
     selectedImpactQuestion: null,
     durationReason: '',
@@ -356,15 +152,15 @@ export const useActivity = defineStore('activity', () => {
       },
       {
         index: 2,
-        criteria: '2.能够为"使用影响"选择合适的调查问题，并讨论了理由。',
+        criteria: '2.能够为"设备类型"选择合适的调查问题，并讨论了理由。',
         score: 0,
       }
     ],
     submittedAt: 0
   })
 
-  // Activity 2.2 - 学生题目设计
-  const ac2_2_stuDesignResult = ref<Activity2_2_designResult | null>({
+  // Activity 3 - 学生题目设计
+  const ac3_stuResult = ref<Activity3Result | null>({
     designQuestion: null,  // 单个题目（最终提交的题目）
     rating: [
       {
@@ -374,7 +170,7 @@ export const useActivity = defineStore('activity', () => {
       },
       {
         index: 2,
-        criteria: '2.能够通过与智能体对话完成题目设计。（1星）',
+        criteria: '2.能够借助智能体完成题目设计。（1星）',
         score: 0,
       },
     ],
@@ -383,8 +179,8 @@ export const useActivity = defineStore('activity', () => {
     likedByGroups: []
   })
 
-  // Activity 2.2 - 点赞开放状态
-  const ac2_2_likeEnabled = ref<boolean>(false)
+  // Activity 3 - 点赞开放状态
+  const ac3_likeEnabled = ref<boolean>(false)
 
   // 挑战任务独立数据源（three-star）
   const threeStarDraft = ref<QuestionOption | null>(null)
@@ -392,31 +188,12 @@ export const useActivity = defineStore('activity', () => {
   // 基础任务独立数据源（two-star）
   const twoStarDraft = ref<QuestionOption | null>(null)
 
-  // Activity 3 - 学生问卷提交结果
-  const ac3_stuResult = ref<Activity3Result | null>({
+  // Activity 4 - 学生问卷提交结果
+  const ac4_stuResult = ref<Activity4Result | null>({
     rating: [
       {
         index: 1,
         criteria: '1.能够独立完成调查问卷并提交。',
-        score: 0,
-      }
-    ],
-    submittedAt: 0
-  })
-
-  // Activity 4 - 数据获取方式
-  const ac4_stuResult = ref<Activity4Result>({
-    selections: {
-      get_viewpoints: [],
-      ai_organize: [],
-      get_group_reasons: [],
-      survey_devices: []
-    },
-    hasSubmittedAll: false,
-    rating: [
-      {
-        index: 1,
-        criteria: '1.能够了解获取数据的常用方法。',
         score: 0,
       }
     ],
@@ -442,11 +219,10 @@ export const useActivity = defineStore('activity', () => {
       submittedAt: 0
     }
     ac1_allResult.value = {}
-    ac2_1_allSelectResult.value = {}
-    ac2_2_allDesignResult.value = {}
-    ac3_allQuestionnaireAnswer.value = {}
-    ac4_allResult.value = {}
-    ac2_1_stuSelectResult.value = {
+    ac2_allResult.value = {}
+    ac3_allResult.value = {}
+    ac4_allQuestionnaireAnswer.value = {}
+    ac2_stuResult.value = {
       selectedDurationQuestion: null,
       selectedImpactQuestion: null,
       durationReason: '',
@@ -459,13 +235,13 @@ export const useActivity = defineStore('activity', () => {
         },
         {
           index: 2,
-          criteria: '2.能够为"使用影响"选择合适的调查问题，并讨论了理由。',
+          criteria: '2.能够为"设备类型"选择合适的调查问题，并讨论了理由。',
           score: 0,
         }
       ],
       submittedAt: 0
     }
-    ac2_2_stuDesignResult.value = {
+    ac3_stuResult.value = {
       designQuestion: null,  // 单个题目
       rating: [
         {
@@ -475,7 +251,7 @@ export const useActivity = defineStore('activity', () => {
         },
         {
           index: 2,
-          criteria: '2.能够通过与智能体对话完成题目设计。（1星）',
+          criteria: '2.能够借助智能体完成题目设计。（1星）',
           score: 0,
         },
       ],
@@ -485,29 +261,12 @@ export const useActivity = defineStore('activity', () => {
     }
     threeStarDraft.value = null
     twoStarDraft.value = null
-    ac2_2_likeEnabled.value = false
-    ac3_stuResult.value = {
+    ac3_likeEnabled.value = false
+    ac4_stuResult.value = {
       rating: [
         {
           index: 1,
           criteria: '1.能够独立完成调查问卷并提交。',
-          score: 0,
-        }
-      ],
-      submittedAt: 0
-    }
-    ac4_stuResult.value = {
-      selections: {
-        get_viewpoints: [],
-        ai_organize: [],
-        get_group_reasons: [],
-        survey_devices: []
-      },
-      hasSubmittedAll: false,
-      rating: [
-        {
-          index: 1,
-          criteria: '1.能够了解获取数据的常用方法。',
           score: 0,
         }
       ],
@@ -529,21 +288,19 @@ export const useActivity = defineStore('activity', () => {
     ac1_allReason,
 
     // Activity 2
-    ac2_1_stuSelectResult,
-    ac2_2_stuDesignResult,
-    ac2_1_allSelectResult,
-    ac2_2_allDesignResult,
-    ac2_2_likeEnabled,
-    threeStarDraft,
-    twoStarDraft,
+    ac2_stuResult,
+    ac2_allResult,
     
     // Activity 3
     ac3_stuResult,
-    ac3_allQuestionnaireAnswer,
+    ac3_allResult,
+    ac3_likeEnabled,
+    threeStarDraft,
+    twoStarDraft,
     
     // Activity 4
     ac4_stuResult,
-    ac4_allResult,
+    ac4_allQuestionnaireAnswer,
 
     reset
   }

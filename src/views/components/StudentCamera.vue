@@ -1,71 +1,49 @@
 <template>
-  <div class="camera-card">
-    <div class="camera-container">
-      <!-- 未打开摄像头的占位界面 - 可点击启动 -->
-      <div 
-        v-if="!cameraStarted && !status.takePhoto" 
-        class="camera-placeholder"
-        @click="startCamera"
-      >
-        <div class="placeholder-icon">📷</div>
-        <p class="placeholder-text">点击开始拍摄</p>
-      </div>
+  <!-- 遮罩层 + 弹窗容器 -->
+  <transition name="camera-modal">
+    <div v-if="visible" class="camera-modal-overlay">
+      <div class="camera-card">
+        <div class="camera-container">
+          <!-- 摄像头视频流 -->
+          <video 
+            ref="videoRef" 
+            autoplay 
+            muted 
+            playsinline
+            :style="videoStyle"
+          ></video>
 
-      <!-- 摄像头视频流 -->
-      <video 
-        v-show="cameraStarted && !status.takePhoto"
-        ref="videoRef" 
-        autoplay 
-        muted 
-        playsinline
-        :style="videoStyle"
-      ></video>
-
-      <!-- 拍摄的照片 -->
-      <img 
-        v-if="status.takePhoto" 
-        :src="status.takePhoto" 
-        alt="拍摄的照片" 
-        class="captured-photo"
-        :style="photoStyle"
-      />
-
-      <!-- 操作按钮 -->
-      <el-button 
-        v-if="cameraStarted && !status.takePhoto" 
-        class="action-button" 
-        type="primary" 
-        @click="capturePhoto"
-      >
-        拍摄
-      </el-button>
-      <div v-else-if="status.takePhoto" class="photo-actions">
-        <el-button type="success" @click="uploadPhoto">确定</el-button>
-        <el-button type="danger" @click="resetPhoto">重拍</el-button>
+          <!-- 拍摄按钮 -->
+          <el-button 
+            class="action-button" 
+            type="primary" 
+            size="large"
+            @click="captureAndUpload"
+          >
+            拍摄
+          </el-button>
+        </div>
       </div>
     </div>
-  </div>
+  </transition>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useStatus } from '@/store/status'
 
 const emit = defineEmits<{
   upload: [photo: string]
-  reset: []  // 重置事件
 }>()
+
+const visible = defineModel<boolean>({ default: false })
 
 const status = useStatus()
 const videoRef = ref<HTMLVideoElement>()
 const stream = ref<MediaStream | null>(null)
-const cameraStarted = ref(false)
 
 // 计算视频样式（旋转-90度，宽高互换以填满容器）
 const videoStyle = computed(() => {
-  // video旋转-90度后，宽高互换
-  // 容器是 432×768，所以video原始尺寸应该是 768×432
-  // 这样旋转后刚好变成 432×768，完美填充容器
   return {
     width: '768px',
     height: '432px',
@@ -74,14 +52,6 @@ const videoStyle = computed(() => {
     objectFit: 'cover' as const
   }
 })
-
-const photoStyle = computed(() => videoStyle.value)
-
-const startCamera = async () => {
-  if (cameraStarted.value) return
-  await initCamera()
-  cameraStarted.value = true
-}
 
 const initCamera = async () => {
   try {
@@ -110,7 +80,8 @@ const initCamera = async () => {
   }
 }
 
-const capturePhoto = () => {
+// 拍照并立即上传
+const captureAndUpload = () => {
   if (!videoRef.value) return
   
   const canvas = document.createElement('canvas')
@@ -121,24 +92,14 @@ const capturePhoto = () => {
   if (ctx) {
     ctx.drawImage(videoRef.value, 0, 0)
     // 转为无压缩的 jpg 格式（质量参数 1.0）
-    status.takePhoto = canvas.toDataURL('image/jpeg', 1.0)
-  }
-}
-
-const resetPhoto = () => {
-  status.takePhoto = null
-  // 发送重置事件，让父组件清空识别结果
-  emit('reset')
-  // 重置后重新启动摄像头
-  startCamera()
-}
-
-const uploadPhoto = () => {
-  if (status.takePhoto) {
-    emit('upload', status.takePhoto)
-    // 上传后关闭摄像头
-    cleanup()
-    cameraStarted.value = false
+    const photoData = canvas.toDataURL('image/jpeg', 1.0)
+    status.takePhoto = photoData
+    
+    // 立即上传
+    emit('upload', photoData)
+    
+    // 关闭弹窗
+    visible.value = false
   }
 }
 
@@ -148,17 +109,44 @@ const cleanup = () => {
     stream.value = null
   }
 }
+
+// 监听弹窗打开/关闭，自动启动/清理摄像头
+watch(visible, async (newVal) => {
+  if (newVal) {
+    // 弹窗打开时自动启动摄像头
+    await initCamera()
+  } else {
+    // 弹窗关闭时清理资源
+    cleanup()
+    status.takePhoto = null
+  }
+})
 </script>
 
 <style scoped>
+/* 遮罩层 */
+.camera-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+/* 相机卡片 */
 .camera-card {
   width: 324px;
   height: 576px;
-  background: white;
-  border: 1px solid #e5e7eb;
   border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   overflow: hidden;
+  position: relative;
 }
 
 .camera-container {
@@ -172,59 +160,34 @@ const cleanup = () => {
   overflow: hidden;
 }
 
-/* 占位界面 - 可点击 */
-.camera-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #1e293b, #334155);
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.camera-placeholder:hover {
-  background: linear-gradient(135deg, #334155, #475569);
-}
-
-.camera-placeholder:hover .placeholder-icon {
-  opacity: 1;
-  transform: scale(1.1);
-}
-
-.placeholder-icon {
-  font-size: 80px;
-  opacity: 0.6;
-  transition: all 0.3s ease;
-}
-
-.placeholder-text {
-  font-size: 16px;
-  font-weight: 600;
-  color: #94a3b8;
-  margin: 0;
-  text-align: center;
-  padding: 0 32px;
-}
-
 .action-button {
   position: absolute;
-  bottom: 20px;
+  bottom: 30px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
+  font-size: 16px;
+  padding: 12px 40px;
 }
 
-.photo-actions {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  display: flex;
-  gap: 20px;
+/* 弹窗动画 */
+.camera-modal-enter-active,
+.camera-modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.camera-modal-enter-active .camera-card,
+.camera-modal-leave-active .camera-card {
+  transition: transform 0.3s ease;
+}
+
+.camera-modal-enter-from,
+.camera-modal-leave-to {
+  opacity: 0;
+}
+
+.camera-modal-enter-from .camera-card,
+.camera-modal-leave-to .camera-card {
+  transform: scale(0.9);
 }
 </style>

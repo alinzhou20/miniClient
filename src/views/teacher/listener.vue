@@ -6,8 +6,8 @@ import { onMounted, onBeforeUnmount } from 'vue'
 import { useActivity, useSocket, useStatus } from '@/store'
 import type { 
   Activity1Result, 
-  Activity2_1_selectResult, 
-  Activity2_2_designResult, 
+  Activity2Result, 
+  Activity3Result, 
   Activity4Result,
   QuestionnaireAnswer,
   QuestionOption
@@ -28,8 +28,7 @@ function updateGroupTotalScore(groupNo: string) {
   if (group) {
     const newTotal = 
       group.scores.activity1 + 
-      group.scores.activity2_1 + 
-      group.scores.activity2_2 + 
+      group.scores.activity2 + 
       group.scores.activity3 + 
       group.scores.activity4
     
@@ -96,22 +95,22 @@ function onStudentSubmit(payload: any) {
         break
         
       case 'activity2_1_submit':
-        // Activity 2.1 - 题目选择
-        if (data && activity.ac2_1_allSelectResult) {
-          activity.ac2_1_allSelectResult[groupNo] = {
+        // Activity 2 - 题目选择
+        if (data && activity.ac2_allResult) {
+          activity.ac2_allResult[groupNo] = {
             selectedDurationQuestion: data.selectedDurationQuestion,
             selectedImpactQuestion: data.selectedImpactQuestion,
             durationReason: data.durationReason,
             impactReason: data.impactReason,
             rating: data.rating,
             submittedAt: data.submittedAt
-          } as Activity2_1_selectResult
+          } as Activity2Result
           
           // 更新小组得分
           let score = 0
           if (groupNo && status.groupStatus[groupNo]) {
             score = calculateTotalScore(data.rating || [])
-            status.groupStatus[groupNo].scores.activity2_1 = score
+            status.groupStatus[groupNo].scores.activity2 = score
             updateGroupTotalScore(groupNo)
           }
           
@@ -120,32 +119,32 @@ function onStudentSubmit(payload: any) {
         break
         
       case 'activity2_2_submit':
-        // Activity 2.2 - 题目设计
-        if (data && activity.ac2_2_allDesignResult) {
-          activity.ac2_2_allDesignResult[groupNo] = {
+        // Activity 3 - 题目设计
+        if (data && activity.ac3_allResult) {
+          activity.ac3_allResult[groupNo] = {
             designQuestion: data.designQuestion,
             rating: data.rating,
             great: data.great || 0,
             submittedAt: data.submittedAt
-          } as Activity2_2_designResult
+          } as Activity3Result
           
           // 更新小组得分
           let score = 0
           if (groupNo && status.groupStatus[groupNo]) {
             score = calculateTotalScore(data.rating || [])
-            status.groupStatus[groupNo].scores.activity2_2 = score
+            status.groupStatus[groupNo].scores.activity3 = score
             updateGroupTotalScore(groupNo)
           }
           
-          // ElMessage.success(`第${groupNo}组 提交了活动二-题目设计 (得分: ${score}/3)`)
+          // ElMessage.success(`第${groupNo}组 提交了活动三-题目设计 (得分: ${score}/3)`)
         }
         break
         
       case 'activity2_2_like_submit':
         // Activity 2.2 - 点赞
-        if (data && activity.ac2_2_allDesignResult) {
+        if (data && activity.ac3_allResult) {
           const targetGroupNo = data.targetGroupNo
-          const groupResult = activity.ac2_2_allDesignResult[targetGroupNo]
+          const groupResult = activity.ac3_allResult[targetGroupNo]
           
           if (groupResult) {
             groupResult.great = data.great || 0
@@ -157,7 +156,7 @@ function onStudentSubmit(payload: any) {
         
       case 'questionnaire_submit':
         // Activity 3 - 问卷填写（无评分，提交即得1分）
-        if (data && data.questions && activity.ac3_allQuestionnaireAnswer) {
+        if (data && data.questions && activity.ac4_allQuestionnaireAnswer) {
           // 验证问卷数据
           const questions = data.questions as QuestionOption[]
           
@@ -170,7 +169,7 @@ function onStudentSubmit(payload: any) {
             submittedAt: data.submittedAt || Date.now()
           }
           
-          activity.ac3_allQuestionnaireAnswer[studentId] = questionnaireAnswer
+          activity.ac4_allQuestionnaireAnswer[studentId] = questionnaireAnswer
 
           
           // 更新小组得分（问卷提交即得1分）  
@@ -180,26 +179,6 @@ function onStudentSubmit(payload: any) {
           }
           
           // ElMessage.success(`${studentInfo} 提交了问卷`)
-        }
-        break
-        
-      case 'activity4_submit':
-        // Activity 4 - 数据获取方式分类
-        if (data && activity.ac4_allResult) {
-          activity.ac4_allResult[studentId] = {
-            selections: data.selections,
-            hasSubmittedAll: data.hasSubmittedAll || true,
-            rating: data.rating,
-            submittedAt: data.submittedAt
-          } as Activity4Result
-          
-          // 更新小组得分
-          if (groupNo && status.groupStatus[groupNo]) {
-            status.groupStatus[groupNo].scores.activity4 = calculateTotalScore(data.rating || [])
-            updateGroupTotalScore(groupNo)
-          }
-          
-          // ElMessage.success(`${studentInfo} 提交了活动四`)
         }
         break
         

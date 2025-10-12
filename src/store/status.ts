@@ -28,11 +28,10 @@ export interface ActivityStatus {
 
 // 小组活动得分
 export interface GroupActivityScores {
-  activity1: number      // 活动一得分 (最高1分)
-  activity2_1: number    // 活动二-选择 (最高2分)
-  activity2_2: number    // 活动二-设计 (最高2分)
-  activity3: number      // 活动三-问卷 (最高1分，提交即得分)
-  activity4: number      // 活动四得分 (最高1分)
+  activity1: number      // 活动一-观点
+  activity2: number      // 活动二-选择
+  activity3: number      // 活动三-设计
+  activity4: number      // 活动三-问卷
 }
 
 // 小组状态（教师端使用）
@@ -42,7 +41,7 @@ export interface GroupStatus {
   operatorNo?: string     // 操作员学号
   loginTime?: number      // 登录时间
   scores: GroupActivityScores  // 各活动得分
-  totalScore: number      // 总分（最高8分：1+2+3+1+1）
+  totalScore: number      // 总分
 }
 
 export const useStatus = defineStore('status', () => {
@@ -61,8 +60,7 @@ export const useStatus = defineStore('status', () => {
   // 学生端小组得分状态（用于显示本小组的总体得分）
   const groupScores = ref<GroupActivityScores>({
     activity1: 0,
-    activity2_1: 0,
-    activity2_2: 0,
+    activity2: 0,
     activity3: 0,
     activity4: 0
   })
@@ -76,7 +74,7 @@ export const useStatus = defineStore('status', () => {
         { id: 1, title: '活动一', isActive: true },
         { id: 2, title: '活动二', isActive: false },
         { id: 3, title: '活动三', isActive: false },
-        { id: 4, title: '梳理', isActive: false },
+        { id: 4, title: '活动四', isActive: false },
       ]
     }
   )
@@ -95,8 +93,7 @@ export const useStatus = defineStore('status', () => {
       loginTime: undefined,
       scores: {
         activity1: 0,
-        activity2_1: 0,
-        activity2_2: 0,
+        activity2: 0,
         activity3: 0,
         activity4: 0
       },
@@ -113,7 +110,7 @@ export const useStatus = defineStore('status', () => {
         { id: 1, title: '活动一', isActive: true },
         { id: 2, title: '活动二', isActive: false },
         { id: 3, title: '活动三', isActive: false },
-        { id: 4, title: '梳理', isActive: false },
+        { id: 4, title: '活动四', isActive: false },
       ]
     }
     takePhoto.value = null
@@ -122,8 +119,7 @@ export const useStatus = defineStore('status', () => {
     // 重置学生端小组得分
     groupScores.value = {
       activity1: 0,
-      activity2_1: 0,
-      activity2_2: 0,
+      activity2: 0,
       activity3: 0,
       activity4: 0
     }
@@ -139,8 +135,7 @@ export const useStatus = defineStore('status', () => {
         loginTime: undefined,
         scores: {
           activity1: 0,
-          activity2_1: 0,
-          activity2_2: 0,
+          activity2: 0,
           activity3: 0,
           activity4: 0
         },

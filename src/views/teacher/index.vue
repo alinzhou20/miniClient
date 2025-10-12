@@ -61,9 +61,9 @@ const socket = useSocket()
 const status = useStatus()
 const activity = useActivity()
 
-// 教师端活动列表：包含 activity0-3（暂时隐藏 activity4）
+// 教师端活动列表：包含 activity0-4（投票 + 活动一到活动四）
 const teacherActivities = computed<Activity[]>(() => {
-  return status.activityStatus.all.filter(a => a.id <= 3)
+  return status.activityStatus.all.filter(a => a.id >= 0 && a.id <= 4)
 })
 
 // 是否在看板页面
@@ -126,7 +126,7 @@ const handleLogout = () => {
 .page {
   min-height: 100vh;
   padding: 10px;
-  max-width: 1280px;
+  max-width: 1880px;
   margin: 0 auto;
 }
 

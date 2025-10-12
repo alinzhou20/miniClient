@@ -4,11 +4,10 @@
 
 import type { RouteRecordRaw } from 'vue-router'
 import StudentHome from '@/views/student/index.vue'
-import Activity1 from '@/views/student/activity1.vue'
-import Activity2 from '@/views/student/activity2.vue'
-import Activity3 from '@/views/student/activity3.vue'
-import Activity4 from '@/views/student/activity4.vue'
-import Sleep from '@/views/student/sleep.vue'
+import Activity1 from '@/views/student/activity1/index.vue'
+import Activity2 from '@/views/student/activity2/index.vue'
+import Activity3 from '@/views/student/activity3/index.vue'
+import Activity4 from '@/views/student/activity4/index.vue'
 
 export const studentRoutes: RouteRecordRaw[] = [
   {
@@ -48,10 +47,4 @@ export const studentRoutes: RouteRecordRaw[] = [
       }
     ]
   },
-  {
-    path: '/student/sleep',
-    name: 'StudentSleep',
-    component: Sleep,
-    meta: { requiresAuth: true }
-  }
 ]

@@ -2,32 +2,14 @@
   <div class="page">
     <div class="card">
       <div class="header">
-        <h1>信息科技课堂</h1>
-        <p>小组登录</p>
-        <el-tag :type="connectionStatusType" size="small" effect="plain">
-        {{ connectionStatusText }}
-        </el-tag>
+        <h1>萧山区信息科技平台</h1>
       </div>
 
       <el-form ref="formRef" :model="form" :rules="rules" class="form">
-        <div class="form-row">
-          <el-form-item prop="groupNo" class="form-item-half">
-            <label>选择小组</label>
-            <el-input v-model="form.groupNo" placeholder="输入小组号（1-12）" :disabled="isLogging" />
-          </el-form-item>
-
-          <el-form-item prop="role" class="form-item-half">
-            <label>选择角色</label>
-            <el-select v-model="form.role" placeholder="请选择角色" :disabled="isLogging">
-              <el-option label="操作员" value="operator">
-                <span>操作员</span>
-              </el-option>
-              <el-option label="记录员" value="recorder">
-                <span>记录员</span>
-              </el-option>
-            </el-select>
-          </el-form-item>
-        </div>
+        <el-form-item prop="groupNo">
+          <label>选择小组</label>
+          <el-input v-model="form.groupNo" placeholder="输入小组号（1-12）" :disabled="isLogging" />
+        </el-form-item>
         
         <el-button type="primary" :loading="isLogging" @click="handleLogin" class="btn">
           {{ isLogging ? '登录中...' : '进入课堂' }}
@@ -35,9 +17,14 @@
       </el-form>
 
       <div class="switch">
+        <el-button @click="showCameraDialog = true" link>检查摄像头</el-button>
+        <span class="divider">|</span>
         <el-button @click="goToTeacher" link>切换到教师登录</el-button>
       </div>
     </div>
+
+    <!-- 摄像头弹窗 -->
+    <StudentCamera v-model="showCameraDialog" />
   </div>
 </template>
 
@@ -47,56 +34,32 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useStatus } from '@/store/status'
 import { useSocket } from '@/store/socket'
+import StudentCamera from '@/views/components/StudentCamera.vue'
 
 const router = useRouter()
 const status = useStatus()
 const socketStore = useSocket()
-const { socket, connect } = socketStore
+const { connect } = socketStore
 
 const formRef = ref<FormInstance>()
+const showCameraDialog = ref(false)
 const isLogging = ref(false)
 const form = ref({ 
-  groupNo: '', 
-  role: 'operator' as 'operator' | 'recorder'
+  groupNo: ''
 })
 
 const rules: FormRules = {
   groupNo: [
     { required: true, message: '请输入小组号', trigger: 'blur' },
     { pattern: /^([1-9]|1\d|20)$/, message: '请输入1-20的数字', trigger: 'blur' }
-  ],
-  role: [
-    { required: true, message: '请选择角色', trigger: 'change' }
   ]
 }
 
-// 计算学号
-const operatorStudentNo = computed(() => {
+// 计算学号（操作员学号）
+const currentStudentNo = computed(() => {
   const groupNo = parseInt(form.value.groupNo)
   if (isNaN(groupNo) || groupNo < 1 || groupNo > 20) return '-'
   return groupNo * 2 - 1
-})
-
-const recorderStudentNo = computed(() => {
-  const groupNo = parseInt(form.value.groupNo)
-  if (isNaN(groupNo) || groupNo < 1 || groupNo > 20) return '-'
-  return groupNo * 2
-})
-
-// 当前选中角色的学号
-const currentStudentNo = computed(() => {
-  if (form.value.role === 'operator') return operatorStudentNo.value
-  return recorderStudentNo.value
-})
-
-const connectionStatusType = computed(() => {
-  if (socket !== null) return 'success'
-  return 'danger'
-})
-
-const connectionStatusText = computed(() => {
-  if (socket !== null) return '已连接'
-  return '未连接'
 })
 
 // 登录按钮，直接登录
@@ -117,7 +80,7 @@ const handleLogin = async () => {
     await connect({
       type: 'student',
       mode: status.mode,
-      studentRole: form.value.role,
+      studentRole: 'operator',
       groupNo: form.value.groupNo,
       studentNo: studentNo
     })
@@ -125,16 +88,12 @@ const handleLogin = async () => {
     status.userStatus = { 
       type: 'student', 
       groupNo: form.value.groupNo,
-      studentRole: form.value.role,
+      studentRole: 'operator',
       studentNo: studentNo
     }
     
-    // 根据角色跳转到不同页面
-    if (form.value.role === 'operator') {
-      router.push('/student')
-    } else {
-      router.push('/student/sleep')
-    }
+    // 跳转到学生页面
+    router.push('/student')
   } catch (error: any) {
     console.error('[Login] 登录失败:', error)
   } finally {
@@ -184,16 +143,6 @@ const goToTeacher = () => router.push('/login/teacher')
 
 .form {
   margin-bottom: 24px;
-}
-
-.form-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.form-item-half {
-  flex: 1;
 }
 
 .form label {

@@ -62,8 +62,8 @@ function onActivity2_2Discuss(payload: any) {
   
   if (!groupNo) return
   
-  // 更新 ac2_2_allDesignResult（包含rating和挑战级别信息）
-  activity.ac2_2_allDesignResult[groupNo] = {
+  // 更新 ac3_allResult（包含rating和挑战级别信息）
+  activity.ac3_allResult[groupNo] = {
     designQuestion: data.designQuestion || null,
     rating: data.rating || [],
     great: data.great || 0,
@@ -84,7 +84,7 @@ function onActivity2_2LikeDiscuss(payload: any) {
   if (!groupNo) return
   
   // 更新对应小组的点赞数
-  const groupResult = activity.ac2_2_allDesignResult[groupNo]
+  const groupResult = activity.ac3_allResult[groupNo]
   if (groupResult) {
     groupResult.great = data.great || 0
     groupResult.likedByGroups = data.likedByGroups || []
@@ -100,7 +100,7 @@ function onLikeEnabledChanged(payload: any) {
   if (typeof likeEnabled !== 'boolean') return
   
   // 更新点赞开放状态
-  activity.ac2_2_likeEnabled = likeEnabled
+  activity.ac3_likeEnabled = likeEnabled
   
   // console.log(`[Student Listener] 点赞状态已更新: ${likeEnabled ? '开放' : '关闭'}`)
   ElMessage.info(likeEnabled ? '教师已开放点赞' : '教师已关闭点赞')

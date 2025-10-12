@@ -5,13 +5,12 @@
       <h3>评价标准</h3>
       <div class="criteria-grid">
         <div 
-          v-for="rating in activity.ac3_stuResult?.rating" 
+          v-for="rating in activity.ac4_stuResult?.rating" 
           :key="rating.index" 
           class="criterion-item"
           :class="{ 'completed': rating.score === 1 }"
         >
           <span>{{ rating.criteria }}</span>
-          <span v-if="rating.score === 1">⭐</span>
         </div>
       </div>
     </div>
@@ -41,7 +40,7 @@ import { useActivity } from '@/store/activity'
 import { useSocket } from '@/store/socket'
 import { useStatus } from '@/store/status'
 import { EntityMode, EventType } from '@/types'
-import QuestionnairePreview from '../components/QuestionnairePreviewCard.vue'
+import QuestionnairePreview from './preview.vue'
 
 const activity = useActivity()
 const socket = useSocket()
@@ -49,7 +48,7 @@ const status = useStatus()
 
 // 判断是否已提交
 const hasSubmitted = computed(() => {
-  return activity.ac3_stuResult?.submittedAt && activity.ac3_stuResult.submittedAt > 0
+  return activity.ac4_stuResult?.submittedAt && activity.ac4_stuResult.submittedAt > 0
 })
 
 // 判断题目是否已回答
@@ -121,9 +120,9 @@ const submitQuestionnaire = () => {
         })
         
         // 自动评分：提交成功得1分
-        if (activity.ac3_stuResult) {
-          activity.ac3_stuResult.rating[0].score = 1
-          activity.ac3_stuResult.submittedAt = Date.now()
+        if (activity.ac4_stuResult) {
+          activity.ac4_stuResult.rating[0].score = 1
+          activity.ac4_stuResult.submittedAt = Date.now()
           // 同步更新小组得分
           status.groupScores.activity3 = 1
         }

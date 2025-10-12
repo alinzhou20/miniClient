@@ -103,7 +103,7 @@ const activity = useActivity()
 
 // 从 store 读取响应式问卷数据和所有答题结果
 const questionnaire = computed(() => activity.questionnaire)
-const allAnswers = computed(() => activity.ac3_allQuestionnaireAnswer)
+const allAnswers = computed(() => activity.ac4_allQuestionnaireAnswer)
 
 // 统计总提交人数
 const totalSubmitted = computed(() => {

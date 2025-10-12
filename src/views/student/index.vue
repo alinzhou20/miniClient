@@ -17,7 +17,30 @@
             @click="selectActivity(act.id)"
           >
             <span class="btn-text">{{ act.title }}</span>
-            <span class="btn-stars">{{ getActivityStars(act.id) }}</span>
+            <span class="btn-stars">
+              <template v-for="i in getActivityMaxStars(act.id)" :key="i">
+                <svg 
+                  class="star-icon" 
+                  :class="{ filled: i <= getActivityCurrentStars(act.id) }"
+                  viewBox="0 0 24 24" 
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <defs>
+                    <linearGradient :id="`star-gradient-${act.id}-${i}`" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+                      <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
+                    </linearGradient>
+                  </defs>
+                  <path 
+                    d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                    :fill="i <= getActivityCurrentStars(act.id) ? `url(#star-gradient-${act.id}-${i})` : 'none'"
+                    :stroke="i <= getActivityCurrentStars(act.id) ? '#FFA500' : 'currentColor'"
+                    stroke-width="1.5"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </template>
+            </span>
           </button>
         </div>
         
@@ -26,7 +49,7 @@
         <!-- 总星数显示 -->
         <div class="total-stars">
           <span class="total-label">第 {{ status.userStatus!.groupNo }} 组共获得</span>
-          <span class="total-count">{{ totalStars }} / 5 </span>
+          <span class="total-count">{{ totalStars }} / 6 </span>
         </div>
         
         <el-button @click="handleLogout" class="logout-btn">
@@ -57,9 +80,9 @@ const socket = useSocket()
 const status = useStatus()
 const activity = useActivity()
 
-// 学生端活动列表：只包含 activity1-3（过滤掉 activity0 和 activity4）
+// 学生端活动列表：包含 activity1-4（过滤掉 activity0）
 const studentActivities = computed<Activity[]>(() => {
-  return status.activityStatus.all.filter(a => a.id >= 1 && a.id <= 3)
+  return status.activityStatus.all.filter(a => a.id >= 1 && a.id <= 4)
 })
 
 // 当前活动 ID（根据路由判断）
@@ -75,30 +98,34 @@ const selectActivity = (id: number) => {
   }
 }
 
-// 获取每个活动的星星数显示
-const getActivityStars = (activityId: number): string => {
+// 获取每个活动的最大星数
+const getActivityMaxStars = (activityId: number): number => {
+  if (activityId === 1) return 1
+  if (activityId === 2) return 2 
+  if (activityId === 3) return 2 
+  if (activityId === 4) return 1
+  return 0
+}
+
+// 获取每个活动当前获得的星数
+const getActivityCurrentStars = (activityId: number): number => {
   if (activityId === 1) {
-    const stars = status.groupScores.activity1
-    return stars > 0 ? '⭐'.repeat(stars) : ''
+    return status.groupScores.activity1
   } else if (activityId === 2) {
     // 活动2：计算2-1和2-2的总和
-    const total = status.groupScores.activity2_1 + status.groupScores.activity2_2
-    return total > 0 ? '⭐'.repeat(total) : ''
+    return status.groupScores.activity2
   } else if (activityId === 3) {
-    const stars = status.groupScores.activity3
-    return stars > 0 ? '⭐'.repeat(stars) : ''
+    return status.groupScores.activity3
   } else if (activityId === 4) {
-    const stars = status.groupScores.activity4
-    return stars > 0 ? '⭐'.repeat(stars) : ''
+    return status.groupScores.activity4
   }
-  return ''
+  return 0
 }
 
 // 计算总星数
 const totalStars = computed(() => {
   return status.groupScores.activity1 + 
-         status.groupScores.activity2_1 + 
-         status.groupScores.activity2_2 + 
+         status.groupScores.activity2 + 
          status.groupScores.activity3 + 
          status.groupScores.activity4
 })
@@ -169,10 +196,10 @@ const handleLogout = () => {
   transition: all 0.3s ease;
   white-space: nowrap;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
-  min-width: 90px;
+  gap: 8px;
+  min-width: 100px;
 }
 
 .activity-btn:hover {
@@ -189,17 +216,47 @@ const handleLogout = () => {
 }
 
 .btn-text {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 900;
 }
 
 .btn-stars {
-  font-size: 12px;
-  min-height: 16px;
-  line-height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
+}
+
+.star-icon {
+  width: 20px;
+  height: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: rgba(255, 255, 255, 0.7);
+  stroke: currentColor;
+}
+
+/* 未点亮的星星 - 空心描边样式 */
+.star-icon:not(.filled) {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.05));
+}
+
+/* 按钮激活时，未点亮的星星颜色 */
+.activity-btn.active .star-icon:not(.filled) {
+  color: rgba(25, 118, 210, 0.4);
+}
+
+/* 点亮的星星 - 渐变填充 */
+.star-icon.filled {
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
+}
+
+/* 悬停效果 */
+.activity-btn:hover .star-icon {
+  transform: scale(1.1);
+}
+
+.activity-btn:hover .star-icon.filled {
+  transform: scale(1.15) rotate(5deg);
 }
 
 .spacer {
@@ -209,9 +266,9 @@ const handleLogout = () => {
 /* 总星数显示 */
 .total-stars {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.95);
   border: 2px solid white;
   border-radius: 16px;
@@ -230,8 +287,8 @@ const handleLogout = () => {
 }
 
 .total-label {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 900;
   color: #1976d2;
   white-space: nowrap;
 }

@@ -4,11 +4,11 @@
     <div class="stats-section">
       <!-- 活动标题 -->
       <div class="activity-header">
-        <h2 class="activity-title">📊 问卷设计，精研问题</h2>
+        <h2 class="activity-title">📊 问卷编辑，精研问题</h2>
       </div>
 
       <!-- 问卷预览模式 -->
-      <div v-if="showPreviewMode" class="preview-mode">
+      <div class="preview-mode">
         <div class="preview-grid">
           <!-- 左侧：问卷编辑 -->
           <div class="preview-left">
@@ -20,16 +20,13 @@
                 <div class="header-actions">
                   <button 
                     class="like-toggle-btn"
-                    :class="{ 'active': activity.ac2_2_likeEnabled }"
+                    :class="{ 'active': activity.ac3_likeEnabled }"
                     @click="toggleLikeEnabled"
                   >
-                    <span class="btn-text">{{ activity.ac2_2_likeEnabled ? '关闭点赞' : '开放点赞' }}</span>
+                    <span class="btn-text">{{ activity.ac3_likeEnabled ? '关闭点赞' : '开放点赞' }}</span>
                   </button>
                   <button class="send-btn" @click="sendQuestionnaireToStudents">
                     发送问卷
-                  </button>
-                  <button class="back-btn" @click="navigateToActivity2_2">
-                    返回统计
                   </button>
                 </div>
               </div>
@@ -61,7 +58,7 @@
                 <div class="design-item-header">
                   <span class="like-info">👍 {{ design.great || 0 }}</span>
                   <span v-if="design.designQuestion" class="question-type" :class="design.taskType">
-                    {{ design.taskType === 'challenge' ? '挑战' : design.taskType === 'basic' ? '基础' : '' }} · {{ getQuestionTypeText(design.designQuestion.type) }}
+                    {{ design.taskType === 'challenge' ? '2星' : design.taskType === 'basic' ? '1星' : '' }} · {{ getQuestionTypeText(design.designQuestion.type) }}
                   </span>
                   <span class="design-time">{{ formatTime(design.submittedAt) }}</span>
                 </div>
@@ -96,102 +93,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 题库统计区域 - 单列布局 -->
-      <div v-else class="question-bank-section">
-        <!-- 使用时长题库 -->
-        <div class="bank-container">
-          <div class="bank-header">
-            <div class="bank-header-left">
-            <span class="bank-icon">⏱️</span>
-            <span class="bank-title">使用时长</span>
-            </div>
-            <button class="activity-btn" @click="navigateToActivity2_2">
-              活动2-2
-            </button>
-          </div>
-          <div class="question-list">
-            <div 
-              v-for="question in durationQuestions" 
-              :key="question.id"
-              class="question-card"
-            >
-              <!-- 左侧：题目信息 -->
-              <div class="question-info">
-                <div class="question-header">
-                  <span class="question-number">题目{{ question.id }}</span>
-                  <span class="question-count">{{ getQuestionCount('duration', question.id) }}组</span>
-                </div>
-                <div class="question-text">{{ question.title }}</div>
-                <div v-if="question.options" class="question-options">
-                  <div v-for="(opt, idx) in question.options" :key="idx" class="option-item">
-                    {{ opt }}
-                  </div>
-                </div>
-              </div>
-              
-              <!-- 右侧：选择的小组 -->
-              <div class="groups-section">
-                <div v-if="getGroupsByQuestion('duration', question.id).length > 0" class="groups-grid">
-                  <div 
-                    v-for="group in getGroupsByQuestion('duration', question.id)" 
-                    :key="group" 
-                    class="group-badge"
-                  >
-                    第{{ group }}组
-                  </div>
-                </div>
-                <div v-else class="no-groups">暂无小组选择</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 使用影响题库 -->
-        <div class="bank-container">
-          <div class="bank-header">
-            <div class="bank-header-left">
-              <span class="bank-icon">💡</span>
-              <span class="bank-title">设备类型</span>
-            </div>
-          </div>
-          <div class="question-list">
-            <div 
-              v-for="question in impactQuestions" 
-              :key="question.id"
-              class="question-card"
-            >
-              <!-- 左侧：题目信息 -->
-              <div class="question-info">
-                <div class="question-header">
-                  <span class="question-number">题目{{ question.id }}</span>
-                  <span class="question-count">{{ getQuestionCount('impact', question.id) }}组</span>
-                </div>
-                <div class="question-text">{{ question.title }}</div>
-                <div v-if="question.options" class="question-options">
-                  <div v-for="(opt, idx) in question.options" :key="idx" class="option-item">
-                    {{ opt }}
-                  </div>
-                </div>
-              </div>
-              
-              <!-- 右侧：选择的小组 -->
-              <div class="groups-section">
-                <div v-if="getGroupsByQuestion('impact', question.id).length > 0" class="groups-grid">
-                  <div 
-                    v-for="group in getGroupsByQuestion('impact', question.id)" 
-                    :key="group" 
-                    class="group-badge"
-                  >
-                    第{{ group }}组
-                  </div>
-                </div>
-                <div v-else class="no-groups">暂无小组选择</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -202,18 +103,14 @@ import { useRouter } from 'vue-router'
 import { useSocket } from '@/store/socket'
 import { useStatus } from '@/store/status'
 import { ElMessage } from 'element-plus'
-// import { Plus } from '@element-plus/icons-vue'
-import { bank, useActivity, questionnaireSecondData, type QuestionOption } from '@/store/activity'
+import { useActivity, questionnaireSecondData, type QuestionOption } from '@/store/activity'
 import { EntityMode, EventType } from '@/types'
-import QuestionnairePreviewCard from '../components/QuestionnairePreviewCard.vue'
+import QuestionnairePreviewCard from './QuestionnairePreviewCard.vue'
 
 const router = useRouter()
 const socket = useSocket()
 const status = useStatus()
 const activity = useActivity()
-
-// 显示模式：false 显示题库统计，true 显示问卷预览
-const showPreviewMode = ref(false)
 
 // 问卷设计数据结构
 interface DesignPayload {
@@ -234,54 +131,6 @@ interface DesignPayload {
 }
 
 const designStore = reactive(new Map<string, DesignPayload>())
-
-// 题库数据
-const durationQuestions = bank.durationQuestions
-const impactQuestions = bank.impactQuestions
-
-// 问卷数据（旧的，已废弃 - 仅保留 designStore 用于其他 socket 事件）
-// const designItems = computed(() => {
-//   return Array.from(designStore.values())
-//     .sort((a, b) => (b.at || 0) - (a.at || 0))
-//     .map(p => ({ ...p, key: p.from.groupNo }))
-// })
-
-// 活动2.1选择结果数据（新的，基于小组）
-const selectResults = computed(() => {
-  return Object.entries(activity.ac2_1_allSelectResult).map(([groupNo, result]: [string, any]) => ({
-    groupNo,
-    ...result
-  }))
-})
-
-// 获取选择某题目的小组数量
-function getQuestionCount(type: 'duration' | 'impact', questionId: number): number {
-  return selectResults.value.filter(item => {
-    if (type === 'duration') {
-      // 使用时长题目 ID 范围：1-2
-      return item.selectedDurationQuestion === questionId
-    } else {
-      // 使用影响题目 ID 范围：1-4
-      return item.selectedImpactQuestion === questionId
-    }
-  }).length
-}
-
-// 获取选择某题目的小组列表
-function getGroupsByQuestion(type: 'duration' | 'impact', questionId: number): string[] {
-  const groups = selectResults.value
-    .filter(item => {
-      if (type === 'duration') {
-        return item.selectedDurationQuestion === questionId
-      } else {
-        return item.selectedImpactQuestion === questionId
-      }
-    })
-    .map(item => item.groupNo)
-    .sort((a, b) => parseInt(a) - parseInt(b))
-  
-  return groups
-}
 
 // Socket事件处理
 function handleDesignSubmission(payload: any) {
@@ -313,50 +162,28 @@ function handleDesignSubmission(payload: any) {
   })
   
   if (isFirstSubmission) {
-    // console.log(`[Activity2 Teacher] 收到问卷设计: 第${groupNo}组 (首次提交)`)
+    // console.log(`[Activity3 Teacher] 收到问卷设计: 第${groupNo}组 (首次提交)`)
     // ElMessage.success(`第${groupNo}组提交了问卷设计`)
   } else {
-    // console.log(`[Activity2 Teacher] 更新问卷设计: 第${groupNo}组 (覆盖之前的设计)`)
+    // console.log(`[Activity3 Teacher] 更新问卷设计: 第${groupNo}组 (覆盖之前的设计)`)
     // ElMessage.info(`第${groupNo}组更新了问卷设计`)
   }
 }
 
 onMounted(() => {
-  // console.log('[Activity2 Teacher] 🟢 组件已挂载，开始监听 submit 事件')
+  // console.log('[Activity3 Teacher] 🟢 组件已挂载，开始监听 submit 事件')
   socket.on('submit', handleDesignSubmission)
+  
+  // 初始化问卷（如果还没有）
+  if (!activity.questionnaire || activity.questionnaire.questions.length === 0) {
+    activity.questionnaire = JSON.parse(JSON.stringify(questionnaireSecondData))
+  }
 })
 
 onBeforeUnmount(() => {
-  // console.log('[Activity2 Teacher] 🔴 组件卸载，清理监听器')
+  // console.log('[Activity3 Teacher] 🔴 组件卸载，清理监听器')
   socket.off('submit', handleDesignSubmission)
 })
-
-// ==================== 活动2-2按钮处理 ====================
-function navigateToActivity2_2() {
-  // 切换显示模式
-  const isEnteringPreviewMode = !showPreviewMode.value
-  showPreviewMode.value = isEnteringPreviewMode
-  
-  // 如果进入预览模式（活动2-2），重置问卷为 questionnaireSecondData
-  if (isEnteringPreviewMode) {
-    // 深拷贝 questionnaireSecondData 以避免直接修改原始数据
-    activity.questionnaire = JSON.parse(JSON.stringify(questionnaireSecondData))
-    // ElMessage.success('已加载活动2-2问卷模板')
-    // 发送问卷给所有学生
-     socket.dispatch({
-      mode: EntityMode.STUDENT,
-      messageType: 'sync_questionnaire',
-      activityIndex: '2',
-      data: {
-        questionnaire: activity.questionnaire
-      },
-      from: null,
-      to: {}, // 发送给所有学生
-      eventType: EventType.DISPATCH
-    })   
-  }
-
-}
 
 // ==================== 发送问卷给学生 ====================
 function sendQuestionnaireToStudents() {
@@ -370,7 +197,7 @@ function sendQuestionnaireToStudents() {
     socket.dispatch({
       mode: EntityMode.STUDENT,
       messageType: 'sync_questionnaire',
-      activityIndex: '2',
+      activityIndex: '3',
       data: {
         questionnaire: activity.questionnaire
       },
@@ -379,18 +206,18 @@ function sendQuestionnaireToStudents() {
       eventType: EventType.DISPATCH
     })
     
-    // ElMessage.success('问卷已发送，正在切换到活动3')
+    // ElMessage.success('问卷已发送，正在切换到活动4')
     
-    // 3. 自动跳转到活动3
+    // 3. 自动跳转到活动4
     setTimeout(() => {
       // 更新活动状态
-      status.activityStatus.now = 3
+      status.activityStatus.now = 4
       status.activityStatus.all.forEach(a => {
-        a.isActive = (a.id === 3)
+        a.isActive = (a.id === 4)
       })
       
       // 路由跳转
-      router.push('/teacher/activity3')
+      router.push('/teacher/activity4')
       
       // 广播给学生切换活动
       socket.dispatch({
@@ -404,7 +231,7 @@ function sendQuestionnaireToStudents() {
       })
     }, 500)
   } catch (error: any) {
-    console.error('[Activity2 Teacher] 发送问卷失败:', error)
+    console.error('[Activity3 Teacher] 发送问卷失败:', error)
     // ElMessage.error(`发送失败: ${error.message}`)
   }
 }
@@ -423,17 +250,17 @@ const sortedDesignResults = computed(() => {
   const allDesigns: any[] = []
   
   // 收集所有有效的设计
-  Object.entries(activity.ac2_2_allDesignResult).forEach(([groupNo, result]: [string, any]) => {
+  Object.entries(activity.ac3_allResult).forEach(([groupNo, result]: [string, any]) => {
     if (result?.designQuestion && result.submittedAt > 0) {
       // 根据rating或challengeLevel判断任务类型
       let taskType = ''
       
       // 优先使用challengeLevel判断
       if (result.challengeLevel) {
-        if (result.challengeLevel === 'three') {
-          taskType = 'challenge' // 挑战任务
-        } else if (result.challengeLevel === 'two') {
-          taskType = 'basic' // 基础任务
+        if (result.challengeLevel === 'two') {
+          taskType = 'challenge' // 2星难度
+        } else if (result.challengeLevel === 'one') {
+          taskType = 'basic' // 1星难度
         }
       } 
       // 如果没有challengeLevel，使用rating判断
@@ -543,29 +370,29 @@ function addQuestionToQuestionnaire(question: any) {
       // ElMessage.success('已将学生设计的题目添加到问卷')
     }
   } catch (error: any) {
-    console.error('[Activity2 Teacher] 添加题目失败:', error)
+    console.error('[Activity3 Teacher] 添加题目失败:', error)
     // ElMessage.error(`添加失败: ${error.message}`)
   }
 }
 
 // 切换点赞开放状态
 function toggleLikeEnabled() {
-  activity.ac2_2_likeEnabled = !activity.ac2_2_likeEnabled
+  activity.ac3_likeEnabled = !activity.ac3_likeEnabled
   
   // 广播给所有学生
   socket.dispatch({
     mode: EntityMode.STUDENT,
     eventType: EventType.DISPATCH,
     messageType: 'like_enabled_changed',
-    activityIndex: '2-2',
+    activityIndex: '3',
     data: {
-      likeEnabled: activity.ac2_2_likeEnabled
+      likeEnabled: activity.ac3_likeEnabled
     },
     from: null,
     to: {}
   })
   
-  ElMessage.success(activity.ac2_2_likeEnabled ? '已开放点赞' : '已关闭点赞')
+  ElMessage.success(activity.ac3_likeEnabled ? '已开放点赞' : '已关闭点赞')
 }
 </script>
 
@@ -592,225 +419,6 @@ function toggleLikeEnabled() {
   font-weight: 700;
   color: #1f2937;
   margin: 0;
-}
-
-/* 题库统计区域 - 单列布局 */
-.question-bank-section {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* 题库容器 */
-.bank-container {
-  background: white;
-  border-radius: 16px;
-  padding: 28px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-}
-
-/* 题库头部 */
-.bank-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 16px;
-  margin-bottom: 24px;
-  border-bottom: 3px solid #f3f4f6;
-}
-
-.bank-header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.bank-icon {
-  font-size: 28px;
-}
-
-.bank-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: #1f2937;
-}
-
-.activity-btn {
-  padding: 10px 20px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
-}
-
-.activity-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
-  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-}
-
-/* 题目列表 */
-.question-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* 题目卡片 - 横向布局 */
-.question-card {
-  display: flex;
-  align-items: stretch;
-  background: #fafafa;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 10px;
-  gap: 24px;
-  transition: all 0.3s ease;
-}
-
-.question-card:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-/* 左侧：题目信息 */
-.question-info {
-  flex: 0 0 640px;
-  min-width: 0;
-}
-
-.question-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.question-number {
-  font-size: 14px;
-  font-weight: 800;
-  color: #3b82f6;
-  background: #dbeafe;
-  padding: 4px 10px;
-  border-radius: 8px;
-}
-
-.question-count {
-  font-size: 14px;
-  font-weight: 900;
-  color: #10b981;
-  background: #d1fae5;
-  padding: 4px 12px;
-  border-radius: 8px;
-}
-
-.question-text {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 12px;
-  line-height: 1.5;
-}
-
-/* 题目选项 - 横向排布 */
-.question-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  margin-top: 12px;
-}
-
-.option-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: #4b5563;
-  line-height: 1.4;
-  padding: 4px 8px;
-  background: #f3f4f6;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-}
-
-.option-item:hover {
-  background: #e5e7eb;
-}
-
-.option-item::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border: 2px solid #9ca3af;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: white;
-}
-
-/* 右侧：小组区域 */
-.groups-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: white;
-  border-left: 2px solid #e5e7eb;
-  padding-left: 24px;
-  min-width: 0;
-}
-
-.groups-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: #6b7280;
-  margin-bottom: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.groups-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-content: flex-start;
-}
-
-.group-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 34px;
-  height: 24px;
-  padding: 0 8px;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  border: 2px solid #93c5fd;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #1e40af;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.group-badge:hover {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  border-color: #1d4ed8;
-  color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
-}
-
-.no-groups {
-  text-align: center;
-  padding: 20px 12px;
-  color: #9ca3af;
-  font-size: 13px;
-  font-style: italic;
 }
 
 /* 问卷预览模式 */
@@ -900,26 +508,6 @@ function toggleLikeEnabled() {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
-}
-
-.back-btn {
-  padding: 10px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-  white-space: nowrap;
-}
-
-.back-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
 }
 
 .preview-content {
@@ -1211,23 +799,6 @@ function toggleLikeEnabled() {
 }
 
 @media (max-width: 1024px) {
-  .question-card {
-    flex-direction: column;
-    gap: 16px;
-  }
-  
-  .question-info {
-    flex: 1 1 auto;
-  }
-  
-  .groups-section {
-    flex: 1 1 auto;
-    border-left: none;
-    border-top: 2px solid #e5e7eb;
-    padding-left: 0;
-    padding-top: 16px;
-  }
-  
   .preview-grid {
     grid-template-columns: 1fr;
   }
@@ -1243,18 +814,6 @@ function toggleLikeEnabled() {
 @media (max-width: 768px) {
   .activity-title {
     font-size: 28px;
-  }
-  
-  .bank-title {
-    font-size: 18px;
-  }
-  
-  .bank-container {
-    padding: 20px;
-  }
-  
-  .question-card {
-    padding: 16px;
   }
   
   .preview-header {
