@@ -56,7 +56,7 @@
               <div v-for="(question, qIndex) in designQuestions" :key="`q-${question.id}`" class="question-wrapper">
                 <div class="question-item">
                   <div class="question-title">
-                    <span class="q-number">{{ qIndex + 1 }}.</span>
+                    <span class="q-number">{{ baseQuestions.length + qIndex + 1 }}.</span>
                     <span 
                       class="q-text editable-q-text"
                       contenteditable="true"
@@ -317,12 +317,14 @@ const deleteQuestion = (question: any) => {
 .questionnaire-container {
   max-width: 100%;
   margin: 0 auto;
+  min-width: 600px;
 }
 
 .questionnaire-card {
   background: white;
   border-radius: 8px;
   padding: 20px 40px;
+  min-width: 600px;
 }
 
 /* 卡片标题 */
@@ -349,6 +351,7 @@ const deleteQuestion = (question: any) => {
   align-items: baseline;
   gap: 8px;
   margin-bottom: 20px;
+  min-height: 32px;
 }
 
 /* 问卷标题 */
@@ -359,6 +362,7 @@ const deleteQuestion = (question: any) => {
   line-height: 1.4;
   flex: 1;
   text-align: center;
+  min-height: 32px;
 }
 
 /* 问卷说明区域 */
@@ -367,6 +371,7 @@ const deleteQuestion = (question: any) => {
   align-items: baseline;
   gap: 8px;
   margin-bottom: 20px;
+  min-height: 24px;
 }
 
 .intro-text {
@@ -376,6 +381,7 @@ const deleteQuestion = (question: any) => {
   flex: 1;
   margin: 0;
   text-indent: 2em;
+  min-height: 24px;
 }
 
 /* 问卷题目区域 */
@@ -384,15 +390,18 @@ const deleteQuestion = (question: any) => {
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 24px;
+  min-height: 40px;
 }
 
 .questionnaire-wrapper {
   flex: 1;
+  min-height: 40px;
 }
 
 .survey-questions {
   display: flex;
   flex-direction: column;
+  min-height: 40px;
 }
 
 /* 基础问卷题目样式 */
@@ -496,6 +505,7 @@ const deleteQuestion = (question: any) => {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  min-height: 200px;
 }
 
 .content-area-section .section-label {
@@ -507,6 +517,7 @@ const deleteQuestion = (question: any) => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 200px;
 }
 
 /* 学生选择题目区域 */

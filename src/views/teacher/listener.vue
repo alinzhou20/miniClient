@@ -8,7 +8,6 @@ import type {
   Activity1Result, 
   Activity2Result, 
   Activity3Result, 
-  Activity4Result,
   QuestionnaireAnswer,
   QuestionOption
 } from '@/store/activity'
@@ -36,8 +35,25 @@ function updateGroupTotalScore(groupNo: string) {
   }
 }
 
-// 监听学生提交
-function onStudentSubmit(payload: any) {
+// 处理学生登录
+function onStudentLogin(payload: any) {
+  if (!payload || payload.messageType !== 'student_login') return
+  
+  const { data, from } = payload
+  if (!data || !from) return
+  
+  const { groupNo, studentNo, studentRole, loginTime } = data
+  
+  // 更新小组状态（只关心操作员）
+  if (studentRole === 'operator' && status.groupStatus[groupNo]) {
+    status.groupStatus[groupNo].isOnline = true
+    status.groupStatus[groupNo].operatorNo = studentNo
+    status.groupStatus[groupNo].loginTime = loginTime
+  }
+}
+
+// 统一的 submit 事件处理
+function handleSubmit(payload: any) {
   if (!payload || !payload.messageType) return
   
   const { messageType, data, from } = payload
@@ -50,30 +66,11 @@ function onStudentSubmit(payload: any) {
     // 根据不同的消息类型处理
     switch (messageType) {
       case 'student_login':
-        // 学生登录通知（只关心操作员）
-        if (data && from) {
-          const { groupNo, studentNo, studentRole, loginTime } = data
-          
-          // 更新小组状态（只关心操作员）
-          if (studentRole === 'operator' && status.groupStatus[groupNo]) {
-            status.groupStatus[groupNo].isOnline = true
-            status.groupStatus[groupNo].operatorNo = studentNo
-            status.groupStatus[groupNo].loginTime = loginTime
-          }
-        }
+        onStudentLogin(payload)
         break
         
       // case 'student_logout':
-      //   // 学生离线通知（只关心操作员）
-      //   if (data && from) {
-      //     const { groupNo, studentRole } = data
-          
-      //     // 更新小组状态（只关心操作员）
-      //     if (studentRole === 'operator' && status.groupStatus[groupNo]) {
-      //       status.groupStatus[groupNo].isOnline = false
-      //     }
-          
-      //   }
+      //   onStudentLogout(payload)
       //   break
         
       case 'activity1_submit':
@@ -125,7 +122,9 @@ function onStudentSubmit(payload: any) {
             designQuestion: data.designQuestion,
             rating: data.rating,
             great: data.great || 0,
-            submittedAt: data.submittedAt
+            submittedAt: data.submittedAt,
+            challengeLevel: data.challengeLevel || null,
+            likedByGroups: data.likedByGroups || []
           } as Activity3Result
           
           // 更新小组得分
@@ -136,7 +135,7 @@ function onStudentSubmit(payload: any) {
             updateGroupTotalScore(groupNo)
           }
           
-          // ElMessage.success(`第${groupNo}组 提交了活动三-题目设计 (得分: ${score}/3)`)
+          // ElMessage.success(`第${groupNo}组 提交了活动三-题目设计 (得分: ${score}/2)`)
         }
         break
         
@@ -155,7 +154,7 @@ function onStudentSubmit(payload: any) {
         break
         
       case 'questionnaire_submit':
-        // Activity 3 - 问卷填写（无评分，提交即得1分）
+        // Activity 4 - 问卷填写（无评分，提交即得1分）
         if (data && data.questions && activity.ac4_allQuestionnaireAnswer) {
           // 验证问卷数据
           const questions = data.questions as QuestionOption[]
@@ -174,7 +173,7 @@ function onStudentSubmit(payload: any) {
           
           // 更新小组得分（问卷提交即得1分）  
           if (groupNo && status.groupStatus[groupNo]) {
-            status.groupStatus[groupNo].scores.activity3 = 1
+            status.groupStatus[groupNo].scores.activity4 = 1
             updateGroupTotalScore(groupNo)
           }
           
@@ -187,18 +186,18 @@ function onStudentSubmit(payload: any) {
     }
   } catch (error) {
     console.error('[Teacher Listener] 处理学生提交失败:', error)
-    // ElMessage.error(`处理 ${studentInfo} 的提交失败`)
+    // ElMessage.error(`处理提交失败`)
   }
 }
 
 onMounted(() => {
-  // console.log('[Teacher Listener] 开始监听学生提交')
-  socket.on('submit', onStudentSubmit)
+  socket.on('submit', handleSubmit)
+  // console.log('[Teacher Listener] 开始监听 submit 消息')
 })
 
 onBeforeUnmount(() => {
-  // console.log('[Teacher Listener] 停止监听学生提交')
-  socket.off('submit', onStudentSubmit)
+  socket.off('submit', handleSubmit)
+  // console.log('[Teacher Listener] 停止监听 submit 消息')
 })
 </script>
 

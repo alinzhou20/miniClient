@@ -16,9 +16,6 @@
               <span class="bank-icon">⏱️</span>
               <span class="bank-title">使用时长</span>
             </div>
-            <button class="activity-btn" @click="navigateToActivity3">
-              进入活动3
-            </button>
           </div>
           <div class="question-list">
             <div 
@@ -99,85 +96,12 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
-import { useSocket } from '@/store/socket'
-import { useStatus } from '@/store/status'
-import { useActivity, questionnaireSecondData, type QuestionOption } from '@/store/activity'
-import { EntityMode, EventType } from '@/types'
+import { computed } from 'vue'
+import { useActivity, type QuestionOption } from '@/store/activity'
 
-const router = useRouter()
-const socket = useSocket()
-const status = useStatus()
 const activity = useActivity()
 
-// 问卷设计数据结构
-interface DesignPayload {
-  type: 'activity2_design'
-  from: { groupNo: string }
-  data: {
-  groupNo: string
-    groupType: string
-    purpose: string
-    description: string
-    selectedQuestion: number
-    selectedQuestionText: string
-    reason: string
-    questionOptions: Array<{text: string, options: string}>
-  }
-  at: number
-  key?: string
-}
-
-const designStore = reactive(new Map<string, DesignPayload>())
-
-// Socket事件处理
-function handleDesignSubmission(payload: any) {
-  if (!payload || String(payload.type) !== 'activity2_design') return
-  
-  const from = payload.from || {}
-  const data = payload.data || {}
-  if (!from.groupNo) return
-  
-  const groupNo = String(from.groupNo)
-  const key = groupNo
-  
-  const isFirstSubmission = !designStore.has(key)
-  
-  designStore.set(key, {
-    type: 'activity2_design',
-    from: { groupNo },
-    data: {
-      groupNo: data.groupNo || groupNo,
-      groupType: data.groupType || '未知组别',
-      purpose: data.purpose || '',
-      description: data.description || '',
-      selectedQuestion: data.selectedQuestion || 1,
-      selectedQuestionText: data.selectedQuestionText || '',
-      reason: data.reason || '',
-      questionOptions: data.questionOptions || []
-    },
-    at: payload.at || Date.now()
-  })
-  
-  if (isFirstSubmission) {
-    // console.log(`[Activity2 Teacher] 收到问卷设计: 第${groupNo}组 (首次提交)`)
-    // ElMessage.success(`第${groupNo}组提交了问卷设计`)
-  } else {
-    // console.log(`[Activity2 Teacher] 更新问卷设计: 第${groupNo}组 (覆盖之前的设计)`)
-    // ElMessage.info(`第${groupNo}组更新了问卷设计`)
-  }
-}
-
-onMounted(() => {
-  // console.log('[Activity2 Teacher] 🟢 组件已挂载，开始监听 submit 事件')
-  socket.on('submit', handleDesignSubmission)
-})
-
-onBeforeUnmount(() => {
-  // console.log('[Activity2 Teacher] 🔴 组件卸载，清理监听器')
-  socket.off('submit', handleDesignSubmission)
-})
+// Note: Activity2的设计提交处理已移至 listener.vue 统一管理
 
 // ==================== 题库数据 ====================
 // 使用时长题库数据
@@ -234,14 +158,14 @@ const typeQuestions: QuestionOption[] = [
     visibility: 'both',
     limit: 3
   },
-  {
-    id: 4,
-    title: '我认为以上题目都不合适。',
-    type: 'single',
-    questionType: 'type',
-    answer: '',
-    visibility: 'both'
-  }
+  // {
+  //   id: 4,
+  //   title: '我认为以上题目都不合适。',
+  //   type: 'single',
+  //   questionType: 'type',
+  //   answer: '',
+  //   visibility: 'both'
+  // }
 ]
 
 // 活动2.1选择结果数据（基于小组）
@@ -268,44 +192,6 @@ function getGroupsByQuestion(type: 'duration' | 'type', questionId: number): str
   return groups
 }
 
-// ==================== 跳转到活动3按钮处理 ====================
-function navigateToActivity3() {
-  // 初始化问卷为 questionnaireSecondData
-  activity.questionnaire = JSON.parse(JSON.stringify(questionnaireSecondData))
-  
-  // 发送问卷给所有学生
-  socket.dispatch({
-    mode: EntityMode.STUDENT,
-    messageType: 'sync_questionnaire',
-    activityIndex: '3',
-    data: {
-      questionnaire: activity.questionnaire
-    },
-    from: null,
-    to: {}, // 发送给所有学生
-    eventType: EventType.DISPATCH
-  })
-  
-  // 更新活动状态
-  status.activityStatus.now = 3
-  status.activityStatus.all.forEach(a => {
-    a.isActive = (a.id === 3)
-  })
-  
-  // 路由跳转
-  router.push('/teacher/activity3')
-  
-  // 广播给学生切换活动
-  socket.dispatch({
-    mode: status.mode,
-    eventType: EventType.DISPATCH,
-    messageType: 'change_activity',
-    activityIndex: '-1',
-    data: { activityStatus: status.activityStatus },
-    from: null,
-    to: {}
-  })
-}
 </script>
 
 <style scoped>

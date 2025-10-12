@@ -12,17 +12,6 @@
       <!-- 分隔线 -->
       <div class="divider"></div>
       
-      <!-- 统计信息 -->
-      <div class="stats-banner">
-        <div class="stat-item">
-          <span class="stat-icon">👥</span>
-          <span class="stat-text">已提交：<strong>{{ totalSubmitted }}</strong> / 24人</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-icon">📊</span>
-          <span class="stat-text">完成率：<strong>{{ Math.round((totalSubmitted / 24) * 100) }}%</strong></span>
-        </div>
-      </div>
       
       <!-- 题目统计区域 -->
       <div class="survey-questions">
@@ -33,14 +22,6 @@
           <div class="question-title">
             <span class="q-number">{{ qIndex + 1 }}.</span>
             <span class="q-text">{{ question.title }}</span>
-            <span class="type-badge">[{{ getTypeText(question.type) }}]</span>
-            <span 
-              v-if="getQuestionTypeLabel(question.questionType)" 
-              class="tag-badge"
-              :class="getQuestionTypeLabel(question.questionType)?.class"
-            >
-              {{ getQuestionTypeLabel(question.questionType)?.text }}
-            </span>
           </div>
           
           <!-- 填空题 - 显示所有答案 -->
@@ -113,26 +94,6 @@ const totalSubmitted = computed(() => {
 // 判断题目是否需要高亮显示（duration、impact、design 类型）
 const shouldHighlight = (question: QuestionOption): boolean => {
   return ['duration', 'impact', 'design'].includes(question.questionType)
-}
-
-// 根据 questionType 获取标签文本和样式类
-const getQuestionTypeLabel = (questionType: string): { text: string; class: string } | null => {
-  const labelMap: Record<string, { text: string; class: string }> = {
-    'duration': { text: '使用时长', class: '' },
-    'impact': { text: '设备类型', class: '' },
-    'design': { text: '使用用途', class: 'usage' }
-  }
-  return labelMap[questionType] || null
-}
-
-// 获取题目类型的文本
-const getTypeText = (type: 'fill' | 'single' | 'multiple'): string => {
-  const typeMap = {
-    'fill': '填空',
-    'single': '单选',
-    'multiple': '多选'
-  }
-  return typeMap[type] || '单选'
 }
 
 // 统一获取题目选项的选择人数（支持单选和多选）
@@ -235,17 +196,6 @@ const getFillAnswers = (questionId: number) => {
   margin: 24px 0;
 }
 
-/* 统计横幅 */
-.stats-banner {
-  display: flex;
-  gap: 32px;
-  justify-content: center;
-  padding: 16px 24px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border-radius: 12px;
-  margin-bottom: 32px;
-  border: 2px solid #bae6fd;
-}
 
 .stat-item {
   display: flex;
@@ -314,26 +264,6 @@ const getFillAnswers = (questionId: number) => {
   color: #1f2937;
   line-height: 1.6;
   font-weight: 500;
-}
-
-.type-badge {
-  font-size: 14px;
-  color: #6b7280;
-  margin-left: 4px;
-}
-
-.tag-badge {
-  font-size: 12px;
-  padding: 2px 10px;
-  background: #10b981;
-  color: white;
-  border-radius: 12px;
-  font-weight: 500;
-  margin-left: 8px;
-}
-
-.tag-badge.usage {
-  background: #f59e0b;
 }
 
 /* 选项统计区域 */
@@ -485,11 +415,6 @@ const getFillAnswers = (questionId: number) => {
 @media (max-width: 768px) {
   .questionnaire-card {
     padding: 20px;
-  }
-
-  .stats-banner {
-    flex-direction: column;
-    gap: 12px;
   }
 
   .question-options {

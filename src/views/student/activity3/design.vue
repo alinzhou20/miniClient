@@ -20,9 +20,9 @@
     <div v-if="selectedLevel === 'two'" class="design-section">
       <div class="design-title">填写学习单设计题目，拍照上传</div>
       
-      <!-- 初始状态：显示拍摄按钮 -->
-      <div v-if="!twoStarQuestion && !isRecognizing" class="capture-card">
-        <div class="capture-content">
+      <div class="capture-card">
+        <!-- 初始状态：显示拍摄按钮 -->
+        <div v-if="!isRecognizing" class="capture-content">
           <el-button 
             type="primary" 
             size="large" 
@@ -32,50 +32,11 @@
             拍照上传
           </el-button>
         </div>
-      </div>
 
-      <!-- 识别中状态 -->
-      <div v-else-if="isRecognizing" class="capture-card">
-        <div class="recognition-loading">
+        <!-- 识别中状态 -->
+        <div v-else class="recognition-loading">
           <div class="loading-spinner"></div>
           <div class="loading-text">正在识别手写内容...</div>
-        </div>
-      </div>
-
-      <!-- 识别完成：显示表单 -->
-      <div v-else class="form-card">
-        <div class="form-content">
-          <el-form label-width="45px">
-            <el-form-item label="题目">
-              <el-input
-                v-model="twoStarQuestion!.title"
-                type="textarea"
-                :rows="2"
-                placeholder="请输入题目"
-                maxlength="200"
-                show-word-limit
-              />
-            </el-form-item>
-            <el-form-item 
-              v-for="(_option, idx) in (twoStarQuestion!.options || [])" 
-              :key="idx"
-              :label="String.fromCharCode(65 + idx)"
-            >
-              <el-input
-                v-model="twoStarQuestion!.options![idx]"
-                type="textarea"
-                :rows="1"
-                :placeholder="`请输入选项${String.fromCharCode(65 + idx)}`"
-                maxlength="100"
-                show-word-limit
-              />
-            </el-form-item>
-          </el-form>
-        </div>
-        
-        <div class="form-actions">
-          <el-button @click="openCamera" size="large">重拍</el-button>
-          <el-button type="success" @click="saveTwoStar" size="large">加入问卷</el-button>
         </div>
       </div>
     </div>
@@ -160,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useActivity } from '@/store/activity'
 import { useStatus } from '@/store/status'
@@ -192,7 +153,6 @@ const selectLevel = (level: 'one' | 'two') => {
 // 2星难度相关
 const showCamera = ref(false)
 const isRecognizing = ref(false)
-const twoStarQuestion = computed(() => activity.threeStarDraft)
 
 // 1星难度相关 - 题库数据
 const allOneStarQuestions: QuestionOption[] = [
@@ -228,7 +188,7 @@ const allOneStarQuestions: QuestionOption[] = [
   },
   {
     id: 4,
-    title: '你认为数字设备主要用于哪些场景？',
+    title: '你认为数字设备主要用于哪些场景？________',
     options: [],
     type: 'fill',
     questionType: 'design',
@@ -238,7 +198,7 @@ const allOneStarQuestions: QuestionOption[] = [
   },
   {
     id: 5,
-    title: '你最常使用数字设备做什么？',
+    title: '你最常使用数字设备做什么？_______',
     options: [],
     type: 'fill',
     questionType: 'design',
@@ -251,6 +211,26 @@ const allOneStarQuestions: QuestionOption[] = [
     title: '你每天使用数字设备的主要用途是什么？（可多选）',
     options: ['学习查资料', '娱乐游戏', '社交聊天', '看视频', '其他_____'],
     type: 'multiple',
+    questionType: 'design',
+    answer: '',
+    visibility: 'both',
+    limit: -1
+  },
+  {
+    id: 7,
+    title: '你使用数字设备最主要做什么？',
+    options: ['看动画片、电影或短视频', '玩电子游戏', '上网课或查找学习资料', '听音乐或故事', '和家人、朋友打电话或视频聊天', '其他___'],
+    type: 'multiple',
+    questionType: 'design',
+    answer: '',
+    visibility: 'both',
+    limit: -1
+  },
+  {
+    id: 8,
+    title: '你最常使用数字设备做什么？_______',
+    options: [],
+    type: 'fill',
     questionType: 'design',
     answer: '',
     visibility: 'both',
@@ -400,21 +380,6 @@ watch(selectedLevel, (newLevel) => {
 
 // 2星难度方法
 const openCamera = () => {
-  // 如果已有题目，清空数据
-  if (twoStarQuestion.value) {
-    activity.threeStarDraft = null
-    status.takePhoto = null
-    
-    if (activity.ac3_stuResult) {
-      activity.ac3_stuResult.designQuestion = null
-    }
-    
-    const index = activity.questionnaire.questions.findIndex(q => q.questionType === 'design')
-    if (index !== -1) {
-      activity.questionnaire.questions.splice(index, 1)
-    }
-  }
-  
   showCamera.value = true
 }
 
@@ -454,12 +419,26 @@ const handlePhotoUpload = async () => {
         limit: questionType === 'single' ? undefined : -1
       }
       
-      // 保存到草稿
-      activity.threeStarDraft = newQuestion
+      // 自动加入问卷（不需要等待用户点击）
+      // 1. 保存到 ac3_stuResult
+      if (activity.ac3_stuResult) {
+        activity.ac3_stuResult.designQuestion = { ...newQuestion }
+      }
       
-      ElMessage.success('题目识别成功！请点击"加入问卷"按钮')
+      // 2. 更新问卷中的数据
+      const existingIndex = activity.questionnaire.questions.findIndex(q => q.questionType === 'design')
+      if (existingIndex !== -1) {
+        activity.questionnaire.questions[existingIndex] = { ...newQuestion }
+      } else {
+        activity.questionnaire.questions.push({ ...newQuestion })
+      }
       
-      // 不自动加入问卷，等待用户点击"加入问卷"按钮
+      // 3. 显示成功消息
+      ElMessage.success('题目识别成功！已加入问卷，可继续设计')
+      
+      // 4. 自动重置到初始状态（可以继续拍照识别）
+      activity.threeStarDraft = null
+      status.takePhoto = null
     } else {
       ElMessage.warning('识别结果格式异常')
     }
@@ -473,35 +452,6 @@ const handlePhotoUpload = async () => {
 
 const handleCameraExit = () => {
   showCamera.value = false
-}
-
-const saveTwoStar = () => {
-  if (!twoStarQuestion.value || !twoStarQuestion.value.title.trim()) {
-    ElMessage.warning('题目内容不能为空')
-    return
-  }
-  
-  // 执行飞行动画
-  const sourceEl = document.querySelector('.form-card')
-  if (sourceEl) {
-    createFlyAnimation(sourceEl as HTMLElement, twoStarQuestion.value.title.substring(0, 20) + '...')
-  }
-  
-  // 延迟更新数据，让飞行动画先执行
-  setTimeout(() => {
-    // 更新 pinia 中的数据（因为用户可能编辑了）
-    if (activity.ac3_stuResult && twoStarQuestion.value) {
-      activity.ac3_stuResult.designQuestion = { ...twoStarQuestion.value }
-    }
-    
-    // 更新问卷中的数据
-    const existingIndex = activity.questionnaire.questions.findIndex(q => q.questionType === 'design')
-    if (existingIndex !== -1 && twoStarQuestion.value) {
-      activity.questionnaire.questions[existingIndex] = { ...twoStarQuestion.value }
-    }
-    
-    ElMessage.success('题目已更新到问卷')
-  }, 500)
 }
 
 // 创建飞行动画
@@ -736,26 +686,6 @@ const selectOneStarQuestion = (id: number, event?: MouseEvent) => {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-
-.form-card {
-  background: white;
-  border: 2px solid #e5e7eb;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.form-content {
-  padding: 40px;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  padding: 24px 40px;
-  border-top: 1px solid #e5e7eb;
-  background: #f9fafb;
 }
 
 /* 1星难度样式 - AI 对话卡片 */

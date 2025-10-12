@@ -55,14 +55,6 @@
                 {{ question.title }}
               </span>
               <span v-else class="q-text">{{ question.title }}</span>
-              <span class="type-badge">[{{ getTypeText(question.type) }}]</span>
-              <span 
-                v-if="getQuestionTypeLabel(question.questionType)" 
-                class="tag-badge"
-                :class="getQuestionTypeLabel(question.questionType)?.class"
-              >
-                {{ getQuestionTypeLabel(question.questionType)?.text }}
-              </span>
               <button 
                 v-if="props.editable"
                 class="delete-question-btn"
@@ -112,19 +104,6 @@
             >
               添加选项
             </button>
-          </div>
-          
-          <!-- 填空题输入框 -->
-          <div v-else class="fill-blank">
-            <el-input 
-              v-if="props.answerable"
-              v-model="question.answer"
-              :placeholder="getFillPlaceholder(question)"
-              size="large"
-              class="fill-input"
-              @input="handleFillInput(question, $event)"
-            />
-            <span v-else class="blank-line">_______________</span>
           </div>
         </div>
         
@@ -181,26 +160,6 @@ const visibleQuestions = computed(() => {
 // 判断题目是否需要高亮显示（duration、impact、design 类型）
 const shouldHighlight = (question: QuestionOption): boolean => {
   return ['duration', 'impact', 'design'].includes(question.questionType)
-}
-
-// 获取题目类型的文本
-const getTypeText = (type: 'fill' | 'single' | 'multiple'): string => {
-  const typeMap = {
-    'fill': '填空',
-    'single': '单选',
-    'multiple': '多选'
-  }
-  return typeMap[type] || '单选'
-}
-
-// 根据 questionType 获取标签文本和样式类
-const getQuestionTypeLabel = (questionType: string): { text: string; class: string } | null => {
-  const labelMap: Record<string, { text: string; class: string }> = {
-    'duration': { text: '使用时长', class: '' },
-    'impact': { text: '设备类型', class: '' },
-    'design': { text: '使用用途', class: 'usage' }
-  }
-  return labelMap[questionType] || null
 }
 
 // 获取选项样式类名
@@ -265,31 +224,6 @@ const handleOptionClick = (question: QuestionOption, index: number) => {
     question.answer = letter
   }
   // 因为 question 是 Pinia store 中的响应式对象，修改会自动触发更新
-}
-
-// ==================== 填空题功能 ====================
-
-// 获取填空题的 placeholder
-const getFillPlaceholder = (question: QuestionOption): string => {
-  if (question.limit === -2) {
-    return '请输入数字'
-  }
-  return '请输入答案'
-}
-
-// 处理填空题输入（验证数字）
-const handleFillInput = (question: QuestionOption, value: string) => {
-  // 如果 limit 为 -2，表示只能输入数字
-  if (question.limit === -2) {
-    // 移除所有非数字字符
-    const numericValue = value.replace(/[^\d]/g, '')
-    
-    // 如果输入了非数字字符，显示提示并更新为过滤后的值
-    if (value !== numericValue) {
-      ElMessage.warning('该题目只能输入数字')
-      question.answer = numericValue
-    }
-  }
 }
 
 // ==================== 编辑模式功能 ====================
@@ -510,97 +444,52 @@ const deleteQuestion = (questionId: number) => {
 
 /* 删除选项按钮 */
 .delete-option-btn {
-  position: absolute;
-  right: -8px;
-  top: 50%;
-  transform: translateY(-50%);
+  margin-left: auto;
   width: 20px;
   height: 20px;
-  border-radius: 50%;
-  border: none;
-  background: #ef4444;
-  color: white;
+  padding: 0;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  color: #dc2626;
   font-size: 16px;
-  font-weight: bold;
   cursor: pointer;
+  transition: all 0.15s ease;
   opacity: 0;
-  transition: all 0.2s ease;
+  pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
-  padding: 0;
-  z-index: 10;
 }
 
 .option-item:hover .delete-option-btn {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .delete-option-btn:hover {
-  background: #dc2626;
-  transform: translateY(-50%) scale(1.1);
-}
-
-.delete-option-btn:active {
-  transform: translateY(-50%) scale(0.95);
+  background: #fecaca;
+  border-color: #f87171;
 }
 
 /* 添加选项按钮 */
 .add-option-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0;
-  background: transparent;
-  color: #9ca3af;
-  border: none;
-  font-size: 15px;
-  font-weight: 400;
+  padding: 6px 12px;
+  background: #f0f9ff;
+  border: 1px dashed #0ea5e9;
+  border-radius: 6px;
+  color: #0369a1;
+  font-size: 13px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  opacity: 0;
-  transform: translateY(-4px);
-  pointer-events: none;
-}
-
-/* 悬停选项区域时显示添加按钮 */
-.question-options:hover .add-option-btn {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-.add-option-btn::before {
-  content: '+';
-  width: 16px;
-  height: 16px;
-  border: 1px dashed #d1d5db;
-  border-radius: 3px;
+  transition: all 0.2s;
   flex-shrink: 0;
-  background: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: bold;
-  color: #d1d5db;
-  transition: all 0.2s ease;
 }
 
 .add-option-btn:hover {
-  color: #0ea5e9;
-}
-
-.add-option-btn:hover::before {
-  border-color: #0ea5e9;
-  border-style: solid;
-  background: #f0f9ff;
-  color: #0ea5e9;
-}
-
-.add-option-btn:active {
-  transform: scale(0.95);
+  background: #e0f2fe;
+  border-color: #0284c7;
+  color: #0c4a6e;
 }
 
 /* 删除题目按钮 */
@@ -835,23 +724,6 @@ const deleteQuestion = (questionId: number) => {
   color: #374151;
   line-height: 1.4;
   white-space: nowrap;
-}
-
-/* 填空题 */
-.fill-blank {
-  padding-left: 28px;
-}
-
-.blank-line {
-  display: inline-block;
-  min-width: 200px;
-  border-bottom: 2px solid #d1d5db;
-  font-size: 14px;
-  color: #9ca3af;
-}
-
-.fill-input {
-  max-width: 400px;
 }
 
 /* 空状态 */

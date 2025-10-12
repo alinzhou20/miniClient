@@ -11,7 +11,7 @@
       <div class="action-section">
         <div class="stats-info">
           <div class="stat-item">
-            <span class="stat-label">已提交学生：</span>
+            <span class="stat-label">已提交小组：</span>
             <span class="stat-value">{{ submittedGroupCount }}</span>
           </div>
           <div class="stat-item">
@@ -104,14 +104,17 @@ const testForm = ref({
   studentRole: 'operator' as 'operator' | 'member'
 })
 
-// 已提交学生数
+// 已提交小组数
 const submittedGroupCount = computed(() => {
-  return Object.keys(activity.ac4_allQuestionnaireAnswer).length
+  const uniqueGroups = new Set(
+    Object.values(activity.ac4_allQuestionnaireAnswer).map(a => a.groupNo)
+  )
+  return uniqueGroups.size
 })
 
-// 完成率（假设总共24个学生：6组*4人）
+// 完成率（总共12个小组）
 const completionRate = computed(() => {
-  return Math.round((submittedGroupCount.value / 24) * 100)
+  return Math.round((submittedGroupCount.value / 12) * 100)
 })
 
 // 添加测试数据
@@ -224,57 +227,114 @@ function exportAllAnswers() {
     const detailData: any[][] = []
     
     // 标题行
+    // 计算实际提交小组数
+    const actualGroupCount = new Set(
+      Object.values(activity.ac4_allQuestionnaireAnswer).map(a => a.groupNo)
+    ).size
+    const groupCompletionRate = ((actualGroupCount / 12) * 100).toFixed(1)
+    
     detailData.push([activity.questionnaire.title])
     detailData.push([activity.questionnaire.description])
     detailData.push([]) // 空行
     detailData.push([`导出时间：${new Date().toLocaleString('zh-CN', { hour12: false })}`])
-    detailData.push([`已提交学生数：${submittedGroupCount.value} / 24`])
-    detailData.push([`完成率：${completionRate.value}%`])
+    detailData.push([`已提交小组数：${actualGroupCount} / 12`])
+    detailData.push([`完成率：${groupCompletionRate}%`])
     detailData.push([]) // 空行
     
-    // 表头行 - 多选题按选项展开
-    const headers = ['小组号', '学号', '角色', '提交时间']
-    const headerMapping: Array<{ questionIdx: number, optionIdx?: number }> = []
+    // 题目标题行（第一层表头，带合并单元格）
+    const titleHeaders: any[] = ['', ''] // 小组号和提交时间留空
+    const merges: any[] = [] // 记录需要合并的单元格
+    const currentRowIndex = detailData.length // 当前题目标题行的索引
+    let currentCol = 2 // 从第3列开始（0和1是小组号、提交时间）
+    
+    const headerMapping: Array<{ questionIdx: number, optionIdx?: number, isFill?: boolean }> = []
     
     activity.questionnaire.questions.forEach((q, idx) => {
-      if (q.type === 'multiple' && q.options) {
-        // 多选题：每个选项占一列
-        q.options.forEach((option, optIdx) => {
-          const letter = String.fromCharCode(65 + optIdx)
-          headers.push(`题${idx + 1}-${letter}：${option}`)
+      if (q.type === 'fill') {
+        // 填空题：一列，也需要合并两行
+        titleHeaders.push(`题${idx + 1}：${q.title}`)
+        headerMapping.push({ questionIdx: idx, isFill: true })
+        
+        // 添加合并单元格（题目标题行和选项行合并）
+        merges.push({
+          s: { r: currentRowIndex, c: currentCol },
+          e: { r: currentRowIndex + 1, c: currentCol }
+        })
+        
+        currentCol++
+      } else if (q.options) {
+        // 单选题和多选题：多列，需要合并
+        const optionCount = q.options.length
+        titleHeaders.push(`题${idx + 1}：${q.title}`)
+        
+        // 添加合并单元格记录（从当前列到当前列+选项数-1）
+        if (optionCount > 1) {
+          merges.push({
+            s: { r: currentRowIndex, c: currentCol },
+            e: { r: currentRowIndex, c: currentCol + optionCount - 1 }
+          })
+        }
+        
+        // 填充空字符串占位
+        for (let i = 1; i < optionCount; i++) {
+          titleHeaders.push('')
+        }
+        
+        // 记录每个选项的映射
+        q.options.forEach((_option, optIdx) => {
           headerMapping.push({ questionIdx: idx, optionIdx: optIdx })
         })
-      } else {
-        // 单选题和填空题：一列
-        headers.push(`题${idx + 1}：${q.title}`)
-        headerMapping.push({ questionIdx: idx })
+        
+        currentCol += optionCount
       }
     })
-    detailData.push(headers)
+    detailData.push(titleHeaders)
     
-    // 按学生ID排序
-    const sortedAnswers = Object.entries(activity.ac4_allQuestionnaireAnswer)
-      .sort((a, b) => {
-        const [groupA, noA] = a[0].split('-').map(Number)
-        const [groupB, noB] = b[0].split('-').map(Number)
-        return groupA !== groupB ? groupA - groupB : noA - noB
-      })
+    // 选项详细列头（第二层表头）
+    const optionHeaders = ['', ''] // 小组号和提交时间留空（已被合并）
+    activity.questionnaire.questions.forEach((q) => {
+      if (q.type === 'fill') {
+        optionHeaders.push('') // 填空题留空（已在题目标题行显示）
+      } else if (q.options) {
+        q.options.forEach((option, optIdx) => {
+          const letter = String.fromCharCode(65 + optIdx)
+          optionHeaders.push(`${letter}. ${option}`)
+        })
+      }
+    })
+    detailData.push(optionHeaders)
+    
+    // 按小组号分组（只显示每组的情况，不显示学号信息）
+    const groupAnswers = new Map<string, any>()
+    
+    Object.entries(activity.ac4_allQuestionnaireAnswer).forEach(([, answer]) => {
+      const groupNo = answer.groupNo
+      // 每组只记录操作员的答案（或第一个提交的）
+      if (!groupAnswers.has(groupNo) || answer.studentRole === 'operator') {
+        groupAnswers.set(groupNo, answer)
+      }
+    })
+    
+    // 按小组号排序
+    const sortedGroupAnswers = Array.from(groupAnswers.entries())
+      .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
     
     // 数据行
-    sortedAnswers.forEach(([, answer]) => {
+    sortedGroupAnswers.forEach(([groupNo, answer]) => {
       const row: any[] = [
-        `第${answer.groupNo}组`,
-        answer.studentNo,
-        answer.studentRole === 'operator' ? '操作员' : '记录员',
+        `第${groupNo}组`,
         new Date(answer.submittedAt).toLocaleString('zh-CN', { hour12: false })
       ]
       
       // 根据headerMapping填充每一列
-      headerMapping.forEach(({ questionIdx, optionIdx }) => {
+      headerMapping.forEach(({ questionIdx, optionIdx, isFill }) => {
         const question = answer.questions[questionIdx]
         
-        if (optionIdx !== undefined) {
-          // 多选题的某个选项列
+        if (isFill) {
+          // 填空题：显示原始答案
+          row.push(question?.answer || '未填写')
+        } else if (optionIdx !== undefined) {
+          // 单选题和多选题的某个选项列：用1/0表示
           const letter = String.fromCharCode(65 + optionIdx)
           let isSelected = false
           
@@ -282,29 +342,18 @@ function exportAllAnswers() {
             if (Array.isArray(question.answer)) {
               isSelected = question.answer.includes(letter)
             } else if (typeof question.answer === 'string') {
-              const letters = question.answer.split('、').filter(l => l && l.trim())
-              isSelected = letters.includes(letter)
+              // 单选题：直接比较字母
+              if (question.type === 'single') {
+                isSelected = question.answer === letter
+              } else {
+                // 多选题：检查是否包含该字母
+                const letters = question.answer.split('、').filter((l: string) => l && l.trim())
+                isSelected = letters.includes(letter)
+              }
             }
           }
           
-          row.push(isSelected ? '√' : '×')
-        } else {
-          // 单选题或填空题
-          let answerText = ''
-          
-          if (question?.type === 'fill') {
-            answerText = question.answer || '未填写'
-          } else if (question?.type === 'single') {
-            // 单选题：显示选项字母和内容
-            if (question.answer && question.options) {
-              const idx = question.answer.charCodeAt(0) - 65
-              answerText = `${question.answer}. ${question.options[idx] || ''}`
-            } else {
-              answerText = '未选择'
-            }
-          }
-          
-          row.push(answerText)
+          row.push(isSelected ? 1 : 0)
         }
       })
       
@@ -316,29 +365,39 @@ function exportAllAnswers() {
     // 设置列宽
     const colWidths = [
       { wch: 10 },  // 小组号
-      { wch: 8 },   // 学号
-      { wch: 10 },  // 角色
       { wch: 20 },  // 提交时间
     ]
     
     // 根据题目类型设置列宽
     activity.questionnaire.questions.forEach((q) => {
-      if (q.type === 'multiple' && q.options) {
-        // 多选题：每个选项列宽度为25（展示完整选项内容）
+      if (q.type === 'fill') {
+        // 填空题：列宽度为30
+        colWidths.push({ wch: 30 })
+      } else if (q.options) {
+        // 单选题和多选题：每个选项列宽度为25（展示完整选项内容）
         q.options.forEach(() => {
           colWidths.push({ wch: 25 })
         })
-      } else {
-        // 单选题和填空题：列宽度为30
-        colWidths.push({ wch: 30 })
       }
     })
     ws1['!cols'] = colWidths
     
-    // 合并标题和描述单元格
+    // 合并单元格配置
+    const totalCols = titleHeaders.length
+    const titleRowIdx = currentRowIndex
+    const optionRowIdx = currentRowIndex + 1
+    
     ws1['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }, // 标题
-      { s: { r: 1, c: 0 }, e: { r: 1, c: headers.length - 1 } }, // 描述
+      // 合并问卷标题和描述
+      { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } }, // 标题
+      { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } }, // 描述
+      
+      // 合并小组号和提交时间列（跨两行）
+      { s: { r: titleRowIdx, c: 0 }, e: { r: optionRowIdx, c: 0 } }, // 小组号
+      { s: { r: titleRowIdx, c: 1 }, e: { r: optionRowIdx, c: 1 } }, // 提交时间
+      
+      // 合并各题目标题（根据选项数量）
+      ...merges
     ]
     
     XLSX.utils.book_append_sheet(wb, ws1, '答题详情')
@@ -352,9 +411,9 @@ function exportAllAnswers() {
     statsData.push(['问卷标题', activity.questionnaire.title])
     statsData.push(['问卷描述', activity.questionnaire.description])
     statsData.push(['导出时间', new Date().toLocaleString('zh-CN', { hour12: false })])
-    statsData.push(['已提交人数', submittedGroupCount.value])
-    statsData.push(['总人数', 24])
-    statsData.push(['完成率', `${completionRate.value}%`])
+    statsData.push(['已提交小组数', groupAnswers.size])
+    statsData.push(['总小组数', 12])
+    statsData.push(['完成率', `${((groupAnswers.size / 12) * 100).toFixed(1)}%`])
     statsData.push([]) // 空行
     
     // 每道题的统计
@@ -366,21 +425,21 @@ function exportAllAnswers() {
       statsData.push(['题目类型', question.type === 'fill' ? '填空题' : question.type === 'single' ? '单选题' : '多选题'])
       
       if (question.type === 'fill') {
-        // 填空题：列出所有答案
-        statsData.push(['答案列表', ''])
-        sortedAnswers.forEach(([, answer]) => {
+        // 填空题：列出所有小组的答案
+        statsData.push(['小组', '答案'])
+        sortedGroupAnswers.forEach(([groupNo, answer]) => {
           const ans = answer.questions[qIdx]?.answer || '未填写'
-          statsData.push(['', ans])
+          statsData.push([`第${groupNo}组`, ans])
         })
       } else if (question.options) {
-        // 选择题：统计每个选项的选择人数
-        statsData.push(['选项', '内容', '选择人数', '占比'])
+        // 选择题：统计每个选项的选择小组数
+        statsData.push(['选项', '内容', '选择小组数', '占比'])
         
         question.options.forEach((option, optIdx) => {
           const letter = String.fromCharCode(65 + optIdx)
           let count = 0
           
-          sortedAnswers.forEach(([, answer]) => {
+          sortedGroupAnswers.forEach(([, answer]) => {
             const ans = answer.questions[qIdx]
             if (question.type === 'single') {
               if (ans?.answer === letter) count++
@@ -389,14 +448,14 @@ function exportAllAnswers() {
               if (Array.isArray(ans?.answer)) {
                 if (ans.answer.includes(letter)) count++
               } else if (typeof ans?.answer === 'string') {
-                const letters = ans.answer.split('、').filter(l => l && l.trim())
+                const letters = ans.answer.split('、').filter((l: string) => l && l.trim())
                 if (letters.includes(letter)) count++
               }
             }
           })
           
-          const percentage = submittedGroupCount.value > 0 
-            ? ((count / submittedGroupCount.value) * 100).toFixed(1)
+          const percentage = groupAnswers.size > 0 
+            ? ((count / groupAnswers.size) * 100).toFixed(1)
             : '0.0'
           
           statsData.push([letter, option, count, `${percentage}%`])

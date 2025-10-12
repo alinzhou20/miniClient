@@ -74,13 +74,13 @@ const isQuestionAnswered = (q: any): boolean => {
 
 // 未回答的题目数量
 const unansweredCount = computed(() => {
-  return activity.questionnaire.questions.filter(q => !isQuestionAnswered(q)).length
+  return activity.real_questionnaire.questions.filter(q => !isQuestionAnswered(q)).length
 })
 
 // 判断是否可以提交
 const canSubmit = computed(() => {
   // 检查所有题目是否都已回答
-  return activity.questionnaire.questions.every(q => isQuestionAnswered(q))
+  return activity.real_questionnaire.questions.every(q => isQuestionAnswered(q))
 })
 
 // 提交问卷
@@ -106,7 +106,7 @@ const submitQuestionnaire = () => {
           messageType: 'questionnaire_submit',
           activityIndex: '3',
           data: {
-            questions: activity.questionnaire.questions,
+            questions: activity.real_questionnaire.questions,
             submittedAt: Date.now()
           },
           from: {
@@ -123,8 +123,8 @@ const submitQuestionnaire = () => {
         if (activity.ac4_stuResult) {
           activity.ac4_stuResult.rating[0].score = 1
           activity.ac4_stuResult.submittedAt = Date.now()
-          // 同步更新小组得分
-          status.groupScores.activity3 = 1
+          // 同步更新小组得分（活动四）
+          status.groupScores.activity4 = 1
         }
         
         ElMessage.success('问卷提交成功！恭喜你获得⭐')

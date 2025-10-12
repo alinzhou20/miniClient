@@ -13,6 +13,16 @@
             :style="videoStyle"
           ></video>
 
+          <!-- 退出按钮 -->
+          <el-button 
+            class="exit-button" 
+            type="danger" 
+            size="small"
+            @click="handleExit"
+          >
+            退出
+          </el-button>
+
           <!-- 拍摄按钮 -->
           <el-button 
             class="action-button" 
@@ -34,6 +44,7 @@ import { useStatus } from '@/store/status'
 
 const emit = defineEmits<{
   upload: [photo: string]
+  exit: []
 }>()
 
 const visible = defineModel<boolean>({ default: false })
@@ -103,6 +114,12 @@ const captureAndUpload = () => {
   }
 }
 
+// 处理退出按钮点击
+const handleExit = () => {
+  visible.value = false
+  emit('exit')
+}
+
 const cleanup = () => {
   if (stream.value) {
     stream.value.getTracks().forEach(track => track.stop())
@@ -158,6 +175,14 @@ watch(visible, async (newVal) => {
   justify-content: center;
   background: #000;
   overflow: hidden;
+}
+
+/* 退出按钮 */
+.exit-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
 }
 
 .action-button {

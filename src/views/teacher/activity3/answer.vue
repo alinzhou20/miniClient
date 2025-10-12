@@ -1,513 +1,395 @@
 <template>
-  <div class="questionnaire-container">
-    <div class="questionnaire-card">
-      <!-- 问卷标题 -->
-      <div class="survey-title">{{ questionnaire.title }}</div>
-      
-      <!-- 问卷说明 -->
-      <div class="survey-intro">
-        <p class="intro-text">{{ questionnaire.description }}</p>
-      </div>
-      
-      <!-- 分隔线 -->
-      <div class="divider"></div>
-      
-      <!-- 统计信息 -->
-      <div class="stats-banner">
-        <div class="stat-item">
-          <span class="stat-icon">👥</span>
-          <span class="stat-text">已提交：<strong>{{ totalSubmitted }}</strong> / 24人</span>
+  <!-- 学生设计题目列表 - 粘性卡片 -->
+  <div class="design-list-container">
+    <div class="design-list-header">
+      <h3 class="design-list-title">📝 学生设计的题目</h3>
+      <span class="design-count">{{ studentDesignCount }}个</span>
+    </div>
+    
+    <div v-if="studentDesignCount > 0" class="design-items">
+      <div 
+        v-for="design in sortedDesignResults" 
+        :key="design.groupNo"
+        class="design-item-card"
+        :class="{ 
+          'no-question': !design.designQuestion,
+          'selected': selectedDesignGroupNo === design.groupNo
+        }"
+        @click="design.designQuestion && handleDesignClick(design)"
+      >
+        <div class="design-item-header">
+          <span class="like-info">👍 {{ design.great || 0 }}</span>
+          <span v-if="design.designQuestion" class="question-type" :class="design.taskType">
+            {{ design.taskType === 'challenge' ? '2星' : design.taskType === 'basic' ? '1星' : '' }} · {{ getQuestionTypeText(design.designQuestion.type) }}
+          </span>
+          <span class="design-time">{{ formatTime(design.submittedAt) }}</span>
         </div>
-        <div class="stat-item">
-          <span class="stat-icon">📊</span>
-          <span class="stat-text">完成率：<strong>{{ Math.round((totalSubmitted / 24) * 100) }}%</strong></span>
-        </div>
-      </div>
-      
-      <!-- 题目统计区域 -->
-      <div class="survey-questions">
-        <!-- 动态渲染所有题目 -->
-        <div v-for="(question, qIndex) in questionnaire.questions" :key="question.id" 
-             class="question-item"
-             :class="{ 'highlight': shouldHighlight(question) }">
-          <div class="question-title">
-            <span class="q-number">{{ qIndex + 1 }}.</span>
-            <span class="q-text">{{ question.title }}</span>
-            <span class="type-badge">[{{ getTypeText(question.type) }}]</span>
-            <span 
-              v-if="getQuestionTypeLabel(question.questionType)" 
-              class="tag-badge"
-              :class="getQuestionTypeLabel(question.questionType)?.class"
-            >
-              {{ getQuestionTypeLabel(question.questionType)?.text }}
-            </span>
+        
+        <div v-if="design.designQuestion" class="question-content">
+          <div class="question-title-row">
+            <span class="question-label">题目：</span>
+            <span class="question-title-text">{{ design.designQuestion.title }}</span>
           </div>
           
-          <!-- 填空题 - 显示所有答案 -->
-          <div v-if="question.type === 'fill'" class="fill-answers">
-            <div v-if="getFillAnswers(question.id).length > 0" class="answer-list">
-              <div 
-                v-for="(answer, idx) in getFillAnswers(question.id)" 
-                :key="idx"
-                class="fill-answer-item"
-              >
-                {{ answer.answer }}
-              </div>
-            </div>
-            <div v-else class="no-answers">暂无答案</div>
-          </div>
-          
-          <!-- 选择题统计（单选和多选） -->
-          <div v-else-if="question.options && question.options.length > 0" class="question-options">
+          <div v-if="design.designQuestion.options && design.designQuestion.options.length > 0" class="question-options-list">
             <div 
-              v-for="(option, index) in question.options" 
-              :key="index"
-              class="option-stat"
+              v-for="(option, idx) in design.designQuestion.options" 
+              :key="idx"
+              class="option-text-item"
             >
-              <span class="option-marker">{{ String.fromCharCode(65 + index) }}.</span>
-              <span class="option-text">{{ option }}</span>
-              <div class="stat-inline">
-                <div class="stat-bar-container">
-                  <div 
-                    class="stat-bar"
-                    :class="{ 'multiple': question.type === 'multiple' }"
-                    :style="{ width: getQuestionOptionPercentage(question, index) + '%' }"
-                  ></div>
-                </div>
-                <div class="stat-numbers">
-                  <span class="stat-count">{{ getQuestionOptionCount(question, index) }}人</span>
-                  <span class="stat-percent">{{ getQuestionOptionPercentage(question, index).toFixed(1) }}%</span>
-                </div>
-              </div>
+              {{ String.fromCharCode(65 + idx) }}. {{ option }}
             </div>
           </div>
         </div>
         
-        <!-- 空状态 -->
-        <div v-if="questionnaire.questions.length === 0" class="empty-state">
-          <el-icon class="empty-icon"><DocumentCopy /></el-icon>
-          <p>暂无问卷数据</p>
+        <div v-else class="no-design">
+          <span>暂未设计题目</span>
         </div>
       </div>
+    </div>
+    
+    <div v-else class="empty-design">
+      <div class="empty-icon">📭</div>
+      <p>暂无学生设计的题目</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { DocumentCopy } from '@element-plus/icons-vue'
+import { computed, ref } from 'vue'
 import { useActivity } from '@/store/activity'
-import type { QuestionOption } from '@/store/activity'
+
+// 定义 emits
+const emit = defineEmits<{
+  (e: 'add-question', question: any): void
+}>()
 
 const activity = useActivity()
 
-// 从 store 读取响应式问卷数据和所有答题结果
-const questionnaire = computed(() => activity.questionnaire)
-const allAnswers = computed(() => activity.ac4_allQuestionnaireAnswer)
+// 当前选中的设计
+const selectedDesignGroupNo = ref<string | null>(null)
 
-// 统计总提交人数
-const totalSubmitted = computed(() => {
-  return Object.keys(allAnswers.value).length
+// 学生设计题目数量
+const studentDesignCount = computed(() => {
+  return sortedDesignResults.value.length
 })
 
-// 判断题目是否需要高亮显示（duration、impact、design 类型）
-const shouldHighlight = (question: QuestionOption): boolean => {
-  return ['duration', 'impact', 'design'].includes(question.questionType)
-}
-
-// 根据 questionType 获取标签文本和样式类
-const getQuestionTypeLabel = (questionType: string): { text: string; class: string } | null => {
-  const labelMap: Record<string, { text: string; class: string }> = {
-    'duration': { text: '使用时长', class: '' },
-    'impact': { text: '设备类型', class: '' },
-    'design': { text: '使用用途', class: 'usage' }
-  }
-  return labelMap[questionType] || null
-}
-
-// 获取题目类型的文本
-const getTypeText = (type: 'fill' | 'single' | 'multiple'): string => {
-  const typeMap = {
-    'fill': '填空',
-    'single': '单选',
-    'multiple': '多选'
-  }
-  return typeMap[type] || '单选'
-}
-
-// 统一获取题目选项的选择人数（支持单选和多选）
-const getQuestionOptionCount = (question: QuestionOption, optionIndex: number): number => {
-  const letter = String.fromCharCode(65 + optionIndex)
-  let count = 0
+// 排序后的设计结果（按提交时间排序，已在提交时去重）
+const sortedDesignResults = computed(() => {
+  const allDesigns: any[] = []
   
-  Object.values(allAnswers.value).forEach(answer => {
-    const answerQuestion = answer.questions.find(q => q.id === question.id)
-    if (!answerQuestion) return
-    
-    if (question.type === 'multiple') {
-      // 多选题：支持数组格式（如 ['A', 'B']）或字符串格式（如 'A、B'）
-      if (Array.isArray(answerQuestion.answer)) {
-        if (answerQuestion.answer.includes(letter)) {
-          count++
+  // 收集所有有效的设计
+  Object.entries(activity.ac3_allResult).forEach(([groupNo, result]: [string, any]) => {
+    if (result?.designQuestion && result.submittedAt > 0) {
+      // 根据rating或challengeLevel判断任务类型
+      let taskType = ''
+      
+      // 优先使用challengeLevel判断
+      if (result.challengeLevel) {
+        if (result.challengeLevel === 'two') {
+          taskType = 'challenge' // 2星难度
+        } else if (result.challengeLevel === 'one') {
+          taskType = 'basic' // 1星难度
         }
-      } else if (typeof answerQuestion.answer === 'string') {
-        const letters = answerQuestion.answer.split('、').filter(l => l && l.trim())
-        if (letters.includes(letter)) {
-          count++
+      } 
+      // 如果没有challengeLevel，使用rating判断
+      else if (result.rating) {
+        const challengeItem = result.rating.find((r: any) => r.index === 1 && r.score === 2)
+        const basicItem = result.rating.find((r: any) => r.index === 2 && r.score === 1)
+        
+        if (challengeItem) {
+          taskType = 'challenge' // 挑战任务
+        } else if (basicItem) {
+          taskType = 'basic' // 基础任务
         }
       }
-    } else {
-      // 单选题：直接比较
-      if (answerQuestion.answer === letter) {
-        count++
-      }
-    }
-  })
-  
-  return count
-}
-
-// 统一获取题目选项的选择百分比
-const getQuestionOptionPercentage = (question: QuestionOption, optionIndex: number): number => {
-  if (totalSubmitted.value === 0) return 0
-  const count = getQuestionOptionCount(question, optionIndex)
-  return (count / totalSubmitted.value) * 100
-}
-
-// 获取填空题的所有答案
-const getFillAnswers = (questionId: number) => {
-  const answers: Array<{ groupNo: string; studentNo: string; answer: string }> = []
-  
-  Object.values(allAnswers.value).forEach(answer => {
-    const question = answer.questions.find(q => q.id === questionId)
-    if (question && question.answer && String(question.answer).trim()) {
-      answers.push({
-        groupNo: answer.groupNo,
-        studentNo: answer.studentNo,
-        answer: String(question.answer)
+      
+      allDesigns.push({
+        groupNo,
+        ...result,
+        taskType
       })
     }
   })
   
-  return answers
+  // 智能排序：优先点赞数，其次难度，最后时间
+  allDesigns.sort((a, b) => {
+    // 1. 优先按点赞数降序（多的在前）
+    const likesDiff = (b.great || 0) - (a.great || 0)
+    if (likesDiff !== 0) return likesDiff
+    
+    // 2. 点赞数相同，按难度排序（2星在前，1星在后）
+    const aIs2Star = a.taskType === 'challenge' ? 1 : 0
+    const bIs2Star = b.taskType === 'challenge' ? 1 : 0
+    const starDiff = bIs2Star - aIs2Star
+    if (starDiff !== 0) return starDiff
+    
+    // 3. 都相同时，按提交时间排序（早提交的在前）
+    return (a.submittedAt || 0) - (b.submittedAt || 0)
+  })
+  
+  return allDesigns
+})
+
+// 格式化时间
+function formatTime(timestamp: number): string {
+  if (!timestamp) return '未知'
+  
+  const now = Date.now()
+  const diff = now - timestamp
+  const minutes = Math.floor(diff / 60000)
+  
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}小时前`
+  
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}天前`
+  
+  const date = new Date(timestamp)
+  return `${date.getMonth() + 1}月${date.getDate()}日`
+}
+
+// 获取题目类型文本
+function getQuestionTypeText(type: 'fill' | 'single' | 'multiple'): string {
+  const typeMap = {
+    'fill': '填空题',
+    'single': '单选题',
+    'multiple': '多选题'
+  }
+  return typeMap[type] || '未知'
+}
+
+// 处理设计卡片点击
+function handleDesignClick(design: any) {
+  if (!design.designQuestion) return
+  
+  // 设置选中状态
+  selectedDesignGroupNo.value = design.groupNo
+  
+  // 触发事件，让父组件添加题目到问卷
+  emit('add-question', design.designQuestion)
 }
 </script>
 
 <style scoped>
-.questionnaire-container {
-  max-width: 100%;
-  margin: 0 auto;
-}
-
-.questionnaire-card {
+/* 学生设计题目列表 - 粘性卡片 */
+.design-list-container {
+  position: sticky;
+  top: 20px;
+  height: 640px;  /* 固定高度，与学生端保持一致 */
   background: white;
-  border-radius: 8px;
-  padding: 20px 40px;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  overflow-y: auto;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
 }
 
-/* 问卷标题 */
-.survey-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: #0ea5e9;
-  text-align: center;
+/* 滚动条样式 */
+.design-list-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.design-list-container::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 3px;
+}
+
+.design-list-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.design-list-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.design-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
   margin-bottom: 20px;
-  line-height: 1.4;
+  border-bottom: 3px solid #f3f4f6;
 }
 
-/* 问卷说明 */
-.survey-intro {
-  margin-bottom: 12px;
-}
-
-.intro-text {
-  font-size: 14px;
-  color: #4b5563;
-  line-height: 1.8;
-  text-indent: 2em;
+.design-list-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
   margin: 0;
 }
 
-/* 分隔线 */
-.divider {
-  height: 1px;
-  background: linear-gradient(to right, transparent, #e5e7eb 20%, #e5e7eb 80%, transparent);
-  margin: 24px 0;
-}
-
-/* 统计横幅 */
-.stats-banner {
-  display: flex;
-  gap: 32px;
-  justify-content: center;
-  padding: 16px 24px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border-radius: 12px;
-  margin-bottom: 32px;
-  border: 2px solid #bae6fd;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.stat-icon {
-  font-size: 20px;
-}
-
-.stat-text {
-  font-size: 15px;
-  color: #0c4a6e;
-}
-
-.stat-text strong {
-  font-size: 18px;
-  font-weight: 700;
-  color: #0ea5e9;
-  margin: 0 2px;
-}
-
-/* 题目区域 */
-.survey-questions {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.question-item {
-  padding: 18px 0;
-  border-bottom: 1px dashed #e5e7eb;
-}
-
-.question-item:last-child {
-  border-bottom: none;
-}
-
-.question-item.highlight {
-  background: linear-gradient(to right, rgba(16, 185, 129, 0.03), transparent);
-  padding: 18px 20px;
-  margin: 0 -20px;
-  border-radius: 12px;
-  border-bottom: none;
-}
-
-/* 题目标题 */
-.question-title {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.q-number {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
-  min-width: 28px;
-}
-
-.q-text {
-  flex: 1;
-  font-size: 16px;
-  color: #1f2937;
-  line-height: 1.6;
-  font-weight: 500;
-}
-
-.type-badge {
+.design-count {
   font-size: 14px;
-  color: #6b7280;
-  margin-left: 4px;
-}
-
-.tag-badge {
-  font-size: 12px;
-  padding: 2px 10px;
-  background: #10b981;
-  color: white;
-  border-radius: 12px;
-  font-weight: 500;
-  margin-left: 8px;
-}
-
-.tag-badge.usage {
-  background: #f59e0b;
-}
-
-/* 选项统计区域 */
-.question-options {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-left: 28px;
-}
-
-.option-stat {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
-}
-
-.option-marker {
-  font-size: 14px;
-  font-weight: 600;
-  color: #6b7280;
-  min-width: 24px;
-  flex-shrink: 0;
-}
-
-.option-text {
-  flex: 1;
-  font-size: 15px;
-  color: #374151;
-  line-height: 1.6;
-  min-width: 0;
-}
-
-.stat-inline {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.stat-bar-container {
-  width: 140px;
-  height: 10px;
-  background: #f3f4f6;
-  border-radius: 5px;
-  overflow: hidden;
-  position: relative;
-}
-
-.stat-bar {
-  height: 100%;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  border-radius: 5px;
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
-}
-
-.stat-bar.multiple {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.3);
-}
-
-.stat-numbers {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-  min-width: 90px;
-}
-
-.stat-count {
-  font-size: 14px;
-  font-weight: 600;
-  color: #4b5563;
-  min-width: 40px;
-}
-
-.stat-percent {
-  font-size: 13px;
   font-weight: 700;
   color: #3b82f6;
-  min-width: 44px;
-  text-align: right;
+  background: #dbeafe;
+  padding: 4px 12px;
+  border-radius: 12px;
 }
 
-.option-stat:hover .stat-bar {
-  filter: brightness(1.15);
-}
-
-/* 填空题答案 */
-.fill-answers {
-  padding-left: 28px;
-}
-
-.answer-list {
+.design-items {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  overflow-y: auto;
 }
 
-.fill-answer-item {
-  display: inline-block;
-  padding: 6px 14px;
-  background: #f3f4f6;
-  color: #374151;
+.design-item-card {
+  background: #fafafa;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.design-item-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  background: #f7faff;
+}
+
+.design-item-card.no-question {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.design-item-card.no-question:hover {
+  border-color: #e5e7eb;
+  box-shadow: none;
+  background: #fafafa;
+}
+
+.design-item-card.selected {
+  border-color: #10b981;
+  background: #f0fdf4;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.design-item-card.selected:hover {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.design-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  justify-content: space-between;
+}
+
+.like-info {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #fbbf24;
+  color: #92400e;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.question-type {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
   border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.question-type.challenge {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.question-type.basic {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.design-time {
+  font-size: 11px;
+  color: #6b7280;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.question-content {
+  margin-bottom: 12px;
+}
+
+.question-title-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.question-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.question-title-text {
   font-size: 14px;
-  line-height: 1.6;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.5;
+}
+
+.question-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: white;
+  border-radius: 8px;
   border: 1px solid #e5e7eb;
 }
 
-.fill-answer-item:hover {
-  background: #e5e7eb;
-  border-color: #d1d5db;
-  transform: translateY(-1px);
+.option-text-item {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.5;
 }
 
-.no-answers {
+.no-design {
   text-align: center;
-  padding: 30px 20px;
+  padding: 20px;
   color: #9ca3af;
-  font-size: 14px;
+  font-size: 13px;
   font-style: italic;
 }
 
-/* 空状态 */
-.empty-state {
+.empty-design {
   text-align: center;
-  padding: 80px 20px;
+  padding: 60px 20px;
   color: #9ca3af;
 }
 
 .empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-  color: #d1d5db;
+  font-size: 48px;
+  margin-bottom: 12px;
 }
 
-.empty-state p {
+.empty-design p {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-style: italic;
 }
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .questionnaire-card {
-    padding: 20px;
-  }
-
-  .stats-banner {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .question-options {
-    padding-left: 0;
-  }
-
-  .option-stat {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .stat-inline {
-    flex: 1;
-    min-width: 200px;
-  }
-
-  .stat-bar-container {
-    flex: 1;
-  }
-}
 </style>
+

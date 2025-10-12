@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStatus, useSocket, useActivity} from '@/store'
 import { ElMessage } from 'element-plus'
@@ -81,16 +81,19 @@ const currentActivityId = computed(() => {
   return match ? parseInt(match[1]) : 0
 })
 
+// 更新活动状态（根据活动ID）
+const updateActivityStatus = (id: number) => {
+  // 更新当前活动和所有活动的激活状态
+  status.activityStatus.now = id
+  status.activityStatus.all.forEach(a => {
+    a.isActive = (a.id === id)
+  })
+}
+
 const selectActivity = (id: number) => {
-  // 更新 status（activity0 不同步给学生）
-  if (id > 0) {
-    status.activityStatus.now = id
-    status.activityStatus.all.forEach(a => {
-      a.isActive = (a.id === id)
-    })
-  }
+  // 更新活动状态
+  updateActivityStatus(id)
   
-  // console.log('selectActivity', id)
   // 同步路由
   router.push(`/teacher/activity${id}`)
   
@@ -107,6 +110,18 @@ const selectActivity = (id: number) => {
     })
   }
 }
+
+// 监听路由变化，自动更新活动状态
+watch(() => router.currentRoute.value.path, (newPath) => {
+  const match = newPath.match(/\/teacher\/activity(\d+)/)
+  if (match) {
+    const activityId = parseInt(match[1])
+    // 如果活动状态与当前路由不一致，更新状态
+    if (status.activityStatus.now !== activityId) {
+      updateActivityStatus(activityId)
+    }
+  }
+}, { immediate: true })
 
 // 跳转到看板
 const goToWatch = () => {

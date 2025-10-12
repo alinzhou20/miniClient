@@ -37,8 +37,8 @@ function onSyncQuestionnaire(payload: any) {
   const questionnaire = payload.data?.questionnaire
   if (!questionnaire) return
   
-  // 更新本地问卷
-  activity.questionnaire = questionnaire
+  // 更新学生端实际问卷（不影响 questionnaire）
+  activity.real_questionnaire = questionnaire
   
   // 提示消息
   ElMessage.success('已收到教师发送的问卷')

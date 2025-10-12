@@ -31,30 +31,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { useStatus } from '@/store/status'
 import { useSocket } from '@/store/socket'
 
 const router = useRouter()
 const status = useStatus()
-const {socket, connect} = useSocket()
+const {connect} = useSocket()
 
 const formRef = ref<FormInstance>()
 const isLogging = ref(false)
 const form = ref({ password: '' })
-
-const connectionStatusType = computed(() => {
-  if (socket !== null) return 'success'
-  return 'danger'
-})
-
-const connectionStatusText = computed(() => {
-  if (socket !== null) return '已连接'
-  return '未连接'
-})
 
 const rules: FormRules = {
   password: [

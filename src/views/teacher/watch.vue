@@ -2,29 +2,24 @@
   <div class="watch-container">
     <!-- 图例 -->
     <div class="legend-card">
-      <div class="legend-title">活动得分</div>
+      <div class="legend-title">活动</div>
       <div class="legend-items">
         <div class="legend-item">
           <span class="legend-color" style="background: #3b82f6;"></span>
-          <span class="legend-text">活动一</span>
+          <span class="legend-text">活动一（1分）</span>
         </div>
         <div class="legend-item">
-          <span class="legend-color" style="background: #a78bfa;"></span>
-          <span class="legend-text">活动二</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-color" style="background: #7c3aed;"></span>
-          <span class="legend-text">活动二</span>
+          <span class="legend-color" style="background: #8b5cf6;"></span>
+          <span class="legend-text">活动二（2分）</span>
         </div>
         <div class="legend-item">
           <span class="legend-color" style="background: #10b981;"></span>
-          <span class="legend-text">活动三</span>
+          <span class="legend-text">活动三（2分）</span>
         </div>
-        <!-- 隐藏活动四标签 -->
-        <!-- <div class="legend-item">
+        <div class="legend-item">
           <span class="legend-color" style="background: #f59e0b;"></span>
-          <span class="legend-text">活动四</span>
-        </div> -->
+          <span class="legend-text">活动四（1分）</span>
+        </div>
       </div>
     </div>
 
@@ -40,7 +35,13 @@
           <!-- 柱状图 -->
           <div class="bar-wrapper">
             <!-- 总分标签（放在柱子上方） -->
-            <div v-if="group.totalScore > 0" class="total-score">{{ group.totalScore }}</div>
+            <div 
+              v-if="group.totalScore > 0" 
+              class="total-score"
+              :class="{ 'full-score': group.totalScore === 6 }"
+            >
+              {{ group.totalScore }}
+            </div>
             
             <div class="bar-stack" :style="{ height: getBarHeight(group.totalScore) }">
               <!-- 活动1（最上面） -->
@@ -48,34 +49,25 @@
                 v-if="group.scores.activity1 > 0"
                 class="bar-segment activity1"
                 :style="{ height: getSegmentHeight(group.scores.activity1, group.totalScore) }"
-                :title="`活动一: ${group.scores.activity1}分`"
+                :title="`活动一: ${group.scores.activity1}/1分`"
               >
                 <span class="segment-label">{{ group.scores.activity1 }}</span>
               </div>
-              <!-- 活动2.1 -->
+              <!-- 活动2 -->
               <div 
-                v-if="group.scores.activity2_1 > 0"
-                class="bar-segment activity2_1"
-                :style="{ height: getSegmentHeight(group.scores.activity2_1, group.totalScore) }"
-                :title="`活动二-选择: ${group.scores.activity2_1}分`"
+                v-if="group.scores.activity2 > 0"
+                class="bar-segment activity2"
+                :style="{ height: getSegmentHeight(group.scores.activity2, group.totalScore) }"
+                :title="`活动二: ${group.scores.activity2}/2分`"
               >
-                <span class="segment-label">{{ group.scores.activity2_1 }}</span>
-              </div>
-              <!-- 活动2.2 -->
-              <div 
-                v-if="group.scores.activity2_2 > 0"
-                class="bar-segment activity2_2"
-                :style="{ height: getSegmentHeight(group.scores.activity2_2, group.totalScore) }"
-                :title="`活动二-设计: ${group.scores.activity2_2}分`"
-              >
-                <span class="segment-label">{{ group.scores.activity2_2 }}</span>
+                <span class="segment-label">{{ group.scores.activity2 }}</span>
               </div>
               <!-- 活动3 -->
               <div 
                 v-if="group.scores.activity3 > 0"
                 class="bar-segment activity3"
                 :style="{ height: getSegmentHeight(group.scores.activity3, group.totalScore) }"
-                :title="`活动三: ${group.scores.activity3}分`"
+                :title="`活动三: ${group.scores.activity3}/2分`"
               >
                 <span class="segment-label">{{ group.scores.activity3 }}</span>
               </div>
@@ -84,7 +76,7 @@
                 v-if="group.scores.activity4 > 0"
                 class="bar-segment activity4"
                 :style="{ height: getSegmentHeight(group.scores.activity4, group.totalScore) }"
-                :title="`活动四: ${group.scores.activity4}分`"
+                :title="`活动四: ${group.scores.activity4}/1分`"
               >
                 <span class="segment-label">{{ group.scores.activity4 }}</span>
               </div>
@@ -104,7 +96,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useStatus } from '@/store/status'
-import { ElMessage } from 'element-plus'
 
 const status = useStatus()
 
@@ -116,8 +107,7 @@ function refreshScores() {
   Object.values(status.groupStatus).forEach(group => {
     const calculatedTotal = 
       group.scores.activity1 + 
-      group.scores.activity2_1 + 
-      group.scores.activity2_2 + 
+      group.scores.activity2 + 
       group.scores.activity3 + 
       group.scores.activity4
     
@@ -143,11 +133,10 @@ onMounted(() => {
 // 小组列表（使用新的 groupStatus，并实时计算总分）
 const groupsList = computed(() => {
   return Object.values(status.groupStatus).map(group => {
-    // 实时计算总分，确保数据准确
+    // 实时计算总分，确保数据准确（总分6分：活动一1分+活动二2分+活动三2分+活动四1分）
     const calculatedTotal = 
       group.scores.activity1 + 
-      group.scores.activity2_1 + 
-      group.scores.activity2_2 + 
+      group.scores.activity2 + 
       group.scores.activity3 + 
       group.scores.activity4
     
@@ -160,25 +149,16 @@ const groupsList = computed(() => {
   )
 })
 
-// 最高得分
-const maxScore = computed(() => {
-  return Math.max(...groupsList.value.map(g => g.totalScore), 0)
-})
-
-// 计算柱状图高度（基于最大分数）
+// 计算柱状图高度（基于满分6分）
 function getBarHeight(score: number): string {
   if (score === 0) return '0px'
-  const maxHeight = 300 // 最大高度（像素）
-  const minHeight = 80  // 最小高度，确保可见
+  const maxHeight = 360 // 最大高度（像素）- 对应满分6分，每分60px
+  const minHeight = 60  // 最小高度，确保可见
   
-  // 如果没有最高分或最高分太低，使用固定高度
-  if (maxScore.value === 0 || maxScore.value < 2) {
-    // 按实际分数等比例显示
-    return `${Math.max(score * 40, minHeight)}px`
-  }
+  // 基于满分6分计算高度
+  const fullScore = 6
+  const calculatedHeight = (score / fullScore) * maxHeight
   
-  // 计算高度，但保证最小可见高度
-  const calculatedHeight = (score / maxScore.value) * maxHeight
   return `${Math.max(calculatedHeight, minHeight)}px`
 }
 
@@ -186,8 +166,9 @@ function getBarHeight(score: number): string {
 function getSegmentHeight(segmentScore: number, totalScore: number): string {
   if (totalScore === 0 || segmentScore === 0) return '0%'
   const percentage = (segmentScore / totalScore) * 100
-  // 确保每个分段至少有一定的最小高度显示
-  return `${Math.max(percentage, 15)}%`
+  // 确保每个分段能够清晰显示（1分至少20%，2分显示更大）
+  const minHeight = segmentScore === 1 ? 20 : 30
+  return `${Math.max(percentage, minHeight)}%`
 }
 </script>
 
@@ -353,24 +334,24 @@ function getSegmentHeight(segmentScore: number, totalScore: number): string {
   filter: brightness(1.1);
 }
 
+/* 活动一：蓝色 */
 .bar-segment.activity1 {
-  background: #3b82f6;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
 }
 
-.bar-segment.activity2_1 {
-  background: #a78bfa;
+/* 活动二：紫色 */
+.bar-segment.activity2 {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
 }
 
-.bar-segment.activity2_2 {
-  background: #7c3aed;
-}
-
+/* 活动三：绿色 */
 .bar-segment.activity3 {
-  background: #10b981;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
 
+/* 活动四：橙色 */
 .bar-segment.activity4 {
-  background: #f59e0b;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
 }
 
 .segment-label {
@@ -389,6 +370,27 @@ function getSegmentHeight(segmentScore: number, totalScore: number): string {
   padding: 4px 12px;
   border-radius: 12px;
   border: 2px solid #fca5a5;
+  transition: all 0.3s ease;
+}
+
+/* 满分状态 */
+.total-score.full-score {
+  color: #047857;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-color: #10b981;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  animation: fullScorePulse 2s ease-in-out infinite;
+}
+
+@keyframes fullScorePulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
+  }
 }
 
 .group-label {

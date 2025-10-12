@@ -18,7 +18,7 @@ export interface QuestionOption {
   title: string
   options?: string[]
   type: 'fill' | 'single' | 'multiple'
-  questionType: 'duration' | 'type' | 'design' 
+  questionType: 'duration' | 'type' | 'design' | 'grade' | 'gender'
   answer?: any
   visibility?: 'teacher' | 'student' | 'both' // 可见性：仅教师、仅学生、都可见
   limit?: number // 限制：多选题-最大可选项数量（正数限制，-1不限制）；填空题-输入类型（-2仅数字，-1不限制）
@@ -96,8 +96,15 @@ export const questionnaireSecondData: Questionnaire = questionnaireInitialData
 // ==================== 统一活动状态管理 ====================
 export const useActivity = defineStore('activity', () => {
 
-  // 问卷数据（响应式）
+  // 问卷数据（响应式）- 教师端编辑用
   const questionnaire = ref<Questionnaire>(JSON.parse(JSON.stringify(questionnaireInitialData)))
+  
+  // 实际问卷数据（响应式）- 学生端接收教师发送的问卷
+  const real_questionnaire = ref<Questionnaire>({
+    title: '学生数字设备使用情况调查问卷',
+    description: '为了更好地了解同学们使用数字设备的情况，用于分析，得出合理建议，提升使用数字设备自我管理意识，特设计此问卷。希望同学们如实填写，感谢大家的积极参与。',
+    questions: []
+  })
 
   // Activity 0 - 教师现场投票结果
   const ac0_voteResult = ref<VoteResult | null>(null)
@@ -204,6 +211,13 @@ export const useActivity = defineStore('activity', () => {
     // 重置问卷
     questionnaire.value = JSON.parse(JSON.stringify(questionnaireInitialData))
     
+    // 重置实际问卷（学生端）- 保持默认标题和说明
+    real_questionnaire.value = {
+      title: '学生数字设备使用情况调查问卷',
+      description: '为了更好地了解同学们使用数字设备的情况，用于分析，得出合理建议，提升使用数字设备自我管理意识，特设计此问卷。希望同学们如实填写，感谢大家的积极参与。',
+      questions: []
+    }
+    
     ac0_voteResult.value = null
     ac0_photo.value = ''
     ac1_stuResult.value = {
@@ -277,6 +291,7 @@ export const useActivity = defineStore('activity', () => {
   return {
     // 问卷
     questionnaire,
+    real_questionnaire,
     
     // Activity 0
     ac0_voteResult,

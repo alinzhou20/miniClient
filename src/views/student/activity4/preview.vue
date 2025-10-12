@@ -55,14 +55,6 @@
                 {{ question.title }}
               </span>
               <span v-else class="q-text">{{ question.title }}</span>
-              <span class="type-badge">[{{ getTypeText(question.type) }}]</span>
-              <span 
-                v-if="getQuestionTypeLabel(question.questionType)" 
-                class="tag-badge"
-                :class="getQuestionTypeLabel(question.questionType)?.class"
-              >
-                {{ getQuestionTypeLabel(question.questionType)?.text }}
-              </span>
               <button 
                 v-if="props.editable"
                 class="delete-question-btn"
@@ -162,8 +154,8 @@ const activity = useActivity()
 const titleRef = ref<HTMLElement>()
 const descRef = ref<HTMLElement>()
 
-// 从 store 读取响应式问卷数据
-const questionnaire = computed(() => activity.questionnaire)
+// 从 store 读取学生端实际问卷数据
+const questionnaire = computed(() => activity.real_questionnaire)
 
 // 根据可见性过滤题目（学生端过滤仅教师可见的题目）
 const visibleQuestions = computed(() => {
@@ -181,26 +173,6 @@ const visibleQuestions = computed(() => {
 // 判断题目是否需要高亮显示（duration、impact、design 类型）
 const shouldHighlight = (question: QuestionOption): boolean => {
   return ['duration', 'impact', 'design'].includes(question.questionType)
-}
-
-// 获取题目类型的文本
-const getTypeText = (type: 'fill' | 'single' | 'multiple'): string => {
-  const typeMap = {
-    'fill': '填空',
-    'single': '单选',
-    'multiple': '多选'
-  }
-  return typeMap[type] || '单选'
-}
-
-// 根据 questionType 获取标签文本和样式类
-const getQuestionTypeLabel = (questionType: string): { text: string; class: string } | null => {
-  const labelMap: Record<string, { text: string; class: string }> = {
-    'duration': { text: '使用时长', class: '' },
-    'impact': { text: '设备类型', class: '' },
-    'design': { text: '使用用途', class: 'usage' }
-  }
-  return labelMap[questionType] || null
 }
 
 // 获取选项样式类名
@@ -324,7 +296,7 @@ const updateQuestionTitle = (question: QuestionOption, event: Event) => {
   if (!newTitle || newTitle === question.title) return
   
   // 直接在 store 中找到对应的题目并修改
-  const storeQuestion = activity.questionnaire.questions.find(q => q.id === question.id)
+  const storeQuestion = activity.real_questionnaire.questions.find(q => q.id === question.id)
   if (storeQuestion) {
     storeQuestion.title = newTitle
   }
@@ -337,7 +309,7 @@ const updateOption = (question: QuestionOption, index: number, event: Event) => 
   if (!newOption || !question.options || newOption === question.options[index]) return
   
   // 直接在 store 中找到对应的题目并修改
-  const storeQuestion = activity.questionnaire.questions.find(q => q.id === question.id)
+  const storeQuestion = activity.real_questionnaire.questions.find(q => q.id === question.id)
   if (storeQuestion && storeQuestion.options && storeQuestion.options[index] !== undefined) {
     storeQuestion.options[index] = newOption
   }
@@ -346,7 +318,7 @@ const updateOption = (question: QuestionOption, index: number, event: Event) => 
 // 删除选项
 const deleteOption = (question: QuestionOption, index: number) => {
   // 直接在 store 中找到对应的题目并修改
-  const storeQuestion = activity.questionnaire.questions.find(q => q.id === question.id)
+  const storeQuestion = activity.real_questionnaire.questions.find(q => q.id === question.id)
   if (!storeQuestion || !storeQuestion.options || storeQuestion.options.length <= 1) {
     ElMessage.warning('至少需要保留一个选项')
     return
@@ -359,7 +331,7 @@ const deleteOption = (question: QuestionOption, index: number) => {
 // 添加选项
 const addOption = (question: QuestionOption) => {
   // 直接在 store 中找到对应的题目并修改
-  const storeQuestion = activity.questionnaire.questions.find(q => q.id === question.id)
+  const storeQuestion = activity.real_questionnaire.questions.find(q => q.id === question.id)
   if (!storeQuestion) return
   
   if (!storeQuestion.options) {
@@ -373,14 +345,14 @@ const addOption = (question: QuestionOption) => {
 
 // 删除题目
 const deleteQuestion = (questionId: number) => {
-  const index = activity.questionnaire.questions.findIndex(q => q.id === questionId)
+  const index = activity.real_questionnaire.questions.findIndex(q => q.id === questionId)
   if (index === -1) return
   
   // 删除题目
-  activity.questionnaire.questions.splice(index, 1)
+  activity.real_questionnaire.questions.splice(index, 1)
   
   // 重新分配ID（从1开始连续编号）
-  activity.questionnaire.questions.forEach((q, idx) => {
+  activity.real_questionnaire.questions.forEach((q, idx) => {
     q.id = idx + 1
   })
   
@@ -690,40 +662,6 @@ const deleteQuestion = (questionId: number) => {
   font-size: 16px;
   color: #1f2937;
   line-height: 1.6;
-}
-
-/* 题目类型标签 */
-.type-badge {
-  font-size: 14px;
-  color: #6b7280;
-  margin-left: 4px;
-}
-
-/* 多选题限制标签 */
-.limit-badge {
-  font-size: 12px;
-  padding: 2px 10px;
-  background: #eff6ff;
-  color: #3b82f6;
-  border: 1px solid #bfdbfe;
-  border-radius: 12px;
-  font-weight: 500;
-  margin-left: 8px;
-}
-
-/* 题目分类标签 */
-.tag-badge {
-  font-size: 12px;
-  padding: 2px 10px;
-  background: #10b981;
-  color: white;
-  border-radius: 12px;
-  font-weight: 500;
-  margin-left: 8px;
-}
-
-.tag-badge.usage {
-  background: #f59e0b;
 }
 
 /* 选项区域 */
