@@ -374,18 +374,62 @@ function exportAllAnswers() {
         // 填空题：列宽度为30
         colWidths.push({ wch: 30 })
       } else if (q.options) {
-        // 单选题和多选题：每个选项列宽度为25（展示完整选项内容）
+        // 单选题和多选题：每个选项列宽度缩小为8（只显示1或0）
         q.options.forEach(() => {
-          colWidths.push({ wch: 25 })
+          colWidths.push({ wch: 8 })
         })
       }
     })
     ws1['!cols'] = colWidths
     
-    // 合并单元格配置
-    const totalCols = titleHeaders.length
+    // 设置题目和选项行的加粗样式
     const titleRowIdx = currentRowIndex
     const optionRowIdx = currentRowIndex + 1
+    
+    // 加粗题目行（titleRowIdx）和选项行（optionRowIdx）的所有单元格
+    for (let col = 0; col < titleHeaders.length; col++) {
+      const titleCellRef = XLSX.utils.encode_cell({ r: titleRowIdx, c: col })
+      const optionCellRef = XLSX.utils.encode_cell({ r: optionRowIdx, c: col })
+      
+      // 题目行加粗
+      if (ws1[titleCellRef]) {
+        ws1[titleCellRef].s = {
+          font: { bold: true },
+          alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+        }
+      }
+      
+      // 选项行加粗
+      if (ws1[optionCellRef]) {
+        ws1[optionCellRef].s = {
+          font: { bold: true },
+          alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+        }
+      }
+    }
+    
+    // 加粗小组号和提交时间列头
+    const groupHeaderRef = XLSX.utils.encode_cell({ r: titleRowIdx, c: 0 })
+    const timeHeaderRef = XLSX.utils.encode_cell({ r: titleRowIdx, c: 1 })
+    
+    if (ws1[groupHeaderRef]) {
+      ws1[groupHeaderRef].v = '小组号'
+      ws1[groupHeaderRef].s = {
+        font: { bold: true },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      }
+    }
+    
+    if (ws1[timeHeaderRef]) {
+      ws1[timeHeaderRef].v = '提交时间'
+      ws1[timeHeaderRef].s = {
+        font: { bold: true },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      }
+    }
+    
+    // 合并单元格配置
+    const totalCols = titleHeaders.length
     
     ws1['!merges'] = [
       // 合并问卷标题和描述
@@ -479,7 +523,7 @@ function exportAllAnswers() {
     
     // ==================== 导出文件 ====================
     const fileName = `问卷答题统计_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}_${new Date().toLocaleTimeString('zh-CN', { hour12: false }).replace(/:/g, '-')}.xlsx`
-    XLSX.writeFile(wb, fileName)
+    XLSX.writeFile(wb, fileName, { cellStyles: true, bookType: 'xlsx' })
     
     // ElMessage.success(`已导出 ${submittedGroupCount.value} 名学生的答题到 Excel 文件`)
   } catch (error: any) {

@@ -2,6 +2,10 @@
   <div class="design-card">
     <!-- 卡片标题 -->
     <h2 class="card-header-title">设计题目</h2>
+
+    <div class="design-card-content">
+      为了获取全校同学“数字设备使用用途（做什么）”的相关数据，请选择一个难度进行问题。
+    </div>
     
     <!-- 选择难度 -->
     <div class="difficulty-section">
@@ -884,5 +888,36 @@ const selectOneStarQuestion = (id: number, event?: MouseEvent) => {
   font-size: 14px;
   font-weight: 600;
   flex-shrink: 0;
+}
+
+/* 高亮脉冲动画 - 用于滚动提示 */
+:global(.design-card.highlight-pulse) {
+  animation: highlightPulse 2s ease;
+}
+
+.design-card-content {
+  font-size: 15px;
+  color: #1f2937;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  text-indent: 2em;
+}
+@keyframes highlightPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0);
+    border-color: #e5e7eb;
+  }
+  25% {
+    box-shadow: 0 0 0 8px rgba(14, 165, 233, 0.3);
+    border-color: #0ea5e9;
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.2);
+    border-color: #7dd3fc;
+  }
+  75% {
+    box-shadow: 0 0 0 8px rgba(14, 165, 233, 0.3);
+    border-color: #0ea5e9;
+  }
 }
 </style>

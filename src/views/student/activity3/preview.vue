@@ -7,13 +7,13 @@
       <!-- 问卷标题 -->
       <div class="survey-title-section">
         <span class="section-label">问卷标题：</span>
-        <span class="survey-title">{{ questionnaire.title }}</span>
+        <span class="survey-title editable-style">{{ questionnaire.title }}</span>
       </div>
       
       <!-- 问卷说明 -->
       <div class="survey-intro-section">
         <span class="section-label">问卷说明：</span>
-        <span class="intro-text">{{ questionnaire.description }}</span>
+        <span class="intro-text editable-style">{{ questionnaire.description }}</span>
       </div>
       
       <!-- 问卷题目区域 -->
@@ -111,7 +111,7 @@
             
             <!-- 提示文本 - 只在没有题目时显示 -->
             <div v-if="designQuestions.length === 0" class="add-question-item" @click="scrollToBank">
-              <span class="add-text">从左侧设计题目</span>
+              <span class="add-text">从左侧选择任务难度设计题目</span>
             </div>
           </div>
           
@@ -190,11 +190,11 @@ const scrollToBank = () => {
     designElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
     
     // 添加高亮提示动画
-    const challengeCard = document.querySelector('.challenge-card')
-    if (challengeCard) {
-      challengeCard.classList.add('highlight-pulse')
+    const designCard = document.querySelector('.design-card')
+    if (designCard) {
+      designCard.classList.add('highlight-pulse')
       setTimeout(() => {
-        challengeCard?.classList.remove('highlight-pulse')
+        designCard?.classList.remove('highlight-pulse')
       }, 2000)
     }
   }
@@ -348,10 +348,9 @@ const deleteQuestion = (question: any) => {
 /* 问卷标题区域 */
 .survey-title-section {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 20px;
-  min-height: 32px;
 }
 
 /* 问卷标题 */
@@ -361,17 +360,14 @@ const deleteQuestion = (question: any) => {
   color: #0ea5e9;
   line-height: 1.4;
   flex: 1;
-  text-align: center;
-  min-height: 32px;
 }
 
 /* 问卷说明区域 */
 .survey-intro-section {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 20px;
-  min-height: 24px;
 }
 
 .intro-text {
@@ -380,8 +376,37 @@ const deleteQuestion = (question: any) => {
   line-height: 1.8;
   flex: 1;
   margin: 0;
+}
+
+/* 可编辑视觉效果样式 */
+.editable-style {
+  padding: 12px 16px;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: all 0.3s ease;
+  display: block;
+  min-height: 46px;
+}
+
+.survey-title.editable-style {
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.intro-text.editable-style {
+  min-height: auto;
+  padding: 10px 14px;
   text-indent: 2em;
-  min-height: 24px;
+}
+
+.editable-style:hover {
+  background: #f3f4f6;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
 }
 
 /* 问卷题目区域 */

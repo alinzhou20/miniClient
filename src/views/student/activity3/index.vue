@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed } from 'vue'
 import { useActivity } from '@/store/activity'
 import { useStatus } from '@/store/status'
 import { useSocket } from '@/store/socket'
@@ -55,7 +55,9 @@ const socket = useSocket()
 const selectedChallenge = ref<'one' | 'two' | null>(null)
 const isSubmitting = ref(false)
 const submitted = ref(false)
-const showDesignPanel = ref(false)
+
+// 根据点赞开放状态控制显示面板
+const showDesignPanel = computed(() => activity.ac3_likeEnabled)
 
 // 处理难度选择
 const handleChallengeSelected = (level: 'one' | 'two' | null) => {
@@ -209,20 +211,11 @@ const submitActivity = async () => {
     
     submitted.value = true
     status.groupScores.activity3 = score
-    showDesignPanel.value = true
     
     const message = isDuplicate 
       ? `提交成功！获得 ${score} 分（题目与其他小组重复，不在展示区显示）`
       : `提交成功！获得 ${score} 分`
     ElMessage.success(message)
-    
-    await nextTick()
-    setTimeout(() => {
-      document.querySelector('.design-show-container')?.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
-      })
-    }, 100)
   } catch (error) {
     console.error('[Activity 3] 提交失败:', error)
     ElMessage.error('提交失败，请重试')

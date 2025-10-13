@@ -19,6 +19,15 @@
         <span class="btn-icon">➕</span>
         添加数据
       </button>
+
+      <!-- 网页来源信息 -->
+      <div v-if="hasSearchResult" class="source-info">
+        <div class="source-label">📄 网页来源</div>
+        <div class="source-details">
+          <div class="source-name">{{ sourceName }}</div>
+          <a :href="targetUrl" target="_blank" class="source-url">{{ targetUrl }}</a>
+        </div>
+      </div>
     </div>
 
     <!-- 搜索进行中 -->
@@ -179,9 +188,11 @@ const scrollPosition = ref(0)
 const scrollProgress = ref(0)
 const scrollThumbHeight = ref(20)
 const scrollThumbPosition = ref(0)
+const hasSearchResult = ref(false)
 
 // 目标URL
 const targetUrl = 'https://edu.cnr.cn/sy/sytjB/20240131/t20240131_526577335.shtml'
+const sourceName = '中国教育报'
 
 // 日志
 const searchLogs = ref<Array<{
@@ -308,6 +319,7 @@ const startPageLoading = async () => {
   
   isLoadingPage.value = false
   showSummary.value = true
+  hasSearchResult.value = true
 }
 
 // 自动滚动
@@ -406,7 +418,10 @@ const resetSearch = () => {
 .btn-container {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 24px;
   margin-bottom: 24px;
+  flex-wrap: wrap;
 }
 
 .action-btn {
@@ -428,6 +443,46 @@ const resetSearch = () => {
 .action-btn:hover { transform: translateY(-2px); }
 .action-btn.add-btn { background: linear-gradient(135deg, #10b981, #059669); }
 .btn-icon { font-size: 20px; }
+
+/* 网页来源信息 */
+.source-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.source-label {
+  font-weight: 600;
+  color: #0c4a6e;
+  white-space: nowrap;
+}
+
+.source-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.source-name {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.source-url {
+  color: #3b82f6;
+  text-decoration: none;
+  word-break: break-all;
+  font-size: 12px;
+}
+
+.source-url:hover {
+  text-decoration: underline;
+}
 
 /* 搜索容器 */
 .search-container { min-height: 400px; }

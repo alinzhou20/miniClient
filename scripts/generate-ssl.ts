@@ -86,6 +86,7 @@ function generateCertificates(): void {
     'localhost',
     '127.0.0.1',
     '117.72.63.157',
+    '172.16.0.5',
     '::1',
     ...localIPs
   ]

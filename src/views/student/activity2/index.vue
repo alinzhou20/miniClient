@@ -39,21 +39,11 @@
         <div class="confirm-text">
           我们小组能够说出"使用时长"和"设备类型"题目的选择理由。
         </div>
-        <el-radio-group v-model="reasonConfirmed" class="confirm-options">
+        <el-radio-group v-model="reasonConfirmed" class="confirm-options" @change="handleReasonChange">
           <el-radio :value="true" size="large">是</el-radio>
           <el-radio :value="false" size="large">否</el-radio>
         </el-radio-group>
       </div>
-      <template #footer>
-        <el-button @click="showReasonDialog = false">取消</el-button>
-        <el-button 
-          type="primary" 
-          @click="confirmSubmit"
-          :disabled="reasonConfirmed === null"
-        >
-          确定
-        </el-button>
-      </template>
     </el-dialog>
   </div>
 </template>
@@ -119,6 +109,17 @@ const submitActivity = async () => {
   // 显示理由确认对话框
   reasonConfirmed.value = null
   showReasonDialog.value = true
+}
+
+// 处理理由选择变化
+const handleReasonChange = (value: boolean) => {
+  if (value === true) {
+    // 点击"是"，直接确认提交
+    confirmSubmit()
+  } else {
+    // 点击"否"，取消对话框
+    showReasonDialog.value = false
+  }
 }
 
 // 确认提交

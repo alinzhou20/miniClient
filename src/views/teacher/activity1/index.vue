@@ -51,10 +51,10 @@
                 
                 <!-- 阶段2-3: 显示卡片框和标题 -->
                 <template v-else>
-                  <!-- P1: 使用时长 -->
+                  <!-- P1: 使用用途 -->
                   <div v-if="cozeResultA.p1.length > 0" class="coze-card card-a" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
                     <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
-                      <span class="coze-icon">⏱️</span>
+                      <span class="coze-icon">🎯</span>
                       <span class="coze-title">{{ typingTitles.a1 }}</span>
                     </div>
                     <div class="coze-card-content">
@@ -64,10 +64,10 @@
                     </div>
                   </div>
                   
-                  <!-- P2: 使用影响 -->
+                  <!-- P2: 使用时长 -->
                   <div v-if="cozeResultA.p2.length > 0" class="coze-card card-a" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
                     <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
-                      <span class="coze-icon">💡</span>
+                      <span class="coze-icon">⏱️</span>
                       <span class="coze-title">{{ typingTitles.a2 }}</span>
                     </div>
                     <div class="coze-card-content">
@@ -77,10 +77,10 @@
                     </div>
                   </div>
                   
-                  <!-- P3: 使用用途 -->
+                  <!-- P3: 设备类别 -->
                   <div v-if="cozeResultA.p3.length > 0" class="coze-card card-a" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
                     <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
-                      <span class="coze-icon">🎯</span>
+                      <span class="coze-icon">💡</span>
                       <span class="coze-title">{{ typingTitles.a3 }}</span>
                     </div>
                     <div class="coze-card-content">
@@ -90,10 +90,10 @@
                     </div>
                   </div>
                   
-                  <!-- P4: 使用安全 -->
+                  <!-- P4: 其他类别 -->
                   <div v-if="cozeResultA.p4.length > 0" class="coze-card card-a" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
                     <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
-                      <span class="coze-icon">🔒</span>
+                      <span class="coze-icon">📋</span>
                       <span class="coze-title">{{ typingTitles.a4 }}</span>
                     </div>
                     <div class="coze-card-content">
@@ -186,10 +186,10 @@
                 
                 <!-- 阶段2-3: 显示卡片框和标题 -->
                 <template v-else>
-                  <!-- P1: 使用时长 -->
+                  <!-- P1: 使用用途 -->
                   <div v-if="cozeResultB.p1.length > 0" class="coze-card card-b" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
                     <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
-                      <span class="coze-icon">⏱️</span>
+                      <span class="coze-icon">🎯</span>
                       <span class="coze-title">{{ typingTitles.b1 }}</span>
                     </div>
                     <div class="coze-card-content">
@@ -199,10 +199,10 @@
                     </div>
                   </div>
                   
-                  <!-- P2: 使用影响 -->
+                  <!-- P2: 使用时长 -->
                   <div v-if="cozeResultB.p2.length > 0" class="coze-card card-b" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
                     <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
-                      <span class="coze-icon">💡</span>
+                      <span class="coze-icon">⏱️</span>
                       <span class="coze-title">{{ typingTitles.b2 }}</span>
                     </div>
                     <div class="coze-card-content">
@@ -212,10 +212,10 @@
                     </div>
                   </div>
                   
-                  <!-- P3: 使用用途 -->
+                  <!-- P3: 设备类别 -->
                   <div v-if="cozeResultB.p3.length > 0" class="coze-card card-b" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
                     <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
-                      <span class="coze-icon">🎯</span>
+                      <span class="coze-icon">💡</span>
                       <span class="coze-title">{{ typingTitles.b3 }}</span>
                     </div>
                     <div class="coze-card-content">
@@ -225,10 +225,10 @@
                     </div>
                   </div>
                   
-                  <!-- P4: 使用安全 -->
+                  <!-- P4: 其他类别 -->
                   <div v-if="cozeResultB.p4.length > 0" class="coze-card card-b" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
                     <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
-                      <span class="coze-icon">🔒</span>
+                      <span class="coze-icon">📋</span>
                       <span class="coze-title">{{ typingTitles.b4 }}</span>
                     </div>
                     <div class="coze-card-content">
@@ -434,14 +434,16 @@ const cozeResultA = ref({
   p1: [] as string[],
   p2: [] as string[],
   p3: [] as string[],
-  p4: [] as string[]
+  p4: [] as string[],
+  p4_t: '' as string
 })
 
 const cozeResultB = ref({
   p1: [] as string[],
   p2: [] as string[],
   p3: [] as string[],
-  p4: [] as string[]
+  p4: [] as string[],
+  p4_t: '' as string
 })
 
 // 标题打字机效果
@@ -457,14 +459,14 @@ const typingTitles = ref({
 })
 
 const titleNames = {
-  a1: '使用时长',
-  a2: '设备类型',
-  a3: '使用用途',
-  a4: '使用安全',
-  b1: '使用时长',
-  b2: '设备类型',
-  b3: '使用用途',
-  b4: '使用安全'
+  a1: '使用用途',
+  a2: '使用时长',
+  a3: '设备类别',
+  a4: '', // 动态从 p4_t 获取
+  b1: '使用用途',
+  b2: '使用时长',
+  b3: '设备类别',
+  b4: '' // 动态从 p4_t 获取
 }
 
 // 提炼卡片打字机效果
@@ -514,8 +516,9 @@ const startTitleTyping = async () => {
     delayAccumulator += titleNames.a3.length * 150
   }
   if (cozeResultA.value.p4.length > 0) {
-    tasks.push(typeTitle('a4', titleNames.a4, delayAccumulator))
-    delayAccumulator += titleNames.a4.length * 150
+    const titleA4 = cozeResultA.value.p4_t || '其他类别'
+    tasks.push(typeTitle('a4', titleA4, delayAccumulator))
+    delayAccumulator += titleA4.length * 150
   }
   
   // 反方
@@ -532,7 +535,8 @@ const startTitleTyping = async () => {
     delayAccumulator += titleNames.b3.length * 150
   }
   if (cozeResultB.value.p4.length > 0) {
-    tasks.push(typeTitle('b4', titleNames.b4, delayAccumulator))
+    const titleB4 = cozeResultB.value.p4_t || '其他类别'
+    tasks.push(typeTitle('b4', titleB4, delayAccumulator))
   }
   
   await Promise.all(tasks)
@@ -744,7 +748,8 @@ const handleOrganize = async () => {
         p1: resultA.output.p1 || [],
         p2: resultA.output.p2 || [],
         p3: resultA.output.p3 || [],
-        p4: resultA.output.p4 || []
+        p4: resultA.output.p4 || [],
+        p4_t: resultA.output.p4_t || '其他类别'
       }
       console.log('[整理] 保存的 cozeResultA:', cozeResultA.value)
     }
@@ -754,7 +759,8 @@ const handleOrganize = async () => {
         p1: resultB.output.p1 || [],
         p2: resultB.output.p2 || [],
         p3: resultB.output.p3 || [],
-        p4: resultB.output.p4 || []
+        p4: resultB.output.p4 || [],
+        p4_t: resultB.output.p4_t || '其他类别'
       }
       console.log('[整理] 保存的 cozeResultB:', cozeResultB.value)
     }
