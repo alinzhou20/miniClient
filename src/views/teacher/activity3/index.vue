@@ -250,7 +250,27 @@ function addQuestionToQuestionnaire(question: any) {
 function toggleLikeEnabled() {
   activity.ac3_likeEnabled = !activity.ac3_likeEnabled
   
-  // 广播给所有学生
+  // 如果开放点赞，让学生切换到活动3
+  if (activity.ac3_likeEnabled) {
+    // 更新活动状态为活动3
+    status.activityStatus.now = 3
+    status.activityStatus.all.forEach(a => {
+      a.isActive = (a.id === 3)
+    })
+    
+    // 广播给学生切换到活动3
+    socket.dispatch({
+      mode: status.mode,
+      eventType: EventType.DISPATCH,
+      messageType: 'change_activity',
+      activityIndex: '-1',
+      data: { activityStatus: status.activityStatus },
+      from: null,
+      to: {}
+    })
+  }
+  
+  // 广播点赞状态变化
   socket.dispatch({
     mode: EntityMode.STUDENT,
     eventType: EventType.DISPATCH,

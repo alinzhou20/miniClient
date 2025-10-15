@@ -6,19 +6,19 @@
       <div class="legend-items">
         <div class="legend-item">
           <span class="legend-color" style="background: #3b82f6;"></span>
-          <span class="legend-text">活动一（1分）</span>
+          <span class="legend-text">活动一（1星）</span>
         </div>
         <div class="legend-item">
           <span class="legend-color" style="background: #8b5cf6;"></span>
-          <span class="legend-text">活动二（2分）</span>
+          <span class="legend-text">活动二（2星）</span>
         </div>
         <div class="legend-item">
           <span class="legend-color" style="background: #10b981;"></span>
-          <span class="legend-text">活动三（2分）</span>
+          <span class="legend-text">活动三（2星）</span>
         </div>
         <div class="legend-item">
           <span class="legend-color" style="background: #f59e0b;"></span>
-          <span class="legend-text">活动四（1分）</span>
+          <span class="legend-text">活动四（1星）</span>
         </div>
       </div>
     </div>

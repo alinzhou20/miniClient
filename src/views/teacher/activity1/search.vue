@@ -89,7 +89,7 @@
               <h1>明确数字技术资源 有效促进学习发展</h1>
               <div class="meta">
                 <span>📅 2024-01-31</span>
-                <span>📰 中国教育报</span>
+                <span>📰 光明日报</span>
               </div>
               
               <p>随着数字化技术的发展，席卷全球经济的数字技术正深刻改变着教育形态。在线学习平台、教育应用程序等数字技术工具为学生学习提供了前所未有的可能。经济合作与发展组织（OECD）发布的国际学生评估项目（PISA）为我们理解数字技术对学校教育的影响提供了独特视角。</p>
@@ -192,7 +192,7 @@ const hasSearchResult = ref(false)
 
 // 目标URL
 const targetUrl = 'https://edu.cnr.cn/sy/sytjB/20240131/t20240131_526577335.shtml'
-const sourceName = '中国教育报'
+const sourceName = '光明日报'
 
 // 日志
 const searchLogs = ref<Array<{
@@ -220,21 +220,27 @@ const analyzingTips = ref([
 
 // 观点数据
 const positivePoints = [
-  { icon: '⏰', text: '规定时间玩，能学能玩两不误' },
-  { icon: '📚', text: '用电脑可以查资料，看网课学习' },
-  { icon: '🎓', text: '是学习新知识的好帮手' },
-  { icon: '🎨', text: '能发展画画、编程等兴趣爱好' },
-  { icon: '🚀', text: '帮我们接触未来，变得更聪明' },
-  { icon: '🌏', text: '开阔眼界，看到更广阔的世界' }
+  // 时长
+  { icon: '⏰', text: '合理使用能帮忙学习', category: 'p1' },
+  { icon: '🏃', text: '用得时间短，不耽误运动睡觉', category: 'p1' },
+  // 设备类型
+  { icon: '💻', text: '电脑平板一起用，学习更高效', category: 'p2' },
+  { icon: '📚', text: '上课用相关设备，能学知识', category: 'p2' },
+  // 使用用途
+  { icon: '🎓', text: '自己用设备学更多新知识', category: 'p3' },
+  { icon: '✅', text: '用设备找答案，不出错', category: 'p3' },
 ]
 
 const negativePoints = [
-  { icon: '⏱️', text: '平板玩得太久，耽误学习和睡觉' },
-  { icon: '🎮', text: '总是想玩游戏和刷短视频' },
-  { icon: '📉', text: '上课容易分心，成绩会下降' },
-  { icon: '👓', text: '长时间看手机，眼睛会近视' },
-  { icon: '😟', text: '可能会变得焦虑，不开心' },
-  { icon: '👨‍👩‍👧', text: '和家人交流变少，容易吵架' }
+  // 时长
+  { icon: '⏱️', text: '每天用超 1 小时，注意力会变差', category: 'p1' },
+  { icon: '😴', text: '用得太久，没时间运动和睡觉', category: 'p1' },
+  // 设备类型
+  { icon: '⌚', text: '带手表去上课，容易走神', category: 'p2' },
+  { icon: '📱', text: '自己用平板，管不住自己', category: 'p2' },
+  // 使用用途
+  { icon: '🤖', text: '跟着工具上课，会不思考', category: 'p3' },
+  { icon: '🎮', text: '用设备光玩，不学东西', category: 'p3' },
 ]
 
 // Favicon
@@ -369,6 +375,10 @@ const addToActivity = () => {
       acc[index + 1] = point.text
       return acc
     }, {} as Record<number, string>),
+    category: positivePoints.reduce((acc, point, index) => {
+      acc[index + 1] = point.category
+      return acc
+    }, {} as Record<number, string>),
     rating: [],
     submittedAt: timestamp
   }
@@ -377,6 +387,10 @@ const addToActivity = () => {
     viewpoint: 'B' as const,
     point: negativePoints.reduce((acc, point, index) => {
       acc[index + 1] = point.text
+      return acc
+    }, {} as Record<number, string>),
+    category: negativePoints.reduce((acc, point, index) => {
+      acc[index + 1] = point.category
       return acc
     }, {} as Record<number, string>),
     rating: [],

@@ -1,7 +1,11 @@
 <template>
   <div class="design-show-container">
     <div class="show-header">
-      <h2>题目展示</h2>
+      <h3>为适合加入问卷的题目点赞</h3>
+      <div v-if="activity.ac3_likeEnabled" class="like-info">
+        <span class="like-tip">剩余点赞数：</span>
+        <span class="like-remaining">{{ activity.ac3_remainingLikes }}</span>
+      </div>
     </div>
     
     <div v-if="groups.length > 0" class="groups-grid">
@@ -33,9 +37,9 @@
               class="like-btn"
               :class="{ 
                 'already-liked': hasLiked(group.groupNo),
-                'limit-reached': !hasLiked(group.groupNo) && likedGroups.size >= 2
+                'limit-reached': !hasLiked(group.groupNo) && activity.ac3_remainingLikes <= 0
               }"
-              :disabled="hasLiked(group.groupNo) || likedGroups.size >= 2"
+              :disabled="hasLiked(group.groupNo) || activity.ac3_remainingLikes <= 0"
               @click="handleLike(group.groupNo)"
             >
               <span class="like-icon">👍</span>
@@ -163,7 +167,7 @@ const handleLike = (groupId: string) => {
   }
   
   // 检查点赞数量是否已达上限
-  if (likedGroups.value.size >= 2) {
+  if (activity.ac3_remainingLikes <= 0) {
     ElMessage.warning('最多只能点赞2个题目')
     return
   }
@@ -176,6 +180,9 @@ const handleLike = (groupId: string) => {
   
   // 记录已点赞
   likedGroups.value.add(groupId)
+  
+  // 递减剩余点赞数
+  activity.ac3_remainingLikes--
   
   // 增加点赞数
   designResult.great = (designResult.great || 0) + 1
@@ -246,7 +253,10 @@ const handleLike = (groupId: string) => {
 }
 
 .show-header {
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
   margin-bottom: 24px;
   padding-bottom: 16px;
   border-bottom: 2px solid #e5e7eb;
@@ -256,7 +266,7 @@ const handleLike = (groupId: string) => {
   font-size: 24px;
   font-weight: 700;
   color: #1f2937;
-  margin: 0 0 12px 0;
+  margin: 0;
 }
 
 .like-info {
@@ -264,14 +274,11 @@ const handleLike = (groupId: string) => {
   justify-content: center;
   align-items: center;
   gap: 16px;
-  margin-top: 12px;
   padding: 8px 20px;
   background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
   border: 2px solid #fbbf24;
   border-radius: 20px;
   width: fit-content;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .like-tip {

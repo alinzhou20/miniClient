@@ -40,7 +40,7 @@
                 <!-- 阶段1: 只显示所有 items，不带卡片框 -->
                 <template v-if="organizeAnimationStage === 1">
                   <div 
-                    v-for="(item, index) in [...cozeResultA.p1, ...cozeResultA.p2, ...cozeResultA.p3, ...cozeResultA.p4]" 
+                    v-for="(item, index) in [...cozeResultA.p1, ...cozeResultA.p2, ...cozeResultA.p3]" 
                     :key="'a-item-' + index"
                     class="coze-item-floating card-a"
                     :style="{ animationDelay: `${index * 80}ms` }"
@@ -91,7 +91,7 @@
                   </div>
                   
                   <!-- P4: 其他类别 -->
-                  <div v-if="cozeResultA.p4.length > 0" class="coze-card card-a" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
+                  <div v-if="false" class="coze-card card-a" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
                     <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
                       <span class="coze-icon">📋</span>
                       <span class="coze-title">{{ typingTitles.a4 }}</span>
@@ -175,7 +175,7 @@
                 <!-- 阶段1: 只显示所有 items，不带卡片框 -->
                 <template v-if="organizeAnimationStage === 1">
                   <div 
-                    v-for="(item, index) in [...cozeResultB.p1, ...cozeResultB.p2, ...cozeResultB.p3, ...cozeResultB.p4]" 
+                    v-for="(item, index) in [...cozeResultB.p1, ...cozeResultB.p2, ...cozeResultB.p3]" 
                     :key="'b-item-' + index"
                     class="coze-item-floating card-b"
                     :style="{ animationDelay: `${(index + Object.values(cozeResultA).reduce((sum, arr) => sum + arr.length, 0)) * 80}ms` }"
@@ -226,7 +226,7 @@
                   </div>
                   
                   <!-- P4: 其他类别 -->
-                  <div v-if="cozeResultB.p4.length > 0" class="coze-card card-b" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
+                  <div v-if="false" class="coze-card card-b" :class="{ 'show-box': organizeAnimationStage >= 2, 'show-header': organizeAnimationStage >= 3 }">
                     <div class="coze-card-header" :class="{ 'header-pulse': organizeAnimationStage === 3 }">
                       <span class="coze-icon">📋</span>
                       <span class="coze-title">{{ typingTitles.b4 }}</span>
@@ -717,53 +717,125 @@ const playRefineAnimation = async () => {
   await Promise.all(animations)
 }
 
+// 提取网络搜索的预定义分类
+const extractNetworkSearchCategories = () => {
+  const categoriesA = { p1: [] as string[], p2: [] as string[], p3: [] as string[] }
+  const categoriesB = { p1: [] as string[], p2: [] as string[], p3: [] as string[] }
+  
+  for (const [groupNo, result] of Object.entries(activity.ac1_allResult)) {
+    // 只处理网络搜索结果
+    if (!groupNo.includes('网络搜索')) continue
+    
+    const categories = result.viewpoint === 'A' ? categoriesA : categoriesB
+    
+    // 根据预定义的 category 字段分类
+    const categoryData = (result as any).category
+    if (categoryData) {
+      for (let i = 1; i <= 6; i++) {
+        if (result.point[i] && categoryData[i]) {
+          const cat = categoryData[i] as 'p1' | 'p2' | 'p3'
+          if (categories[cat]) {
+            categories[cat].push(result.point[i])
+          }
+        }
+      }
+    }
+  }
+  
+  return { categoriesA, categoriesB }
+}
+
+// 提取非网络搜索的观点（小组数据）
+const extractGroupReasons = () => {
+  const reasonsA: string[] = []
+  const reasonsB: string[] = []
+  
+  for (const [groupNo, result] of Object.entries(activity.ac1_allResult)) {
+    // 只处理非网络搜索的小组数据
+    if (groupNo.includes('网络搜索')) continue
+    
+    if (result.viewpoint === 'A') {
+      if (result.point[1]) reasonsA.push(result.point[1])
+    } else if (result.viewpoint === 'B') {
+      if (result.point[1]) reasonsB.push(result.point[1])
+    }
+  }
+  
+  return { reasonsA, reasonsB }
+}
+
 const handleOrganize = async () => {
   try {
-    // 调用 Coze AI 分析观点
-    // ElMessage.info('正在分析观点...')
+    // 1. 提取网络搜索的预定义分类
+    const { categoriesA: networkCatA, categoriesB: networkCatB } = extractNetworkSearchCategories()
+    console.log('[整理] 网络搜索分类 A:', networkCatA)
+    console.log('[整理] 网络搜索分类 B:', networkCatB)
     
-    // 获取正反方观点数组
-    const viewpointA = activity.ac1_allReason.A
-    const viewpointB = activity.ac1_allReason.B
+    // 2. 提取小组数据
+    const { reasonsA: groupReasonsA, reasonsB: groupReasonsB } = extractGroupReasons()
+    console.log('[整理] 小组数据 A:', groupReasonsA)
+    console.log('[整理] 小组数据 B:', groupReasonsB)
     
-    // 分别调用 GET_VIEWPOINT 工作流
-    const [rawResultA, rawResultB] = await Promise.all([
-      runWorkflow(WORKFLOW.GET_VIEWPOINT, { index: 2, input: viewpointA } as ViewpointWorkflow),
-      runWorkflow(WORKFLOW.GET_VIEWPOINT, { index: 2, input: viewpointB } as ViewpointWorkflow)
-    ])
+    // 3. 初始化结果（先用网络搜索的分类）
+    let cozeClassifiedA = { p1: [], p2: [], p3: [], p4: [] } as { p1: string[], p2: string[], p3: string[], p4: string[] }
+    let cozeClassifiedB = { p1: [], p2: [], p3: [], p4: [] } as { p1: string[], p2: string[], p3: string[], p4: string[] }
     
-    console.log('[整理] 原始返回 A:', rawResultA)
-    console.log('[整理] 原始返回 B:', rawResultB)
-    
-    // 将返回结果转化为 JSON
-    const resultA = rawResultA ? JSON.parse(rawResultA) : null
-    const resultB = rawResultB ? JSON.parse(rawResultB) : null
-    
-    console.log('[整理] 解析后 A:', resultA)
-    console.log('[整理] 解析后 B:', resultB)
-    
-    // 保存 Coze 结果
-    if (resultA?.output) {
-      cozeResultA.value = {
-        p1: resultA.output.p1 || [],
-        p2: resultA.output.p2 || [],
-        p3: resultA.output.p3 || [],
-        p4: resultA.output.p4 || [],
-        p4_t: resultA.output.p4_t || '其他类别'
+    // 4. 如果有小组数据，调用 Coze AI 进行分类
+    if (groupReasonsA.length > 0 || groupReasonsB.length > 0) {
+      console.log('[整理] 调用 Coze AI 分析小组数据')
+      
+      const [rawResultA, rawResultB] = await Promise.all([
+        groupReasonsA.length > 0 ? runWorkflow(WORKFLOW.GET_VIEWPOINT, { index: 2, input: groupReasonsA } as ViewpointWorkflow) : null,
+        groupReasonsB.length > 0 ? runWorkflow(WORKFLOW.GET_VIEWPOINT, { index: 2, input: groupReasonsB } as ViewpointWorkflow) : null
+      ])
+      
+      console.log('[整理] Coze 原始返回 A:', rawResultA)
+      console.log('[整理] Coze 原始返回 B:', rawResultB)
+      
+      const resultA = rawResultA ? JSON.parse(rawResultA) : null
+      const resultB = rawResultB ? JSON.parse(rawResultB) : null
+      
+      console.log('[整理] Coze 解析后 A:', resultA)
+      console.log('[整理] Coze 解析后 B:', resultB)
+      
+      if (resultA?.output) {
+        cozeClassifiedA = {
+          p1: resultA.output.p1 || [],
+          p2: resultA.output.p2 || [],
+          p3: resultA.output.p3 || [],
+          p4: resultA.output.p4 || []
+        }
       }
-      console.log('[整理] 保存的 cozeResultA:', cozeResultA.value)
+      
+      if (resultB?.output) {
+        cozeClassifiedB = {
+          p1: resultB.output.p1 || [],
+          p2: resultB.output.p2 || [],
+          p3: resultB.output.p3 || [],
+          p4: resultB.output.p4 || []
+        }
+      }
     }
     
-    if (resultB?.output) {
-      cozeResultB.value = {
-        p1: resultB.output.p1 || [],
-        p2: resultB.output.p2 || [],
-        p3: resultB.output.p3 || [],
-        p4: resultB.output.p4 || [],
-        p4_t: resultB.output.p4_t || '其他类别'
-      }
-      console.log('[整理] 保存的 cozeResultB:', cozeResultB.value)
+    // 5. 合并网络搜索分类 + Coze AI 分类结果
+    cozeResultA.value = {
+      p1: [...networkCatA.p1, ...cozeClassifiedA.p1],
+      p2: [...networkCatA.p2, ...cozeClassifiedA.p2],
+      p3: [...networkCatA.p3, ...cozeClassifiedA.p3],
+      p4: cozeClassifiedA.p4,
+      p4_t: '其他类别'
     }
+    
+    cozeResultB.value = {
+      p1: [...networkCatB.p1, ...cozeClassifiedB.p1],
+      p2: [...networkCatB.p2, ...cozeClassifiedB.p2],
+      p3: [...networkCatB.p3, ...cozeClassifiedB.p3],
+      p4: cozeClassifiedB.p4,
+      p4_t: '其他类别'
+    }
+    
+    console.log('[整理] 最终合并结果 A:', cozeResultA.value)
+    console.log('[整理] 最终合并结果 B:', cozeResultB.value)
     
     // 开始动画流程
     await playOrganizeAnimation()

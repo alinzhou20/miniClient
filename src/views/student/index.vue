@@ -47,7 +47,11 @@
         <div class="spacer"></div>
         
         <!-- 总星数显示 -->
-        <div class="total-stars">
+        <div class="total-stars" @click="handleReconnect" :title="isConnected ? 'Socket 已连接' : 'Socket 未连接，点击重新连接'">
+          <!-- 连接状态指示灯 -->
+          <div class="connection-indicator" :class="{ connected: isConnected }">
+            <div class="indicator-dot"></div>
+          </div>
           <span class="total-label">第 {{ status.userStatus!.groupNo }} 组共获得</span>
           <span class="total-count">{{ totalStars }} / 6 </span>
         </div>
@@ -129,6 +133,43 @@ const totalStars = computed(() => {
          status.groupScores.activity3 + 
          status.groupScores.activity4
 })
+
+// 使用 socket store 中的响应式连接状态
+const isConnected = computed(() => socket.isConnected)
+
+// 处理重新连接
+const handleReconnect = async () => {
+  if (isConnected.value) {
+    ElMessage.info('Socket 已连接')
+    return
+  }
+  
+  if (!status.userStatus) {
+    ElMessage.error('无法重新连接：用户信息缺失')
+    return
+  }
+  
+  try {
+    ElMessage.info('正在重新连接...')
+    
+    // 先断开现有连接
+    socket.disconnect()
+    
+    // 使用保存的用户信息重新连接
+    await socket.connect({
+      type: status.userStatus.type,
+      mode: status.userStatus.mode,
+      studentNo: status.userStatus.studentNo,
+      groupNo: status.userStatus.groupNo,
+      studentRole: status.userStatus.studentRole
+    })
+    
+    ElMessage.success('重新连接成功！')
+  } catch (error) {
+    console.error('重新连接失败:', error)
+    ElMessage.error('重新连接失败，请稍后重试')
+  }
+}
 
 const handleLogout = () => {
   socket.disconnect()
@@ -274,6 +315,55 @@ const handleLogout = () => {
   border-radius: 16px;
   padding: 12px 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.total-stars:hover {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+/* 连接状态指示灯 */
+.connection-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  position: relative;
+}
+
+.indicator-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+  transition: all 0.3s ease;
+}
+
+/* 未连接状态：红色闪烁 */
+.connection-indicator:not(.connected) .indicator-dot {
+  animation: blink-red 2s ease-in-out infinite;
+}
+
+/* 已连接状态：绿色常亮 */
+.connection-indicator.connected .indicator-dot {
+  background-color: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+}
+
+@keyframes blink-red {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.9);
+  }
 }
 
 .group-label {
@@ -302,6 +392,7 @@ const handleLogout = () => {
 }
 
 .logout-btn {
+  display: none;
   padding: 8px 12px !important;
   background: rgba(255, 255, 255, 0.25) !important;
   border: 2px solid rgba(255, 255, 255, 0.4) !important;

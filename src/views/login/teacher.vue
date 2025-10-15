@@ -69,6 +69,7 @@ const handleLogin = async () => {
     
     await connect({ type: 'teacher' })
     
+    // 保存用户状态
     status.userStatus = { type: 'teacher' }
     
     // ElMessage.success('登录成功')

@@ -119,7 +119,7 @@ export const useActivity = defineStore('activity', () => {
     },
     rating: [{
       index: 1,
-      criteria: "1. 通过小组讨论，我们能够写出理由，并上传。",
+      criteria: "1. 通过同桌协作，能写出理由并上传。",
       score: 0,
     }],
     submittedAt: 0
@@ -188,6 +188,9 @@ export const useActivity = defineStore('activity', () => {
 
   // Activity 3 - 点赞开放状态
   const ac3_likeEnabled = ref<boolean>(false)
+  
+  // Activity 3 - 剩余点赞数（每个学生/小组最多2次）
+  const ac3_remainingLikes = ref<number>(2)
 
   // 挑战任务独立数据源（three-star）
   const threeStarDraft = ref<QuestionOption | null>(null)
@@ -227,7 +230,7 @@ export const useActivity = defineStore('activity', () => {
       },
       rating: [{
         index: 1,
-        criteria: "1. 通过小组讨论，我们能够写出理由，并上传。",
+        criteria: "1. 通过同桌协作，能写出理由并上传。",
         score: 0,
       }],
       submittedAt: 0
@@ -276,6 +279,7 @@ export const useActivity = defineStore('activity', () => {
     threeStarDraft.value = null
     twoStarDraft.value = null
     ac3_likeEnabled.value = false
+    ac3_remainingLikes.value = 2
     ac4_stuResult.value = {
       rating: [
         {
@@ -310,6 +314,7 @@ export const useActivity = defineStore('activity', () => {
     ac3_stuResult,
     ac3_allResult,
     ac3_likeEnabled,
+    ac3_remainingLikes,
     threeStarDraft,
     twoStarDraft,
     

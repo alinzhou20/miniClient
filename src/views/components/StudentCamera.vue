@@ -11,6 +11,7 @@
             muted 
             playsinline
             :style="videoStyle"
+            @loadedmetadata="onVideoMetadataLoaded"
           ></video>
 
           <!-- 退出按钮 -->
@@ -39,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useStatus } from '@/store/status'
 
 const emit = defineEmits<{
@@ -54,24 +55,37 @@ const videoRef = ref<HTMLVideoElement>()
 const stream = ref<MediaStream | null>(null)
 
 // 计算视频样式（旋转-90度，宽高互换以填满容器）
+// 兼容 Chrome/Firefox/Edge
 const videoStyle = computed(() => {
   return {
     width: '768px',
     height: '432px',
     transform: 'rotate(-90deg)',
     transformOrigin: 'center center',
-    objectFit: 'cover' as const
+    objectFit: 'cover' as const,
+    // 确保 Edge 浏览器的渲染优化
+    backfaceVisibility: 'hidden' as const
   }
 })
+
+// 视频元数据加载完成的回调
+const onVideoMetadataLoaded = () => {
+  console.log('[StudentCamera] 视频元数据已加载')
+  if (videoRef.value) {
+    console.log(`[StudentCamera] 视频尺寸: ${videoRef.value.videoWidth} x ${videoRef.value.videoHeight}`)
+  }
+}
 
 const initCamera = async () => {
   try {
     // 请求超高分辨率视频流（支持4K/2K/1080p自适应降级）
+    // 兼容 Chrome/Firefox/Edge
     stream.value = await navigator.mediaDevices.getUserMedia({ 
       video: {
         width: { ideal: 3840, min: 1280 },
         height: { ideal: 2160, min: 720 },
-        frameRate: { ideal: 30 }
+        frameRate: { ideal: 30 },
+        facingMode: 'user' // 明确指定前置摄像头，提升 Edge 兼容性
       }
     })
     
@@ -85,6 +99,18 @@ const initCamera = async () => {
     
     if (videoRef.value) {
       videoRef.value.srcObject = stream.value
+      // Chrome/Edge 需要显式调用 play() 方法
+      await nextTick()
+      try {
+        await videoRef.value.play()
+      } catch (playError) {
+        console.warn('[StudentCamera] 自动播放失败，可能需要用户交互:', playError)
+        // Edge 浏览器备用方案：尝试静音播放
+        videoRef.value.muted = true
+        await videoRef.value.play().catch(e => {
+          console.error('[StudentCamera] 播放失败:', e)
+        })
+      }
     }
   } catch (error) {
     console.error('摄像头启动失败:', error)

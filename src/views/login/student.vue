@@ -85,8 +85,10 @@ const handleLogin = async () => {
       studentNo: studentNo
     })
     
+    // 保存完整的用户状态（包括 mode，用于重连）
     status.userStatus = { 
-      type: 'student', 
+      type: 'student',
+      mode: status.mode,
       groupNo: form.value.groupNo,
       studentRole: 'operator',
       studentNo: studentNo
