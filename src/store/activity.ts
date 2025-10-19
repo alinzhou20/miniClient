@@ -210,6 +210,7 @@ export const useActivity = defineStore('activity', () => {
     submittedAt: 0
   })
 
+  
   const reset = () => {
     // 重置问卷
     questionnaire.value = JSON.parse(JSON.stringify(questionnaireInitialData))
