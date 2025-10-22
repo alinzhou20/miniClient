@@ -4,5 +4,4 @@
 
 // 导出所有 store
 export * from './status'
-export * from './activity'
 export * from './socket'

@@ -36,7 +36,12 @@ const router = createRouter({
 router.beforeEach((to, _, next) => {
   const status = useStatus()
   
-  if (to.meta.requiresAuth && !status.userStatus) {
+  if (to.meta.auth === 'student' && status.user?.type !== 'student') {
+    next('/login')
+    return
+  }
+  
+  if (to.meta.auth === 'teacher' && status.user?.type !== 'teacher') {
     next('/login')
     return
   }

@@ -9,40 +9,9 @@
         
         <!-- 活动按钮区 -->
         <div class="activity-btns">
-          <button 
-            v-for="activity in teacherActivities" 
-            :key="activity.id"
-            class="activity-btn"
-            :class="{ active: currentActivityId === activity.id }"
-            @click="selectActivity(activity.id)"
-          >
-            {{ activity.title }}
-          </button>
-          
-          <!-- 看板按钮 -->
-          <button 
-            class="activity-btn watch-btn"
-            :class="{ active: isWatchPage }"
-            @click="goToWatch"
-          >
-            <el-icon><Monitor /></el-icon>
-            看板
-          </button>
         </div>
         
-        <div class="spacer"></div>
-        
-        <!-- 连接状态指示器 -->
-        <div class="connection-status" @click="handleReconnect" :title="isConnected ? 'Socket 已连接' : 'Socket 未连接，点击重新连接'">
-          <div class="connection-indicator" :class="{ connected: isConnected }">
-            <div class="indicator-dot"></div>
-          </div>
-          <span class="status-text">{{ isConnected ? '已连接' : '未连接' }}</span>
-        </div>
-        
-        <el-button @click="handleLogout" class="logout-btn">
-          <el-icon :size="20"><Fold /></el-icon>
-        </el-button>
+        <div class="spacer"></div>      
       </div>
     </div>
 
@@ -55,131 +24,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useStatus, useSocket, useActivity} from '@/store'
-import { ElMessage } from 'element-plus'
+import { useStatus, useSocket} from '@/store'
 import { Fold, Monitor } from '@element-plus/icons-vue'
-import { EventType } from '@/types'
-import type { Activity } from '@/store/status'
 import Listener from './listener.vue'
 
 const router = useRouter()
 const socket = useSocket()
 const status = useStatus()
-const activity = useActivity()
 
-// 教师端活动列表：包含 activity0-4（投票 + 活动一到活动四）
-const teacherActivities = computed<Activity[]>(() => {
-  return status.activityStatus.all.filter(a => a.id >= 0 && a.id <= 4)
-})
-
-// 是否在看板页面
-const isWatchPage = computed(() => {
-  return router.currentRoute.value.path.includes('/teacher/watch')
-})
-
-// 当前活动 ID（根据路由判断）
-const currentActivityId = computed(() => {
-  // 如果在看板页面，返回 -1 避免激活任何活动按钮
-  if (isWatchPage.value) {
-    return -1
-  }
-  const match = router.currentRoute.value.path.match(/activity(\d+)/)
-  return match ? parseInt(match[1]) : 0
-})
-
-// 更新活动状态（根据活动ID）
-const updateActivityStatus = (id: number) => {
-  // 更新当前活动和所有活动的激活状态
-  status.activityStatus.now = id
-  status.activityStatus.all.forEach(a => {
-    a.isActive = (a.id === id)
-  })
-}
-
-const selectActivity = (id: number) => {
-  // 更新活动状态
-  updateActivityStatus(id)
-  
-  // 同步路由
-  router.push(`/teacher/activity${id}`)
-  
-  // 广播给学生（activity0 是教师专用，不广播）
-  if (id > 0) {
-    socket.dispatch({
-      mode: status.mode,
-      eventType: EventType.DISPATCH,
-      messageType: 'change_activity',
-      activityIndex: '-1',
-      data: { activityStatus: status.activityStatus },
-      from: null,
-      to: {}
-    })
-  }
-}
-
-// 监听路由变化，自动更新活动状态
-watch(() => router.currentRoute.value.path, (newPath) => {
-  const match = newPath.match(/\/teacher\/activity(\d+)/)
-  if (match) {
-    const activityId = parseInt(match[1])
-    // 如果活动状态与当前路由不一致，更新状态
-    if (status.activityStatus.now !== activityId) {
-      updateActivityStatus(activityId)
-    }
-  }
-}, { immediate: true })
-
-// 跳转到看板
-const goToWatch = () => {
-  router.push('/teacher/watch')
-}
-
-// 使用 socket store 中的响应式连接状态
-const isConnected = computed(() => socket.isConnected)
-
-// 处理重新连接
-const handleReconnect = async () => {
-  if (isConnected.value) {
-    ElMessage.info('Socket 已连接')
-    return
-  }
-  
-  if (!status.userStatus) {
-    ElMessage.error('无法重新连接：用户信息缺失')
-    return
-  }
-  
-  try {
-    ElMessage.info('正在重新连接...')
-    
-    // 先断开现有连接
-    socket.disconnect()
-    
-    // 使用保存的用户信息重新连接
-    await socket.connect({
-      type: status.userStatus.type,
-      mode: status.userStatus.mode,
-      studentNo: status.userStatus.studentNo,
-      groupNo: status.userStatus.groupNo,
-      studentRole: status.userStatus.studentRole
-    })
-    
-    ElMessage.success('重新连接成功！')
-  } catch (error) {
-    console.error('重新连接失败:', error)
-    ElMessage.error('重新连接失败，请稍后重试')
-  }
-}
-
-const handleLogout = () => {
-  socket.disconnect()
-  status.reset()
-  activity.reset()
-  router.push('/login')
-  ElMessage.success('已退出登录')
-}
 </script>
 
 <style scoped>

@@ -9,51 +9,18 @@
         
         <!-- 活动按钮区 -->
         <div class="activity-btns">
-          <button 
-            v-for="act in studentActivities" 
-            :key="act.id"
-            class="activity-btn"
-            :class="{ active: currentActivityId === act.id }"
-            @click="selectActivity(act.id)"
-          >
-            <span class="btn-text">{{ act.title }}</span>
-            <span class="btn-stars">
-              <template v-for="i in getActivityMaxStars(act.id)" :key="i">
-                <svg 
-                  class="star-icon" 
-                  :class="{ filled: i <= getActivityCurrentStars(act.id) }"
-                  viewBox="0 0 24 24" 
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <defs>
-                    <linearGradient :id="`star-gradient-${act.id}-${i}`" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
-                      <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
-                    </linearGradient>
-                  </defs>
-                  <path 
-                    d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
-                    :fill="i <= getActivityCurrentStars(act.id) ? `url(#star-gradient-${act.id}-${i})` : 'none'"
-                    :stroke="i <= getActivityCurrentStars(act.id) ? '#FFA500' : 'currentColor'"
-                    stroke-width="1.5"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </template>
-            </span>
-          </button>
         </div>
         
         <div class="spacer"></div>
         
         <!-- 总星数显示 -->
-        <div class="total-stars" @click="handleReconnect" :title="isConnected ? 'Socket 已连接' : 'Socket 未连接，点击重新连接'">
+        <div class="total-stars" :title="isConnected ? 'Socket 已连接' : 'Socket 未连接，点击重新连接'">
           <!-- 连接状态指示灯 -->
           <div class="connection-indicator" :class="{ connected: isConnected }">
             <div class="indicator-dot"></div>
           </div>
-          <span class="total-label">第 {{ status.userStatus!.groupNo }} 组共获得</span>
-          <span class="total-count">{{ totalStars }} / 6 </span>
+          <span class="total-label">第 {{ status.user!.groupNo }} 组共获得</span>
+          <span class="total-count">todo / 8 </span>
         </div>
         
         <el-button @click="handleLogout" class="logout-btn">
@@ -73,21 +40,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useStatus, useSocket, useActivity } from '@/store'
+import { useStatus, useSocket } from '@/store'
 import { ElMessage } from 'element-plus'
 import { Fold } from '@element-plus/icons-vue'
 import Listener from './listener.vue'
-import type { Activity } from '@/store/status'
 
 const router = useRouter()
 const socket = useSocket()
 const status = useStatus()
-const activity = useActivity()
-
-// 学生端活动列表：包含 activity1-4（过滤掉 activity0）
-const studentActivities = computed<Activity[]>(() => {
-  return status.activityStatus.all.filter(a => a.id >= 1 && a.id <= 4)
-})
 
 // 当前活动 ID（根据路由判断）
 const currentActivityId = computed(() => {
@@ -111,70 +71,12 @@ const getActivityMaxStars = (activityId: number): number => {
   return 0
 }
 
-// 获取每个活动当前获得的星数
-const getActivityCurrentStars = (activityId: number): number => {
-  if (activityId === 1) {
-    return status.groupScores.activity1
-  } else if (activityId === 2) {
-    // 活动2：计算2-1和2-2的总和
-    return status.groupScores.activity2
-  } else if (activityId === 3) {
-    return status.groupScores.activity3
-  } else if (activityId === 4) {
-    return status.groupScores.activity4
-  }
-  return 0
-}
-
-// 计算总星数
-const totalStars = computed(() => {
-  return status.groupScores.activity1 + 
-         status.groupScores.activity2 + 
-         status.groupScores.activity3 + 
-         status.groupScores.activity4
-})
-
 // 使用 socket store 中的响应式连接状态
-const isConnected = computed(() => socket.isConnected)
-
-// 处理重新连接
-const handleReconnect = async () => {
-  if (isConnected.value) {
-    ElMessage.info('Socket 已连接')
-    return
-  }
-  
-  if (!status.userStatus) {
-    ElMessage.error('无法重新连接：用户信息缺失')
-    return
-  }
-  
-  try {
-    ElMessage.info('正在重新连接...')
-    
-    // 先断开现有连接
-    socket.disconnect()
-    
-    // 使用保存的用户信息重新连接
-    await socket.connect({
-      type: status.userStatus.type,
-      mode: status.userStatus.mode,
-      studentNo: status.userStatus.studentNo,
-      groupNo: status.userStatus.groupNo,
-      studentRole: status.userStatus.studentRole
-    })
-    
-    ElMessage.success('重新连接成功！')
-  } catch (error) {
-    console.error('重新连接失败:', error)
-    ElMessage.error('重新连接失败，请稍后重试')
-  }
-}
+const isConnected = computed(() => socket.connected)
 
 const handleLogout = () => {
   socket.disconnect()
   status.reset()
-  activity.reset()
   router.push('/login')
   ElMessage.success('已退出登录')
 }
@@ -392,7 +294,6 @@ const handleLogout = () => {
 }
 
 .logout-btn {
-  display: none;
   padding: 8px 12px !important;
   background: rgba(255, 255, 255, 0.25) !important;
   border: 2px solid rgba(255, 255, 255, 0.4) !important;

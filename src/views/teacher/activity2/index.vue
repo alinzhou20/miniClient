@@ -7,190 +7,37 @@
         <h2 class="activity-title">📊 问卷设计，精研问题</h2>
       </div>
 
-      <!-- 题库统计区域 - 单列布局 -->
-      <div class="question-bank-section">
-        <!-- 使用时长题库 -->
-        <div class="bank-container">
-          <div class="bank-header">
-            <div class="bank-header-left">
-              <span class="bank-icon">⏱️</span>
-              <span class="bank-title">使用时长</span>
-            </div>
-          </div>
-          <div class="question-list">
-            <div 
-              v-for="question in durationQuestions" 
-              :key="question.id"
-              class="question-card"
-            >
-              <!-- 左侧：题目信息 -->
-              <div class="question-info">
-                <div class="question-text">{{ question.title }}</div>
-                <div v-if="question.options" class="question-options">
-                  <div v-for="(opt, idx) in question.options" :key="idx" class="option-item">
-                    {{ opt }}
-                  </div>
-                </div>
-              </div>
-              
-              <!-- 右侧：选择的小组 -->
-              <div class="groups-section">
-                <div v-if="getGroupsByQuestion('duration', question.id).length > 0" class="groups-grid">
-                  <div 
-                    v-for="group in getGroupsByQuestion('duration', question.id)" 
-                    :key="group" 
-                    class="group-badge"
-                  >
-                    第{{ group }}组
-                  </div>
-                </div>
-                <div v-else class="no-groups">暂无小组选择</div>
-              </div>
-            </div>
-          </div>
+      <!-- 截图展示区域 -->
+      <div v-if="ac2.stuScreenshot && Object.keys(ac2.stuScreenshot).length > 0" class="photos-section">
+        <div class="section-header">
+          <h3 class="section-title">📸 小组截图</h3>
+          <div class="photos-count">{{ submittedScreenshotsCount }}/24 小组</div>
         </div>
-
-        <!-- 设备类型题库 -->
-        <div class="bank-container">
-          <div class="bank-header">
-            <div class="bank-header-left">
-              <span class="bank-icon">💡</span>
-              <span class="bank-title">设备类型</span>
-            </div>
-          </div>
-          <div class="question-list">
-            <div 
-              v-for="question in typeQuestions" 
-              :key="question.id"
-              class="question-card"
-            >
-              <!-- 左侧：题目信息 -->
-              <div class="question-info">
-                <div class="question-text">{{ question.title }}</div>
-                <div v-if="question.options" class="question-options">
-                  <div v-for="(opt, idx) in question.options" :key="idx" class="option-item">
-                    {{ opt }}
-                  </div>
-                </div>
-              </div>
-              
-              <!-- 右侧：选择的小组 -->
-              <div class="groups-section">
-                <div v-if="getGroupsByQuestion('type', question.id).length > 0" class="groups-grid">
-                  <div 
-                    v-for="group in getGroupsByQuestion('type', question.id)" 
-                    :key="group" 
-                    class="group-badge"
-                  >
-                    第{{ group }}组
-                  </div>
-                </div>
-                <div v-else class="no-groups">暂无小组选择</div>
-              </div>
-            </div>
+        <div class="photos-grid">
+          <div v-for="(screenshot, groupNo) in ac2.stuScreenshot" :key="groupNo" class="screenshot-item">
+            <div class="group-label">第{{ groupNo }}组</div>
+            <img :src="screenshot" alt="小组截图" />
           </div>
         </div>
       </div>
+
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useActivity, type QuestionOption } from '@/store/activity'
+import { teaAc2 } from '@/store/activity/activity2'
 
-const activity = useActivity()
+const ac2 = teaAc2()
 
-// Note: Activity2的设计提交处理已移至 listener.vue 统一管理
-
-// ==================== 题库数据 ====================
-// 使用时长题库数据
-const durationQuestions: QuestionOption[] = [
-  {
-    id: 1,
-    title: '你每周使用数字设备的大概时间是_____。',
-    type: 'fill',
-    questionType: 'duration',
-    answer: '',
-    visibility: 'both',
-    limit: -2
-  },
-  {
-    id: 2,
-    title: '你每周使用数字设备的大概时间是_____。（单位：分钟）',
-    type: 'fill',
-    questionType: 'duration',
-    answer: '',
-    visibility: 'both',
-    limit: -2
-  }
-]
-
-// 设备类型题库数据
-const typeQuestions: QuestionOption[] = [
-  {
-    id: 1,
-    title: '你最常使用哪种数字设备？',
-    options: ['手机', '平板'],
-    type: 'single',
-    questionType: 'type',
-    answer: '',
-    visibility: 'both',
-    limit: 1
-  },
-  {
-    id: 2,
-    title: '你最常使用哪种数字设备？',
-    options: ['电视', '电脑'],
-    type: 'single',
-    questionType: 'type',
-    answer: '',
-    visibility: 'both',
-    limit: 1
-  },
-  {
-    id: 3,
-    title: '你最常使用哪种数字设备？（多选题，最多选3个）',
-    options: ['电话手表', '手机', '平板', '电视', '电脑', '其他___'],
-    type: 'multiple',
-    questionType: 'type',
-    answer: '',
-    visibility: 'both',
-    limit: 3
-  },
-  // {
-  //   id: 4,
-  //   title: '我认为以上题目都不合适。',
-  //   type: 'single',
-  //   questionType: 'type',
-  //   answer: '',
-  //   visibility: 'both'
-  // }
-]
-
-// 活动2.1选择结果数据（基于小组）
-const selectResults = computed(() => {
-  return Object.entries(activity.ac2_allResult).map(([groupNo, result]: [string, any]) => ({
-    groupNo,
-    ...result
-  }))
+// 计算已提交截图的小组数量
+const submittedScreenshotsCount = computed(() => {
+  if (!ac2.stuScreenshot) return 0
+  return Object.keys(ac2.stuScreenshot).length
 })
 
-// 获取选择某题目的小组列表
-function getGroupsByQuestion(type: 'duration' | 'type', questionId: number): string[] {
-  const groups = selectResults.value
-    .filter(item => {
-      if (type === 'duration') {
-        return item.selectedDurationQuestion === questionId
-      } else {
-        return item.selectedImpactQuestion === questionId
-      }
-    })
-    .map(item => item.groupNo)
-    .sort((a, b) => parseInt(a) - parseInt(b))
-  
-  return groups
-}
+// Note: Activity2的设计提交处理已移至 listener.vue 统一管理
 
 </script>
 
@@ -219,214 +66,76 @@ function getGroupsByQuestion(type: 'duration' | 'type', questionId: number): str
   margin: 0;
 }
 
-/* 题库统计区域 - 单列布局 */
-.question-bank-section {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* 题库容器 */
-.bank-container {
+/* 截图展示区域 */
+.photos-section {
   background: white;
   border-radius: 16px;
-  padding: 28px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-}
-
-/* 题库头部 */
-.bank-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 16px;
+  padding: 24px;
   margin-bottom: 24px;
-  border-bottom: 3px solid #f3f4f6;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-.bank-header-left {
+.section-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f3f4f6;
 }
 
-.bank-icon {
-  font-size: 28px;
-}
-
-.bank-title {
+.section-title {
   font-size: 22px;
   font-weight: 700;
   color: #1f2937;
+  margin: 0;
 }
 
-.activity-btn {
-  padding: 10px 20px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
+.photos-count {
+  font-size: 16px;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 6px 16px;
+  border-radius: 20px;
 }
 
-.activity-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
-  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+.photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
 }
 
-/* 题目列表 */
-.question-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* 题目卡片 - 横向布局 */
-.question-card {
-  display: flex;
-  align-items: stretch;
-  background: #fafafa;
+.screenshot-item {
+  background: #f9fafb;
   border: 2px solid #e5e7eb;
   border-radius: 12px;
-  padding: 10px;
-  gap: 24px;
+  padding: 12px;
   transition: all 0.3s ease;
+  overflow: hidden;
 }
 
-.question-card:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+.screenshot-item:hover {
+  border-color: #10b981;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
 }
 
-/* 左侧：题目信息 */
-.question-info {
-  flex: 0 0 640px;
-  min-width: 0;
-}
-
-.question-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.question-number {
-  font-size: 14px;
-  font-weight: 800;
-  color: #3b82f6;
-  background: #dbeafe;
-  padding: 4px 10px;
-  border-radius: 8px;
-}
-
-.question-count {
-  font-size: 14px;
-  font-weight: 900;
-  color: #10b981;
-  background: #d1fae5;
-  padding: 4px 12px;
-  border-radius: 8px;
-}
-
-.question-text {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 12px;
-  line-height: 1.5;
-}
-
-/* 题目选项 - 横向排布 */
-.question-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  margin-top: 12px;
-}
-
-.option-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: #4b5563;
-  line-height: 1.4;
-  padding: 4px 8px;
-  background: #f3f4f6;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-}
-
-.option-item:hover {
-  background: #e5e7eb;
-}
-
-.option-item::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border: 2px solid #9ca3af;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: white;
-}
-
-/* 右侧：小组区域 */
-.groups-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: white;
-  border-left: 2px solid #e5e7eb;
-  padding-left: 24px;
-  min-width: 0;
-}
-
-.groups-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-content: flex-start;
-}
-
-.group-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 34px;
-  height: 24px;
-  padding: 0 8px;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  border: 2px solid #93c5fd;
-  border-radius: 8px;
+.group-label {
   font-size: 14px;
   font-weight: 700;
-  color: #1e40af;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.group-badge:hover {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  border-color: #1d4ed8;
-  color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
-}
-
-.no-groups {
+  color: #10b981;
+  background: #d1fae5;
+  padding: 6px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
   text-align: center;
-  padding: 20px 12px;
-  color: #9ca3af;
-  font-size: 13px;
-  font-style: italic;
+}
+
+.screenshot-item img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
 }
 
 /* 响应式设计 */
@@ -437,40 +146,9 @@ function getGroupsByQuestion(type: 'duration' | 'type', questionId: number): str
   }
 }
 
-@media (max-width: 1024px) {
-  .question-card {
-    flex-direction: column;
-    gap: 16px;
-  }
-  
-  .question-info {
-    flex: 1 1 auto;
-  }
-  
-  .groups-section {
-    flex: 1 1 auto;
-    border-left: none;
-    border-top: 2px solid #e5e7eb;
-    padding-left: 0;
-    padding-top: 16px;
-  }
-}
-
 @media (max-width: 768px) {
   .activity-title {
     font-size: 28px;
-  }
-  
-  .bank-title {
-    font-size: 18px;
-  }
-  
-  .bank-container {
-    padding: 20px;
-  }
-  
-  .question-card {
-    padding: 16px;
   }
 }
 </style>

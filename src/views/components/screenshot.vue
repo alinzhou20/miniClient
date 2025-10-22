@@ -1,10 +1,10 @@
 <template>
   <!-- 遮罩层 + 弹窗容器 -->
-  <transition name="camera-modal">
-    <div v-if="visible" class="camera-modal-overlay">
-      <div class="camera-card">
-        <div class="camera-container">
-          <!-- 摄像头视频流 -->
+  <transition name="screenshot-modal">
+    <div v-if="visible" class="screenshot-modal-overlay">
+      <div class="screenshot-card">
+        <div class="screenshot-container">
+          <!-- 屏幕预览 -->
           <video 
             ref="videoRef" 
             autoplay 
@@ -24,14 +24,14 @@
             退出
           </el-button>
 
-          <!-- 拍摄按钮 -->
+          <!-- 截图按钮 -->
           <el-button 
             class="action-button" 
             type="primary" 
             size="large"
             @click="captureAndUpload"
           >
-            拍摄
+            截图
           </el-button>
         </div>
       </div>
@@ -42,6 +42,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { useStatus } from '@/store/status'
+import { ElMessage } from 'element-plus'
 
 const emit = defineEmits<{
   upload: [photo: string]
@@ -54,70 +55,74 @@ const status = useStatus()
 const videoRef = ref<HTMLVideoElement>()
 const stream = ref<MediaStream | null>(null)
 
-// 计算视频样式（旋转-90度，宽高互换以填满容器）
-// 兼容 Chrome/Firefox/Edge
+// 计算视频样式
 const videoStyle = computed(() => {
   return {
-    width: '768px',
-    height: '432px',
-    transform: 'rotate(-90deg)',
-    transformOrigin: 'center center',
-    objectFit: 'cover' as const,
-    // 确保 Edge 浏览器的渲染优化
-    backfaceVisibility: 'hidden' as const
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain' as const
   }
 })
 
 // 视频元数据加载完成的回调
 const onVideoMetadataLoaded = () => {
-  console.log('[StudentCamera] 视频元数据已加载')
+  console.log('[Screenshot] 视频元数据已加载')
   if (videoRef.value) {
-    console.log(`[StudentCamera] 视频尺寸: ${videoRef.value.videoWidth} x ${videoRef.value.videoHeight}`)
+    console.log(`[Screenshot] 视频尺寸: ${videoRef.value.videoWidth} x ${videoRef.value.videoHeight}`)
   }
 }
 
-const initCamera = async () => {
+const initScreenCapture = async () => {
   try {
-    // 请求超高分辨率视频流（支持4K/2K/1080p自适应降级）
-    // 兼容 Chrome/Firefox/Edge
-    stream.value = await navigator.mediaDevices.getUserMedia({ 
+    // 请求屏幕共享
+    stream.value = await navigator.mediaDevices.getDisplayMedia({ 
       video: {
-        width: { ideal: 3840, min: 1280 },
-        height: { ideal: 2160, min: 720 },
-        frameRate: { ideal: 30 },
-        facingMode: 'user' // 明确指定前置摄像头，提升 Edge 兼容性
-      }
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        frameRate: { ideal: 30 }
+      },
+      audio: false
     })
     
-    console.log('[StudentCamera] 摄像头流获取成功')
+    console.log('[Screenshot] 屏幕流获取成功')
     
     // 打印实际获取到的视频轨道设置
     const videoTrack = stream.value.getVideoTracks()[0]
     const settings = videoTrack.getSettings()
-    console.log('[StudentCamera] 视频轨道设置:', settings)
-    console.log(`[StudentCamera] 摄像头实际分辨率: ${settings.width} x ${settings.height}, 帧率: ${settings.frameRate}`)
+    console.log('[Screenshot] 视频轨道设置:', settings)
+    console.log(`[Screenshot] 屏幕实际分辨率: ${settings.width} x ${settings.height}`)
     
     if (videoRef.value) {
       videoRef.value.srcObject = stream.value
-      // Chrome/Edge 需要显式调用 play() 方法
       await nextTick()
       try {
         await videoRef.value.play()
       } catch (playError) {
-        console.warn('[StudentCamera] 自动播放失败，可能需要用户交互:', playError)
-        // Edge 浏览器备用方案：尝试静音播放
+        console.warn('[Screenshot] 自动播放失败:', playError)
         videoRef.value.muted = true
         await videoRef.value.play().catch(e => {
-          console.error('[StudentCamera] 播放失败:', e)
+          console.error('[Screenshot] 播放失败:', e)
         })
       }
     }
-  } catch (error) {
-    console.error('摄像头启动失败:', error)
+
+    // 监听用户停止共享（点击浏览器的停止共享按钮）
+    videoTrack.addEventListener('ended', () => {
+      console.log('[Screenshot] 用户停止了屏幕共享')
+      visible.value = false
+    })
+  } catch (error: any) {
+    console.error('屏幕捕获失败:', error)
+    if (error.name === 'NotAllowedError') {
+      ElMessage.warning('用户取消了屏幕共享')
+    } else {
+      ElMessage.error('屏幕捕获失败，请重试')
+    }
+    visible.value = false
   }
 }
 
-// 拍照并立即上传
+// 截图并立即上传
 const captureAndUpload = () => {
   if (!videoRef.value) return
   
@@ -128,9 +133,9 @@ const captureAndUpload = () => {
   const ctx = canvas.getContext('2d')
   if (ctx) {
     ctx.drawImage(videoRef.value, 0, 0)
-    // 转为无压缩的 jpg 格式（质量参数 1.0）
-    const photoData = canvas.toDataURL('image/jpeg', 1.0)
-    status.takePhoto = photoData
+    // 转为 jpg 格式（质量参数 0.95）
+    const photoData = canvas.toDataURL('image/jpeg', 0.95)
+    status.photo = photoData
     
     // 立即上传
     emit('upload', photoData)
@@ -153,28 +158,28 @@ const cleanup = () => {
   }
 }
 
-// 监听弹窗打开/关闭，自动启动/清理摄像头
+// 监听弹窗打开/关闭，自动启动/清理屏幕捕获
 watch(visible, async (newVal) => {
   if (newVal) {
-    // 弹窗打开时自动启动摄像头
-    await initCamera()
+    // 弹窗打开时自动启动屏幕捕获
+    await initScreenCapture()
   } else {
     // 弹窗关闭时清理资源
     cleanup()
-    status.takePhoto = null
+    status.photo = null
   }
 })
 </script>
 
 <style scoped>
 /* 遮罩层 */
-.camera-modal-overlay {
+.screenshot-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -182,17 +187,19 @@ watch(visible, async (newVal) => {
   padding: 20px;
 }
 
-/* 相机卡片 */
-.camera-card {
-  width: 324px;
-  height: 576px;
+/* 截图卡片 */
+.screenshot-card {
+  width: 90vw;
+  max-width: 1200px;
+  height: 80vh;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   position: relative;
+  background: #000;
 }
 
-.camera-container {
+.screenshot-container {
   position: relative;
   width: 100%;
   height: 100%;
@@ -222,23 +229,23 @@ watch(visible, async (newVal) => {
 }
 
 /* 弹窗动画 */
-.camera-modal-enter-active,
-.camera-modal-leave-active {
+.screenshot-modal-enter-active,
+.screenshot-modal-leave-active {
   transition: opacity 0.3s ease;
 }
 
-.camera-modal-enter-active .camera-card,
-.camera-modal-leave-active .camera-card {
+.screenshot-modal-enter-active .screenshot-card,
+.screenshot-modal-leave-active .screenshot-card {
   transition: transform 0.3s ease;
 }
 
-.camera-modal-enter-from,
-.camera-modal-leave-to {
+.screenshot-modal-enter-from,
+.screenshot-modal-leave-to {
   opacity: 0;
 }
 
-.camera-modal-enter-from .camera-card,
-.camera-modal-leave-to .camera-card {
+.screenshot-modal-enter-from .screenshot-card,
+.screenshot-modal-leave-to .screenshot-card {
   transform: scale(0.9);
 }
 </style>

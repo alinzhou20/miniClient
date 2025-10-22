@@ -4,13 +4,11 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { useStatus, useSocket, useActivity } from '@/store'
-import { ElMessage } from 'element-plus'
+import { useStatus, useSocket } from '@/store'
 
 const router = useRouter()
 const socket = useSocket()
 const status = useStatus()
-const activity = useActivity()
 
 // 监听教师切换活动
 function onChangeActivity(payload: any) {
@@ -20,137 +18,17 @@ function onChangeActivity(payload: any) {
   if (!activityStatus) return
   
   // 更新活动状态
-  status.activityStatus = activityStatus
+  status.current = activityStatus.now
   
   // 同步路由
   router.push(`/student/activity${activityStatus.now}`)
-  
-  // 提示消息
-  const activityTitle = status.activityStatus.all.find(a => a.id === activityStatus.now)?.title || '活动'
-  // ElMessage.info(`教师已切换到${activityTitle}`)
-}
-
-// 监听教师发送的问卷
-function onSyncQuestionnaire(payload: any) {
-  if (!payload || payload.messageType !== 'sync_questionnaire') return
-  
-  const questionnaire = payload.data?.questionnaire
-  if (!questionnaire) return
-  
-  // 更新学生端实际问卷（不影响 questionnaire）
-  activity.real_questionnaire = questionnaire
-  
-  // 提示消息
-  ElMessage.success('已收到教师发送的问卷')
-}
-
-// 监听教师拍摄的活动照片
-function onTakePhoto(payload: any) {
-  if (!payload || payload.messageType !== 'take_photo') return
-  
-  const photo = payload.data?.photo
-  if (!photo) return
-}
-
-// 监听其他学生的设计提交
-function onActivity2_2Discuss(payload: any) {
-  if (!payload || payload.messageType !== 'activity2_2_discuss') return
-  
-  const data = payload.data || {}
-  const groupNo = payload.from?.groupNo
-  console.log(`[Student Listener] `,payload)
-  
-  if (!groupNo) return
-  
-  // 更新 ac3_allResult（包含rating和挑战级别信息）
-  activity.ac3_allResult[groupNo] = {
-    designQuestion: data.designQuestion || null,
-    rating: data.rating || [],
-    great: data.great || 0,
-    submittedAt: data.submittedAt || Date.now(),
-    challengeLevel: data.challengeLevel || null
-  }
-  
-  // console.log(`[Student Listener] 收到第${groupNo}组的设计`)
-}
-
-// 监听点赞消息
-function onActivity2_2LikeDiscuss(payload: any) {
-  if (!payload || payload.messageType !== 'activity2_2_like_discuss') return
-  
-  const data = payload.data || {}
-  const groupNo = data.targetGroupNo
-  
-  if (!groupNo) return
-  
-  // 更新对应小组的点赞数
-  const groupResult = activity.ac3_allResult[groupNo]
-  if (groupResult) {
-    groupResult.great = data.great || 0
-    groupResult.likedByGroups = data.likedByGroups || []
-    // console.log(`[Student Listener] 第${groupNo}组点赞数更新为 ${groupResult.great}`)
-  }
-}
-
-// 监听教师开放/关闭点赞
-function onLikeEnabledChanged(payload: any) {
-  if (!payload || payload.messageType !== 'like_enabled_changed') return
-  
-  const likeEnabled = payload.data?.likeEnabled
-  if (typeof likeEnabled !== 'boolean') return
-  
-  // 更新点赞开放状态
-  activity.ac3_likeEnabled = likeEnabled
-  
-  // console.log(`[Student Listener] 点赞状态已更新: ${likeEnabled ? '开放' : '关闭'}`)
-  ElMessage.info(likeEnabled ? '教师已开放点赞' : '教师已关闭点赞')
-}
-
-// 统一的 dispatch 事件处理
-function handleDispatch(payload: any) {
-  if (!payload) return
-  
-  // 根据消息类型分发到不同的处理函数
-  switch (payload.messageType) {
-    case 'change_activity':
-      onChangeActivity(payload)
-      break
-    case 'sync_questionnaire':
-      onSyncQuestionnaire(payload)
-      break
-    case 'take_photo':
-      onTakePhoto(payload)
-      break
-    case 'like_enabled_changed':
-      onLikeEnabledChanged(payload)
-      break
-  }
-}
-
-// 统一的 discuss 事件处理
-function handleDiscuss(payload: any) {
-  if (!payload) return
-  
-  // 根据消息类型分发到不同的处理函数
-  switch (payload.messageType) {
-    case 'activity2_2_discuss':
-      onActivity2_2Discuss(payload)
-      break
-    case 'activity2_2_like_discuss':
-      onActivity2_2LikeDiscuss(payload)
-      break
-  }
 }
 
 onMounted(() => {
-  socket.on('dispatch', handleDispatch)
-  socket.on('discuss', handleDiscuss)
-  // console.log('[Student Listener] 开始监听 dispatch 和 discuss 消息')
+  socket.on('dispatch', onChangeActivity)
 })
 
 onBeforeUnmount(() => {
-  socket.off('dispatch', handleDispatch)
-  socket.off('discuss', handleDiscuss)
-  // console.log('[Student Listener] 停止监听 dispatch 和 discuss 消息')
+  socket.off('dispatch', onChangeActivity)
 })
 </script>

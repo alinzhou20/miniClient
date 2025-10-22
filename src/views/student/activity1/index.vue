@@ -1,78 +1,81 @@
 <template>
-  <div class="main-content">
-  
+  <div class="main-content">  
     <!-- 顶部区域：自我评价 -->
-    <div class="evaluation-card">
-      <h3>评价标准</h3>
-      <div class="criteria-grid">
-        <div 
-          v-for="rating in activity.ac1_stuResult?.rating" 
-          :key="rating.index" 
-          class="criterion-item"
-          :class="{ 'completed': rating.score === 1 }"
-        >
-          <span class="criterion-text">{{ rating.criteria }}</span>
-        </div>
-      </div>
-    </div>
+    <Evaluation />
     <!-- 主内容区 -->
     <div class="content-section">
-      <!-- 初始状态：显示拍摄卡片 -->
-      <div v-if="!hasRecognitionResult && !isRecognizing" class="capture-card">
-        <div class="capture-content">
-          <el-button 
-            type="primary" 
-            size="large" 
-            @click="startCamera"
-            class="capture-button"
-          >
-            拍照上传
-          </el-button>
-        </div>
-      </div>
-
-      <!-- 识别中状态 -->
-      <div v-else-if="isRecognizing" class="capture-card">
-        <div class="recognition-loading">
-          <div class="loading-spinner"></div>
-          <div class="loading-text">正在识别手写内容...</div>
-        </div>
-      </div>
-
-      <!-- 识别完成：显示表单 -->
-      <div v-else class="form-card">
-        <div class="form-content">
-          <el-form label-width="100px">
-            <el-form-item label="观点：">
-              <el-select 
-                v-model="activity.ac1_stuResult!.viewpoint" 
-                placeholder="请选择观点"
-                style="width: 100%"
+      <!-- 双拍摄区域 -->
+      <div class="dual-capture-container">
+        <!-- 左侧：第一次拍摄 -->
+        <div class="capture-area">
+          <div class="capture-title">第一次拍摄</div>
+          <div class="capture-card" :class="{ 'has-photo': ac1.takePhoto1 }">
+            <!-- 识别中状态 -->
+            <div v-if="isRecognizing && currentCapture === 1" class="recognition-loading">
+              <div class="loading-spinner"></div>
+              <div class="loading-text">识别中...</div>
+            </div>
+            <!-- 显示第一张照片 -->
+            <div v-else-if="ac1.takePhoto1" class="photo-preview">
+              <img :src="ac1.takePhoto1" alt="第一次拍摄" />
+              <el-button 
+                class="retake-button" 
+                size="small" 
+                @click="retakePhoto(1)"
               >
-                <el-option label="A 使用数字设备利大于弊" value="A" />
-                <el-option label="B 使用数字设备弊大于利" value="B" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="理由：">
-              <el-input
-                v-model="activity.ac1_stuResult!.point[1]"
-                type="textarea"
-                :rows="6"
-                placeholder="请输入理由"
-                maxlength="200"
-                show-word-limit
-              />
-            </el-form-item>
-          </el-form>
+                重拍
+              </el-button>
+            </div>
+            <!-- 拍摄按钮 -->
+            <div v-else class="capture-content">
+              <el-button 
+                type="primary" 
+                size="large" 
+                @click="startCamera(1)"
+                class="capture-button"
+              >
+                开始拍摄
+              </el-button>
+            </div>
+          </div>
         </div>
-        
-        <div class="form-actions">
-          <el-button @click="startCamera" size="large">
-            重拍
-          </el-button>
-          <el-button type="success" @click="submitResult" :disabled="!canSubmit" size="large">
-            提交
-          </el-button>
+
+        <!-- 右侧：第二次拍摄 -->
+        <div class="capture-area">
+          <div class="capture-title">第二次拍摄</div>
+          <div class="capture-card" :class="{ 'has-photo': ac1.takePhoto2, 'disabled': !ac1.takePhoto1 }">
+            <!-- 识别中状态 -->
+            <div v-if="isRecognizing && currentCapture === 2" class="recognition-loading">
+              <div class="loading-spinner"></div>
+              <div class="loading-text">识别中...</div>
+            </div>
+            <!-- 显示第二张照片 -->
+            <div v-else-if="ac1.takePhoto2" class="photo-preview">
+              <img :src="ac1.takePhoto2" alt="第二次拍摄" />
+              <el-button 
+                class="retake-button" 
+                size="small" 
+                @click="retakePhoto(2)"
+              >
+                重拍
+              </el-button>
+            </div>
+            <!-- 拍摄按钮 -->
+            <div v-else class="capture-content">
+              <el-button 
+                type="primary" 
+                size="large" 
+                @click="startCamera(2)"
+                :disabled="!ac1.takePhoto1"
+                class="capture-button"
+              >
+                开始拍摄
+              </el-button>
+              <div v-if="!ac1.takePhoto1" class="tip-text">
+                请先完成第一次拍摄
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -86,17 +89,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useStatus } from '@/store/status'
-import { useActivity } from '@/store/activity'
+import { stuAc1 } from '@/store/activity/activity1'
 import { useSocket } from '@/store/socket'
 import { useCoze, WORKFLOW } from '@/utils/coze'
 import { ElMessage } from 'element-plus'
-import StudentCamera from '../../components/StudentCamera.vue'
-import { EntityMode, EventType } from '@/types'
+import { EventType } from '@/type/event'
+import StudentCamera from '../../components/camera.vue'
+import Evaluation from '../../components/evaluation.vue'
 
 const status = useStatus()
-const activity = useActivity()
+const ac1 = stuAc1()
 const socket = useSocket()
 const { uploadFile, runWorkflow } = useCoze()
 
@@ -104,86 +108,66 @@ const { uploadFile, runWorkflow } = useCoze()
 const showCamera = ref(false)
 const isRecognizing = ref(false)
 const recognitionResult = ref<any>(null)
+const currentCapture = ref<1 | 2>(1) // 当前拍摄的是第几次
 
-// 判断是否有识别结果
-const hasRecognitionResult = computed(() => {
-  return !!(
-    activity.ac1_stuResult?.viewpoint || 
-    activity.ac1_stuResult?.point[1]
-  )
-})
-
-// 判断是否可以提交
-const canSubmit = computed(() => {
-  return !!(
-    activity.ac1_stuResult?.viewpoint && 
-    activity.ac1_stuResult?.point[1]
-  )
-})
-
-// 启动摄像头并重置数据
-const startCamera = () => {
-  // 重置 ac1_stuResult
-  if (activity.ac1_stuResult) {
-    activity.ac1_stuResult.viewpoint = null
-    activity.ac1_stuResult.point = { 1: '' }
-    activity.ac1_stuResult.rating[0].score = 0
-    // 重置小组得分
-    status.groupScores.activity1 = 0
-  }
-  
-  // 启动摄像头
+// 启动摄像头
+const startCamera = (captureIndex: 1 | 2) => {
+  currentCapture.value = captureIndex
   showCamera.value = true
-  // ElMessage.info('已重置数据，请重新拍摄')
 }
 
-// 提交结果
-const submitResult = () => {
-  autoScore()
-  try {
-    const user = status.userStatus
-    socket.submit({
-      mode: user?.mode || EntityMode.STUDENT,
-      eventType: EventType.SUBMIT,
-      messageType: 'activity1_submit',
-      activityIndex: '1',
-      data: {
-        viewpoint: activity.ac1_stuResult?.viewpoint,
-        point: activity.ac1_stuResult?.point,
-        rating: activity.ac1_stuResult?.rating,
-        submittedAt: Date.now()
-      },
-      from: {
-        id: `${user?.studentNo || ''}_${user?.groupNo || ''}`,
-        studentNo: user?.studentNo,
-        groupNo: user?.groupNo,
-        studentRole: user?.studentRole
-      },
-      to: null
-    })
-    
-    // ElMessage.success('提交成功！')
-  } catch (error: any) {
-    console.error('[Activity1] 提交失败:', error)
-    // ElMessage.error(`提交失败: ${error.message}`)
+// 重拍某一张照片
+const retakePhoto = (captureIndex: 1 | 2) => {
+  if (captureIndex === 1) {
+    ac1.takePhoto1 = null
+    // 如果重拍第一张，也清空第二张
+    ac1.takePhoto2 = null
+  } else {
+    ac1.takePhoto2 = null
   }
+  
+  // 清空识别结果和评分
+  if (status.activity?.['activity1']?.rating) {
+    Object.values(status.activity['activity1'].rating).forEach(rating => {
+      rating.score = 0
+    })
+  }
+  
+  startCamera(captureIndex)
 }
 
 // 处理摄像头上传事件
 const handlePhotoUpload = async () => {
-  // console.log('[Activity1] 收到上传照片')
   showCamera.value = false
   
-  if (!status.takePhoto) {
-    // ElMessage.warning('照片未拍摄成功')
+  if (!status.photo) {
+    ElMessage.warning('照片未拍摄成功')
     return
   }
 
+  // 保存照片到对应的位置
+  if (currentCapture.value === 1) {
+    ac1.takePhoto1 = status.photo
+  } else {
+    ac1.takePhoto2 = status.photo
+  }
+
+  // 如果两张照片都已拍摄，开始识别
+  if (ac1.takePhoto1 && ac1.takePhoto2) {
+    await recognizePhotos()
+  }
+}
+
+// 识别两张照片
+const recognizePhotos = async () => {
   isRecognizing.value = true
   
   try {
+    // 使用第一张照片进行识别（或者根据需求使用第二张）
+    const photoToRecognize = ac1.takePhoto1!
+    
     // 1. 上传图片获取file_id（需要旋转90度）
-    const fileId = await uploadFile(status.takePhoto, `activity1_${Date.now()}.jpg`, true)
+    const fileId = await uploadFile(photoToRecognize, `activity1_${Date.now()}.jpg`, true)
     if (!fileId) throw new Error('图片上传失败')
     
     // 2. 调用识别工作流
@@ -196,28 +180,39 @@ const handlePhotoUpload = async () => {
     const resultData = JSON.parse(result)
     recognitionResult.value = resultData
     
-    // 4. 存入pinia
-    if (resultData.output1 && activity.ac1_stuResult) {
-      const { q1, q2 } = resultData.output1
-      activity.ac1_stuResult.viewpoint = q1
-      activity.ac1_stuResult.point[1] = q2.q2_1 || ''
+    // 4. 更新评分状态
+    if (resultData.output1 && status.activity?.['activity1']?.rating) {
+      // 识别成功，更新第一个评分标准
+      if (status.activity['activity1'].rating[1]) {
+        status.activity['activity1'].rating[1].score = 1
+      }
     }
     
-    ElMessage.success('手写识别完成！已自动保存')
+    // 5. 提交照片到教师端
+    if (status.user?.groupNo && status.user?.studentNo) {
+      socket.emit('submit', {
+        eventType: EventType.SUBMIT,
+        messageType: 'activity1_photo_submit',
+        data: {
+          groupNo: status.user.groupNo,
+          photo1: ac1.takePhoto1,
+          photo2: ac1.takePhoto2,
+          submittedAt: Date.now()
+        },
+        from: {
+          studentNo: status.user.studentNo,
+          groupNo: status.user.groupNo,
+          studentRole: status.user.studentRole
+        }
+      })
+    }
+    
+    ElMessage.success('手写识别完成！已自动提交')
   } catch (error: any) {
     console.error('[Activity1] 识别失败:', error)
     ElMessage.error(`识别失败: ${error.message}`)
   } finally {
     isRecognizing.value = false
-  }
-}
-
-// 自动打分
-const autoScore = () => {
-  if (activity.ac1_stuResult?.viewpoint && activity.ac1_stuResult?.point[1]) {
-    activity.ac1_stuResult.rating[0].score = 1
-    // 同步更新小组得分
-    status.groupScores.activity1 = 1
   }
 }
 </script>
@@ -230,68 +225,38 @@ const autoScore = () => {
   gap: 24px;
 }
 
-/* 评价标准 */
-.evaluation-card {
-  background: #fffbeb;
-  border: 1px solid #fbbf24;
-  border-radius: 8px;
-  padding: 15px 20px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.evaluation-card h3 {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0;
-  white-space: nowrap;
-}
-
-.criteria-grid {
-  display: flex;
-  gap: 15px;
-  flex: 1;
-}
-
-.criterion-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  font-size: 14px;
-}
-
-.criterion-item.completed {
-  background: #fef3c7;
-  border-color: #fbbf24;
-  font-weight: 600;
-}
-
-.criterion-item .star {
-  font-size: 14px;
-}
-
-.criterion-item .criterion-text {
-  font-size: 14px;
-  color: #374151;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.criterion-item.completed .criterion-text {
-  color: #374151;
-  font-weight: 600;
-}
-
 /* 主内容区 */
 .content-section {
   width: 100%;
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
+}
+
+/* 双拍摄区域容器 */
+.dual-capture-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+/* 拍摄区域 */
+.capture-area {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 拍摄标题 */
+.capture-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+  padding: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 /* 拍摄卡片 */
@@ -299,12 +264,24 @@ const autoScore = () => {
   background: white;
   border: 2px solid #e5e7eb;
   border-radius: 16px;
-  padding: 80px 40px;
+  padding: 40px 20px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  min-height: 400px;
+  min-height: 450px;
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.capture-card.has-photo {
+  padding: 0;
+  overflow: hidden;
+}
+
+.capture-card.disabled {
+  opacity: 0.6;
+  background: #f9fafb;
 }
 
 .capture-content {
@@ -338,6 +315,49 @@ const autoScore = () => {
 .capture-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(64, 158, 255, 0.4);
+}
+
+/* 照片预览 */
+.photo-preview {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  min-height: 450px;
+}
+
+.photo-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* 重拍按钮 */
+.retake-button {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid #e5e7eb;
+}
+
+.retake-button:hover {
+  background: white;
+  transform: scale(1.05);
+}
+
+/* 提示文本 */
+.tip-text {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #9ca3af;
+  text-align: center;
 }
 
 /* 识别加载状态 */
@@ -392,9 +412,18 @@ const autoScore = () => {
 
 /* 响应式 */
 @media (max-width: 768px) {
+  .dual-capture-container {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
   .capture-card {
-    padding: 60px 20px;
-    min-height: 300px;
+    padding: 40px 20px;
+    min-height: 350px;
+  }
+  
+  .photo-preview {
+    min-height: 350px;
   }
   
   .capture-icon {

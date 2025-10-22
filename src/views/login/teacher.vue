@@ -48,7 +48,7 @@ const form = ref({ password: '' })
 const rules: FormRules = {
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 5, message: '密码长度不正确', trigger: 'blur' }
+    { min: 5, max: 12, message: '密码长度不正确', trigger: 'blur' }
   ]
 }
 
@@ -70,13 +70,11 @@ const handleLogin = async () => {
     await connect({ type: 'teacher' })
     
     // 保存用户状态
-    status.userStatus = { type: 'teacher' }
+    status.user = { type: 'teacher' }
     
-    // ElMessage.success('登录成功')
-    router.push('/teacher/activity0')
+    router.push('/teacher')
   } catch (error: any) {
     console.error('[Login] 登录失败:', error)
-    // ElMessage.error(error.message || '连接失败')
   } finally {
     isLogging.value = false
   }

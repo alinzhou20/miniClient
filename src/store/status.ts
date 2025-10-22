@@ -4,154 +4,85 @@
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { EntityMode } from '@/types'
+import { User, Activity } from '@/type'
 
-// 用户状态管理
-export interface UserStatus {
-  type: 'student' | 'teacher'
-  mode?: EntityMode
-  groupNo?: string
-  studentNo?: string
-  studentRole?: string
+// 活动原始数据
+const activityRaw = {
+  "activity1": {
+    index: 1,
+    title: '活动一',
+    active: true,
+    rating: {
+      1: {
+        criteria: '完成拍照并上传',
+        score: 0
+      },
+      2: {
+        criteria: '放到指定文件夹中',
+        score: 0
+      }
+    }
+  },
+  "activity2": {
+    index: 2,
+    title: '活动二',
+    active: false,
+    rating: {
+      1: {
+        criteria: '修改代码绘制柿子的目标检测框',
+        score: 0
+      },
+      2: {
+        criteria: '裁剪出框选出来的图片',
+        score: 0
+      }
+    }
+  },
+  "activity3": {
+    index: 3,
+    title: '活动三',
+    active: false,
+    rating: {
+      1: {
+        criteria: '成功划分数据集',
+        score: 0
+      }
+    }
+  } 
 }
 
-// 活动状态管理
-export interface Activity {
-  id: number,
-  title: string,
-  isActive: boolean
-}
-export interface ActivityStatus {
-  now: number,
-  all: Activity[]
-}
-
-// 小组活动得分
-export interface GroupActivityScores {
-  activity1: number      // 活动一-观点
-  activity2: number      // 活动二-选择
-  activity3: number      // 活动三-设计
-  activity4: number      // 活动三-问卷
-}
-
-// 小组状态（教师端使用）
-export interface GroupStatus {
-  groupNo: string         // 小组编号 (1-12)
-  isOnline: boolean       // 是否登录（只看操作员）
-  operatorNo?: string     // 操作员学号
-  loginTime?: number      // 登录时间
-  scores: GroupActivityScores  // 各活动得分
-  totalScore: number      // 总分
-}
-
+// 状态管理
 export const useStatus = defineStore('status', () => {
 
   // 用户状态
-  const userStatus = ref<UserStatus | null>(null)
+  const user = ref<User | null>(null)
 
-  const mode = EntityMode.STUDENT_GROUP_ROLE
+  // 照片数据
+  const photo = ref<string | null>(null)
 
-  // 存储拍摄的照片（base64 格式，包含 data:image/jpeg;base64, 前缀）
-  const takePhoto = ref<string | null>(null)
+  // 扣子文件
+  const cozeFileId = ref<string | null>(null)
 
-  // 存储最新一次上传的数据到云平台的
-  const fileId = ref<string | null>(null)
+  // 活动状态
+  const activity = ref<Record<string, Activity> | null>(activityRaw)
 
-  // 学生端小组得分状态（用于显示本小组的总体得分）
-  const groupScores = ref<GroupActivityScores>({
-    activity1: 0,
-    activity2: 0,
-    activity3: 0,
-    activity4: 0
-  })
-
-  // 活动状态（通用，学生端使用 1-4，教师端使用 0-4）
-  const activityStatus = ref<ActivityStatus>(
-    {
-      now: 1,
-      all: [
-        { id: 0, title: '投票', isActive: false },
-        { id: 1, title: '活动一', isActive: true },
-        { id: 2, title: '活动二', isActive: false },
-        { id: 3, title: '活动三', isActive: false },
-        { id: 4, title: '活动四', isActive: false },
-      ]
-    }
-  )
-
-  // 小组状态（教师端主要使用）- 12个组
-  const groupStatus = ref<Record<string, GroupStatus>>({})
-
+  // 当前活动
+  const current = ref<string | null>("activity1")
   
-  // 初始化小组状态
-  for (let i = 1; i <= 12; i++) {
-    const groupNo = String(i)
-    groupStatus.value[groupNo] = {
-      groupNo,
-      isOnline: false,
-      operatorNo: undefined,
-      loginTime: undefined,
-      scores: {
-        activity1: 0,
-        activity2: 0,
-        activity3: 0,
-        activity4: 0
-      },
-      totalScore: 0
-    }
-  }
-
   const reset = () => {
-    userStatus.value = null
-    activityStatus.value = {
-      now: 1,
-      all: [
-        { id: 0, title: '投票', isActive: false },
-        { id: 1, title: '活动一', isActive: true },
-        { id: 2, title: '活动二', isActive: false },
-        { id: 3, title: '活动三', isActive: false },
-        { id: 4, title: '活动四', isActive: false },
-      ]
-    }
-    takePhoto.value = null
-    fileId.value = null
-    
-    // 重置学生端小组得分
-    groupScores.value = {
-      activity1: 0,
-      activity2: 0,
-      activity3: 0,
-      activity4: 0
-    }
-    
-    // 重置小组状态
-    groupStatus.value = {}
-    for (let i = 1; i <= 12; i++) {
-      const groupNo = String(i)
-      groupStatus.value[groupNo] = {
-        groupNo,
-        isOnline: false,
-        operatorNo: undefined,
-        loginTime: undefined,
-        scores: {
-          activity1: 0,
-          activity2: 0,
-          activity3: 0,
-          activity4: 0
-        },
-        totalScore: 0
-      }
-    }
-  }
+    user.value = null
+    photo.value = null
+    cozeFileId.value = null
+    activity.value = activityRaw
+    current.value = "activity1"
 
+  }
   return {
-    userStatus,
-    activityStatus,
-    groupStatus,
-    groupScores,
-    mode,
-    takePhoto,
-    fileId,
+    user,
+    photo,
+    cozeFileId,
+    activity,
+    current,
     reset
   }
 }, {

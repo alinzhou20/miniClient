@@ -1,202 +1,85 @@
 <template>
   <div class="main-content">
     <!-- 评价标准 -->
-    <div class="evaluation-card">
-      <h3>评价标准</h3>
-      <div class="criteria-grid">
-        <div 
-          v-for="rating in currentRating" 
-          :key="rating.index" 
-          class="criterion-item"
-          :class="{ 'completed': rating.score > 0 }"
-        >
-          <span>{{ rating.criteria }}</span>
+    <Evaluation />
+
+    <!-- 截图区域 -->
+    <div class="screenshot-area">
+      <div class="screenshot-title">屏幕截图</div>
+      <div class="screenshot-card" :class="{ 'has-screenshot': ac2.screenshot }">
+        <!-- 显示截图 -->
+        <div v-if="ac2.screenshot" class="screenshot-preview">
+          <img :src="ac2.screenshot" alt="屏幕截图" />
+          <el-button 
+            class="retake-button" 
+            size="small" 
+            @click="retakeScreenshot"
+          >
+            重新截图
+          </el-button>
+        </div>
+        <!-- 截图按钮 -->
+        <div v-else class="screenshot-content">
+          <el-button 
+            type="primary" 
+            size="large" 
+            @click="startScreenshot"
+            class="screenshot-button"
+          >
+            开始截图
+          </el-button>
         </div>
       </div>
     </div>
 
-    <!-- 左右分栏 -->
-    <div class="content-grid">
-      <!-- 左侧：题库选择 -->
-      <div class="design-panel">
-        <QuestionBankCard />
-      </div>
+    <!-- 截图组件 -->
+    <StudentScreenshot 
+      v-model="showScreenshot" 
+      @upload="handleScreenshotUpload"
+    />
 
-      <!-- 右侧：问卷预览 -->
-      <div class="preview-panel">
-        <QuestionnairePreview @submit="submitActivity" :is-submitting="isSubmitting" />
-      </div>
-    </div>
-
-    <!-- 理由确认对话框 -->
-    <el-dialog 
-      v-model="showReasonDialog" 
-      title="提交确认"
-      width="600px"
-      :close-on-click-modal="false"
-    >
-      <div class="reason-confirm-content">
-        <div class="confirm-text">
-          我们小组能够说出"使用时长"和"设备类型"题目的选择理由。
-        </div>
-        <el-radio-group v-model="reasonConfirmed" class="confirm-options" @change="handleReasonChange">
-          <el-radio :value="true" size="large">是</el-radio>
-          <el-radio :value="false" size="large">否</el-radio>
-        </el-radio-group>
-      </div>
-    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useActivity } from '@/store/activity'
+import { ref } from 'vue'
 import { useStatus } from '@/store/status'
-import { useSocket } from '@/store/socket'
-import { EventType } from '@/types'
+import { stuAc2 } from '@/store/activity/activity2'
 import { ElMessage } from 'element-plus'
-import QuestionBankCard from './bank.vue'
-import QuestionnairePreview from './preview.vue'
+import StudentScreenshot from '../../components/screenshot.vue'
+import Evaluation from '../../components/evaluation.vue'
 
-const activity = useActivity()
 const status = useStatus()
-const socket = useSocket()
+const ac2 = stuAc2()
 
-// 提交状态
-const isSubmitting = ref(false)
-const showReasonDialog = ref(false)
-const reasonConfirmed = ref<boolean | null>(null)
+// 截图功能
+const showScreenshot = ref(false)
 
-// 当前评分
-const currentRating = computed(() => {
-  const result = activity.ac2_stuResult
-  if (!result) return []
-  
-  const rating = result.rating || []
-  const previewRating = rating.map(r => ({ ...r }))
-  
-  // 预览评分
-  const hasDuration = result.selectedDurationQuestion !== null
-  const durationItem = previewRating.find(r => r.index === 1)
-  if (durationItem) {
-    durationItem.score = (hasDuration && result.durationReason) ? 1 : 0
-  }
-  
-  const hasImpact = result.selectedImpactQuestion !== null
-  const impactItem = previewRating.find(r => r.index === 2)
-  if (impactItem) {
-    impactItem.score = (hasImpact && result.impactReason) ? 1 : 0
-  }
-  
-  return previewRating
-})
-
-// 提交活动
-const submitActivity = async () => {
-  if (isSubmitting.value) return
-  
-  const result = activity.ac2_stuResult
-  if (!result) {
-    ElMessage.warning('没有可提交的数据')
-    return
-  }
-  
-  if (!result.selectedDurationQuestion && !result.selectedImpactQuestion) {
-    ElMessage.warning('请至少选择一个题目')
-    return
-  }
-  
-  // 显示理由确认对话框
-  reasonConfirmed.value = null
-  showReasonDialog.value = true
+// 启动截图
+const startScreenshot = () => {
+  showScreenshot.value = true
 }
 
-// 处理理由选择变化
-const handleReasonChange = (value: boolean) => {
-  if (value === true) {
-    // 点击"是"，直接确认提交
-    confirmSubmit()
-  } else {
-    // 点击"否"，取消对话框
-    showReasonDialog.value = false
-  }
+// 重新截图
+const retakeScreenshot = () => {
+  ac2.screenshot = null
+  startScreenshot()
 }
 
-// 确认提交
-const confirmSubmit = async () => {
-  if (reasonConfirmed.value === null) {
-    ElMessage.warning('请选择是否能够说出理由')
+// 处理截图上传
+const handleScreenshotUpload = async () => {
+  showScreenshot.value = false
+  
+  if (!status.photo) {
+    ElMessage.warning('截图未成功')
     return
   }
-  
-  showReasonDialog.value = false
-  
-  const result = activity.ac2_stuResult
-  if (!result) return
-  
-  // 计算评分
-  let score = 0
-  const rating = result.rating || []
-  
-  // 先重置所有分数
-  rating.forEach(r => r.score = 0)
-  
-  // 如果选择了时长题目，且确认能说出理由，第一项得分
-  if (result.selectedDurationQuestion !== null && reasonConfirmed.value) {
-    const ratingItem = rating.find(r => r.index === 1)
-    if (ratingItem) {
-      ratingItem.score = 1
-      score++
-    }
-    result.durationReason = '已确认'
-  }
-  
-  // 如果选择了影响题目，且确认能说出理由，第二项得分
-  if (result.selectedImpactQuestion !== null && reasonConfirmed.value) {
-    const ratingItem = rating.find(r => r.index === 2)
-    if (ratingItem) {
-      ratingItem.score = 1
-      score++
-    }
-    result.impactReason = '已确认'
-  }
-  
-  isSubmitting.value = true
-  
-  try {
-    result.submittedAt = Date.now()
-    
-    socket.submit({
-      mode: status.mode,
-      eventType: EventType.SUBMIT,
-      messageType: 'activity2_1_submit',
-      activityIndex: '2',
-      data: {
-        selectedDurationQuestion: result.selectedDurationQuestion,
-        selectedImpactQuestion: result.selectedImpactQuestion,
-        durationReason: result.durationReason,
-        impactReason: result.impactReason,
-        rating: result.rating,
-        submittedAt: result.submittedAt
-      },
-      from: {
-        id: `${status.userStatus?.studentNo}_${status.userStatus?.groupNo}`,
-        groupNo: status.userStatus?.groupNo,
-        studentNo: status.userStatus?.studentNo,
-        studentRole: status.userStatus?.studentRole
-      },
-      to: null
-    })
-    
-    status.groupScores.activity2 = score
-    ElMessage.success(`提交成功！获得 ${score} 分`)
-  } catch (error) {
-    console.error('[Activity2] 提交失败:', error)
-    ElMessage.error('提交失败，请重试')
-  } finally {
-    isSubmitting.value = false
-  }
+
+  // 保存截图
+  ac2.screenshot = status.photo
+  ElMessage.success('截图保存成功！')
 }
+
 </script>
 
 <style scoped>
@@ -206,125 +89,96 @@ const confirmSubmit = async () => {
   gap: 20px;
 }
 
-.evaluation-card {
-  background: #fffbeb;
-  border: 1px solid #fbbf24;
-  border-radius: 8px;
-  padding: 15px 20px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.evaluation-card h3 {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0;
-  white-space: nowrap;
-}
-
-.criteria-grid {
-  display: flex;
-  gap: 15px;
-  flex: 1;
-}
-
-.criterion-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  font-size: 14px;
-}
-
-.criterion-item.completed {
-  background: #fef3c7;
-  border-color: #fbbf24;
-  font-weight: 600;
-}
-
-.content-grid {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 20px;
-}
-
-.preview-panel, .design-panel {
+/* 截图区域 */
+.screenshot-area {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
-.preview-panel {
-  display: flex;
-  flex-direction: column;
-}
-
-/* 理由确认对话框 */
-.reason-confirm-content {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding: 20px 0;
-}
-
-.confirm-text {
-  font-size: 20px;
+.screenshot-title {
+  font-size: 18px;
   font-weight: 600;
-  color: #1f2937;
+  color: #374151;
   text-align: center;
-  line-height: 1.6;
-  padding: 16px;
-  border-radius: 8px;
+  padding: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-.confirm-options {
+.screenshot-card {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 40px 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  min-height: 300px;
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 40px;
+  position: relative;
+  transition: all 0.3s ease;
 }
 
-.confirm-options :deep(.el-radio) {
+.screenshot-card.has-screenshot {
+  padding: 0;
+  overflow: hidden;
+}
+
+.screenshot-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.screenshot-button {
   font-size: 18px;
+  padding: 16px 48px;
+  height: auto;
+  border-radius: 12px;
   font-weight: 600;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+  transition: all 0.3s ease;
 }
 
-.confirm-options :deep(.el-radio__input) {
-  transform: scale(1.2);
+.screenshot-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.4);
 }
 
-.confirm-options :deep(.el-radio__label) {
-  font-size: 18px;
-  font-weight: 600;
-  padding-left: 12px;
+.screenshot-preview {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  min-height: 300px;
 }
 
-@media (max-width: 1024px) {
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
+.screenshot-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
-/* 全局飞行动画增强 */
-:global(.flying-question) {
-  animation: flyingShadow 1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+.retake-button {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid #e5e7eb;
 }
 
-@keyframes flyingShadow {
-  0% {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    background: #f9fafb;
-  }
-  50% {
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-    background: white;
-  }
-  100% {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    background: white;
-  }
+.retake-button:hover {
+  background: white;
+  transform: scale(1.05);
 }
 </style>

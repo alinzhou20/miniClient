@@ -8,7 +8,7 @@
       <el-form ref="formRef" :model="form" :rules="rules" class="form">
         <el-form-item prop="groupNo">
           <label>选择小组</label>
-          <el-input v-model="form.groupNo" placeholder="输入小组号（1-12）" :disabled="isLogging" />
+          <el-input v-model="form.groupNo" placeholder="输入小组号（1-24）" :disabled="isLogging" />
         </el-form-item>
         
         <el-button type="primary" :loading="isLogging" @click="handleLogin" class="btn">
@@ -29,12 +29,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useStatus } from '@/store/status'
 import { useSocket } from '@/store/socket'
-import StudentCamera from '@/views/components/StudentCamera.vue'
+import StudentCamera from '@/views/components/camera.vue'
 
 const router = useRouter()
 const status = useStatus()
@@ -51,16 +51,9 @@ const form = ref({
 const rules: FormRules = {
   groupNo: [
     { required: true, message: '请输入小组号', trigger: 'blur' },
-    { pattern: /^([1-9]|1\d|20)$/, message: '请输入1-20的数字', trigger: 'blur' }
+    { pattern: /^([1-9]|1\d|24)$/, message: '请输入1-24的数字', trigger: 'blur' }
   ]
 }
-
-// 计算学号（操作员学号）
-const currentStudentNo = computed(() => {
-  const groupNo = parseInt(form.value.groupNo)
-  if (isNaN(groupNo) || groupNo < 1 || groupNo > 20) return '-'
-  return groupNo * 2 - 1
-})
 
 // 登录按钮，直接登录
 const handleLogin = async () => {
@@ -75,20 +68,19 @@ const handleLogin = async () => {
   isLogging.value = true
   
   try {
-    const studentNo = currentStudentNo.value.toString()
+    // 由组号生成学号
+    const studentNo = form.value.groupNo
     
     await connect({
       type: 'student',
-      mode: status.mode,
       studentRole: 'operator',
       groupNo: form.value.groupNo,
       studentNo: studentNo
     })
     
     // 保存完整的用户状态（包括 mode，用于重连）
-    status.userStatus = { 
+    status.user = { 
       type: 'student',
-      mode: status.mode,
       groupNo: form.value.groupNo,
       studentRole: 'operator',
       studentNo: studentNo
