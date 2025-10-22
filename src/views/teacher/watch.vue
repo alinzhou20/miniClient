@@ -4,17 +4,13 @@
     <div class="legend-card">
       <div class="legend-title">活动</div>
       <div class="legend-items">
-        <div class="legend-item">
-          <span class="legend-color" style="background: #3b82f6;"></span>
-          <span class="legend-text">活动一（1星）</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-color" style="background: #8b5cf6;"></span>
-          <span class="legend-text">活动二（2星）</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-color" style="background: #10b981;"></span>
-          <span class="legend-text">活动三（2星）</span>
+        <div 
+          v-for="(act, index) in ACTIVITY_CONFIG" 
+          :key="act.name"
+          class="legend-item"
+        >
+          <span class="legend-color" :style="{ background: getActivityColor(index) }"></span>
+          <span class="legend-text">{{ act.title }}（{{ act.max }}分）</span>
         </div>
       </div>
     </div>
@@ -34,38 +30,23 @@
             <div 
               v-if="group.totalScore > 0" 
               class="total-score"
-              :class="{ 'full-score': group.totalScore === 6 }"
+              :class="{ 'full-score': group.totalScore === maxTotalScore }"
             >
               {{ group.totalScore }}
             </div>
             
             <div class="bar-stack" :style="{ height: getBarHeight(group.totalScore) }">
-              <!-- 活动1（最上面） -->
+              <!-- 动态渲染活动分段 -->
               <div 
-                v-if="group.scores.activity1 > 0"
-                class="bar-segment activity1"
-                :style="{ height: getSegmentHeight(group.scores.activity1, group.totalScore) }"
-                :title="`活动一: ${group.scores.activity1}/1分`"
+                v-for="(act, index) in ACTIVITY_CONFIG" 
+                :key="act.name"
+                v-show="group.scores[act.name] > 0"
+                class="bar-segment"
+                :class="`activity${index + 1}`"
+                :style="{ height: getSegmentHeight(group.scores[act.name], group.totalScore) }"
+                :title="`${act.title}: ${group.scores[act.name]}/${act.max}分`"
               >
-                <span class="segment-label">{{ group.scores.activity1 }}</span>
-              </div>
-              <!-- 活动2 -->
-              <div 
-                v-if="group.scores.activity2 > 0"
-                class="bar-segment activity2"
-                :style="{ height: getSegmentHeight(group.scores.activity2, group.totalScore) }"
-                :title="`活动二: ${group.scores.activity2}/2分`"
-              >
-                <span class="segment-label">{{ group.scores.activity2 }}</span>
-              </div>
-              <!-- 活动3 -->
-              <div 
-                v-if="group.scores.activity3 > 0"
-                class="bar-segment activity3"
-                :style="{ height: getSegmentHeight(group.scores.activity3, group.totalScore) }"
-                :title="`活动三: ${group.scores.activity3}/2分`"
-              >
-                <span class="segment-label">{{ group.scores.activity3 }}</span>
+                <span class="segment-label">{{ group.scores[act.name] }}</span>
               </div>
             </div>
           </div>
@@ -82,30 +63,53 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useStatus } from '@/store/status'
+import { useTeaStatus, ACTIVITY_CONFIG } from '@/store/status'
 
-const status = useStatus()
+const teaStatus = useTeaStatus()
 
-// 小组列表（实时计算总分并排序）
-const groupsList = computed(() => {
-  return Object.values(status.groupStatus)
-    .map(group => ({
-      ...group,
-      totalScore: group.scores.activity1 + group.scores.activity2 + group.scores.activity3
-    }))
-    .sort((a, b) => parseInt(a.groupNo) - parseInt(b.groupNo))
+// 计算总最大分数
+const maxTotalScore = computed(() => {
+  return ACTIVITY_CONFIG.reduce((sum, act) => sum + act.max, 0)
 })
 
-// 计算柱状图高度
+// 小组列表（从 students 数据计算）
+const groupsList = computed(() => {
+  return Object.values(teaStatus.students).map(student => {
+    const scores: Record<string, number> = {}
+    let totalScore = 0
+    
+    // 动态计算每个活动的得分
+    ACTIVITY_CONFIG.forEach(act => {
+      const score = student[act.name as keyof typeof student] as number
+      scores[act.name] = score
+      totalScore += score
+    })
+    
+    return {
+      groupNo: student.studentNo,
+      isOnline: student.login, // 使用 login 字段判断是否在线
+      scores,
+      totalScore
+    }
+  })
+})
+
+// 计算柱状图高度（基于实际最大分数）
 function getBarHeight(score: number): string {
   if (score === 0) return '0px'
-  return `${Math.max((score / 6) * 360, 60)}px`
+  return `${Math.max((score / maxTotalScore.value) * 360, 60)}px`
 }
 
 // 计算分段高度
 function getSegmentHeight(segmentScore: number, totalScore: number): string {
   if (totalScore === 0 || segmentScore === 0) return '0%'
   return `${(segmentScore / totalScore) * 100}%`
+}
+
+// 获取活动颜色
+function getActivityColor(index: number): string {
+  const colors = ['#3b82f6', '#8b5cf6', '#10b981']
+  return colors[index] || '#6b7280'
 }
 </script>
 

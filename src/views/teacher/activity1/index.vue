@@ -36,9 +36,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { teaAc1 } from '@/store/activity/activity1'
+import { useTeaAc1 } from '@/store/activity/activity1'
 
-const ac1 = teaAc1()
+const ac1 = useTeaAc1()
 
 // 计算已提交图片的小组数量
 const submittedPhotosCount = computed(() => {
@@ -60,7 +60,7 @@ const totalPhotosCount = computed(() => {
 <style scoped>
 .page {
   padding: 0;
-  width: 1240px;
+  max-width: 1480px;
   margin: 0 auto;
   background: #F5F5F0;
 }

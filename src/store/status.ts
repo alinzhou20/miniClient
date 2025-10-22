@@ -3,56 +3,52 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { User, Activity } from '@/type'
+import { ref, watch } from 'vue'
+import { User, EventType } from '@/type'
+import { useSocket } from './socket'
 
-// 活动原始数据
-const activityRaw = {
-  "activity1": {
+// 活动配置（静态数据，不会改变）
+export const ACTIVITY_CONFIG = [
+  {
     index: 1,
+    name: 'activity1',
     title: '活动一',
-    active: true,
-    rating: {
-      1: {
-        criteria: '完成拍照并上传',
-        score: 0
-      },
-      2: {
-        criteria: '放到指定文件夹中',
-        score: 0
-      }
-    }
+    max: 2,
+    criteria: [
+      { id: 1, text: '完成拍照并上传' , max: 1},
+      { id: 2, text: '放到指定文件夹中' , max: 1}
+    ]
   },
-  "activity2": {
+  {
     index: 2,
+    name: 'activity2',
     title: '活动二',
-    active: false,
-    rating: {
-      1: {
-        criteria: '修改代码绘制柿子的目标检测框',
-        score: 0
-      },
-      2: {
-        criteria: '裁剪出框选出来的图片',
-        score: 0
-      }
-    }
+    max: 5,
+    criteria: [
+      { id: 1, text: '修改代码绘制柿子的目标检测框' , max: 3},
+      { id: 2, text: '裁剪出框选出来的图片' , max: 2}
+    ]
   },
-  "activity3": {
+  {
     index: 3,
+    name: 'activity3',
     title: '活动三',
-    active: false,
-    rating: {
-      1: {
-        criteria: '成功划分数据集',
-        score: 0
-      }
-    }
-  } 
-}
+    max: 3,
+    criteria: [
+      { id: 1, text: '成功划分数据集', max: 3 }
+    ]
+  }
+ ] as const
+
+// 评分初始化工厂函数
+const createActivityScores = () => ({
+  activity1: { 1: 0, 2: 0 },
+  activity2: { 1: 0, 2: 0 },
+  activity3: { 1: 0 }
+})
 
 // 状态管理
-export const useStatus = defineStore('status', () => {
+export const useStuStatus = defineStore('stuStatus', () => {
 
   // 用户状态
   const user = ref<User | null>(null)
@@ -63,8 +59,11 @@ export const useStatus = defineStore('status', () => {
   // 扣子文件
   const cozeFileId = ref<string | null>(null)
 
-  // 活动状态
-  const activity = ref<Record<string, Activity> | null>(activityRaw)
+  // 评分数据（扁平化存储，只存储分数）
+  const scores = createActivityScores()
+  const activity1Score = ref(scores.activity1)
+  const activity2Score = ref(scores.activity2)
+  const activity3Score = ref(scores.activity3)
 
   // 当前活动
   const current = ref<string | null>("activity1")
@@ -73,15 +72,124 @@ export const useStatus = defineStore('status', () => {
     user.value = null
     photo.value = null
     cozeFileId.value = null
-    activity.value = activityRaw
+    // 重置评分（创建新对象避免引用）
+    const newScores = createActivityScores()
+    activity1Score.value = newScores.activity1
+    activity2Score.value = newScores.activity2
+    activity3Score.value = newScores.activity3
     current.value = "activity1"
-
   }
+
+  // 监听所有评分变化，自动发送 submit 消息
+  watch(
+    [() => activity1Score.value, () => activity2Score.value, () => activity3Score.value],
+    () => {
+      const socket = useSocket()
+      if (!socket.connected || !user.value?.studentNo) return
+
+      // 计算每个活动的总分
+      const activityScores = {
+        activity1: Object.values(activity1Score.value).reduce((sum, score) => sum + score, 0),
+        activity2: Object.values(activity2Score.value).reduce((sum, score) => sum + score, 0),
+        activity3: Object.values(activity3Score.value).reduce((sum, score) => sum + score, 0)
+      }
+
+      socket.emit('submit', {
+        eventType: EventType.SUBMIT,
+        messageType: 'activity-update',
+        from: {
+          studentNo: user.value.studentNo,
+          groupNo: user.value.groupNo,
+          studentRole: user.value.studentRole
+        },
+        data: activityScores
+      })
+    },
+    { deep: true }
+  )
+
   return {
     user,
     photo,
     cozeFileId,
-    activity,
+    activity1Score,  // 活动1评分
+    activity2Score,  // 活动2评分
+    activity3Score,  // 活动3评分
+    current,
+    reset
+  }
+}, {
+  persist: true
+})
+
+// 学生数据初始化工厂函数
+const createStudents = () => {
+  const students: Record<string, {
+    login: boolean;        // 是否登录
+    studentNo: string;     // 学生编号
+    activity1: number;     // 活动1总分
+    activity1_1: number;   // 活动1-1分
+    activity1_2: number;   // 活动1-2分
+    picture1_1: string;    // 活动1-1图片
+    picture1_2: string;    // 活动1-2图片
+    activity2: number;     // 活动2总分
+    activity2_1: number;   // 活动2-1分
+    activity2_2: number;   // 活动2-2分
+    picture2_1: string;    // 活动2-1图片
+    picture2_2: string;    // 活动2-2图片
+    activity3: number;     // 活动3总分
+    activity3_1: number;   // 活动3-1分
+    picture3_1: string;    // 活动3-1图片
+    picture3_2: string;    // 活动3-2图片
+  }> = {}
+
+  // 生成21个学生数据
+  for (let i = 1; i <= 21; i++) {
+    const studentNo = i.toString()
+    students[studentNo] = {
+      login: false,
+      studentNo,
+      activity1: 0,
+      activity1_1: 0,
+      activity1_2: 0,
+      picture1_1: '',
+      picture1_2: '',
+      activity2: 0,
+      activity2_1: 0,
+      activity2_2: 0,
+      picture2_1: '',
+      picture2_2: '',
+      activity3: 0,
+      activity3_1: 0,
+      picture3_1: '',
+      picture3_2: '',
+    }
+  }
+
+  return students
+}
+
+// 教师状态管理
+export const useTeaStatus = defineStore('teaStatus', () => {
+
+  // 用户状态
+  const user = ref<User | null>(null)
+
+  // 当前活动
+  const current = ref<string | null>("activity1")
+
+  // 学生数据
+  const students = ref(createStudents())
+  
+  const reset = () => {
+    user.value = null
+    students.value = createStudents()
+    current.value = "activity1"
+  }
+  
+  return {
+    user,
+    students,
     current,
     reset
   }

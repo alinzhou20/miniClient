@@ -12,6 +12,7 @@ export interface Activity {
   title: string,
   active: boolean
   rating: Record<number, Rating>
+  max: number
 }
 
 // 评价

@@ -3,16 +3,46 @@
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount } from 'vue'
-import { useSocket, useStatus } from '@/store'
-import { teaAc1 } from '@/store/activity/activity1'
-import { teaAc2 } from '@/store/activity/activity2'
-import { teaAc3 } from '@/store/activity/activity3'
+import { useSocket, useTeaStatus } from '@/store'
+import { useTeaAc1 } from '@/store/activity/activity1'
+import { useTeaAc2 } from '@/store/activity/activity2'
+import { useTeaAc3 } from '@/store/activity/activity3'
 
 const socket = useSocket()
-const status = useStatus()
-const ac1 = teaAc1()
-const ac2 = teaAc2()
-const ac3 = teaAc3()
+const teaStatus = useTeaStatus()
+const ac1 = useTeaAc1()
+const ac2 = useTeaAc2()
+const ac3 = useTeaAc3()
+
+// 处理登录
+function onLogin(payload: any) {
+  const { from } = payload
+  if (!from?.studentNo ) return
+  teaStatus.students[from.studentNo].login = true
+}
+
+// 处理登出
+function onLogout(payload: any) {
+  const { from } = payload
+  if (!from?.studentNo) return
+  teaStatus.students[from.studentNo].login = false
+}
+
+// 处理评分更新（rating_update）
+function onRatingUpdate(payload: any) {
+  const { from, data } = payload
+  if (!from?.studentNo || !data?.name || data?.star === undefined) return
+  
+  const studentNo = from.studentNo
+  const name = data.name as 'activity1' | 'activity2' | 'activity3'
+  const stars = data.star
+  
+  // 更新对应学生的活动星数
+  if (teaStatus.students[studentNo] && ['activity1', 'activity2', 'activity3'].includes(name)) {
+    teaStatus.students[studentNo][name] = stars
+    console.log(`[Teacher] 更新学生 ${studentNo} 的 ${name}: ${stars} 星`)
+  }
+}
 
 // 处理活动1照片提交（48张图片）
 function onActivity1PhotoSubmit(payload: any) {
@@ -67,6 +97,31 @@ function onActivity3ScreenshotSubmit(payload: any) {
   ac3.stuScreenshot[groupNo] = data.screenshot
 }
 
+
+
+// 处理学生端活动评分更新
+function onActivityUpdate(payload: any) {
+  const { from, data } = payload
+  if (!from?.studentNo || !data) return
+  
+  const studentNo = from.studentNo
+  const activityScores = data as Record<string, number>
+  
+  // 更新学生的活动分数
+  if (teaStatus.students[studentNo]) {
+    if (activityScores.activity1 !== undefined) {
+      teaStatus.students[studentNo].activity1 = activityScores.activity1
+    }
+    if (activityScores.activity2 !== undefined) {
+      teaStatus.students[studentNo].activity2 = activityScores.activity2
+    }
+    if (activityScores.activity3 !== undefined) {
+      teaStatus.students[studentNo].activity3 = activityScores.activity3
+    }
+    console.log(`[Teacher] 更新学生 ${studentNo} 评分:`, activityScores)
+  }
+}
+
 // 统一的 submit 事件处理
 function handleSubmit(payload: any) {
   if (!payload || !payload.messageType) return
@@ -75,6 +130,18 @@ function handleSubmit(payload: any) {
 
   // 根据不同的消息类型处理
   switch (messageType) {
+    case 'login':
+      onLogin(payload)
+      break
+    case 'logout':
+      onLogout(payload)
+      break
+    case 'activity-update':
+      onActivityUpdate(payload)
+      break
+    case 'rating_update':
+      onRatingUpdate(payload)
+      break
     case 'activity1_photo_submit':
       onActivity1PhotoSubmit(payload)
       break
@@ -85,7 +152,7 @@ function handleSubmit(payload: any) {
       onActivity3ScreenshotSubmit(payload)
       break
     default:
-      // console.log('[Teacher Listener] 未知的消息类型:', messageType)
+      break
   }
 }
 

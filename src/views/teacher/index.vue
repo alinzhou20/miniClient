@@ -4,11 +4,29 @@
     <!-- 顶部标题横幅 + 活动按钮 -->
     <div class="banner">
       <div class="banner-inner">
-        <div class="banner-badge">第 5 课</div>
-        <h1 class="title">数据获取</h1>
+        <div class="banner-badge">人工智能实现</div>
+        <h1 class="title">数据的采集与处理</h1>
         
         <!-- 活动按钮区 -->
         <div class="activity-btns">
+          <button 
+            v-for="act in ACTIVITY_CONFIG" 
+            :key="act.name"
+            class="activity-btn"
+            :class="{ active: teaStatus.current === act.name }"
+            @click="selectActivity(act.name)"
+          >
+            <span class="btn-text">{{ act.title }}</span>
+          </button>
+          
+          <!-- 看板按钮 -->
+          <button 
+            class="activity-btn watch-btn"
+            :class="{ active: teaStatus.current === 'watch' }"
+            @click="goToWatch"
+          >
+            <span class="btn-text">看板</span>
+          </button>
         </div>
         
         <div class="spacer"></div>      
@@ -25,13 +43,24 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { useStatus, useSocket} from '@/store'
-import { Fold, Monitor } from '@element-plus/icons-vue'
+import { useTeaStatus, useSocket, ACTIVITY_CONFIG } from '@/store'
 import Listener from './listener.vue'
 
 const router = useRouter()
 const socket = useSocket()
-const status = useStatus()
+const teaStatus = useTeaStatus()
+
+// 选择活动
+const selectActivity = (name: string) => {
+  teaStatus.current = name
+  router.push(`/teacher/${name}`)
+}
+
+// 跳转到看板
+const goToWatch = () => {
+  teaStatus.current = 'watch'
+  router.push('/teacher/watch')
+}
 
 </script>
 
@@ -92,6 +121,9 @@ const status = useStatus()
   cursor: pointer;
   transition: all 0.3s ease;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .activity-btn:hover {
@@ -107,10 +139,19 @@ const status = useStatus()
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.activity-btn.watch-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.btn-text {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.watch-btn {
+  background: rgba(255, 255, 255, 0.4);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.watch-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.7);
 }
 
 .spacer {
@@ -202,8 +243,7 @@ const status = useStatus()
 /* 统一内容区 */
 .content-box {
   background: #F5F5F0;
-  width: 1240px;
-  max-width: 100%;
+  max-width: 1480px;
   margin: 0 auto;
 }
 

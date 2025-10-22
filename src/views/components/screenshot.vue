@@ -41,7 +41,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
-import { useStatus } from '@/store/status'
+import { useStuStatus } from '@/store/status'
 import { ElMessage } from 'element-plus'
 
 const emit = defineEmits<{
@@ -51,7 +51,7 @@ const emit = defineEmits<{
 
 const visible = defineModel<boolean>({ default: false })
 
-const status = useStatus()
+const status = useStuStatus()
 const videoRef = ref<HTMLVideoElement>()
 const stream = ref<MediaStream | null>(null)
 

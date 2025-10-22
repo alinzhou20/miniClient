@@ -6,28 +6,19 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useStatus, useSocket } from '@/store'
+import { useStuStatus, useTeaStatus } from '@/store/status'
+import { useSocket } from '@/store/socket'
 
-const router = useRouter()
-const {userStatus, activityStatus, mode} = useStatus()
-const {socket, connect} = useSocket()
-
-// 自动登录
+// 自动重连：应用启动时检查是否有已登录的用户
 onMounted(async () => {
+  const socket = useSocket()
+  const user = useStuStatus().user || useTeaStatus().user
   
-  if (socket == null && userStatus !== null) {
+  if (user && !socket.connected) {
     try {
-      connect({
-        type: userStatus.type,
-        mode: mode,
-        studentRole: userStatus.studentRole,
-        groupNo: userStatus.groupNo,
-        studentNo: userStatus.studentNo
-      })
-      router.push(`/${userStatus.type}/activity${activityStatus?.now ?? 0}`)
+      await socket.connect(user)
     } catch (error) {
-      router.push('/login')
+      console.error('[App] 自动重连失败:', error)
     }
   }
 })

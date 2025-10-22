@@ -43,14 +43,14 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useStatus } from '@/store/status'
-import { stuAc3 } from '@/store/activity/activity3'
+import { useStuStatus } from '@/store/status'
+import { useStuAc3 } from '@/store/activity/activity3'
 import { ElMessage } from 'element-plus'
 import StudentScreenshot from '../../components/screenshot.vue'
 import Evaluation from '../../components/evaluation.vue'
 
-const status = useStatus()
-const ac3 = stuAc3()
+const status = useStuStatus()
+const ac3 = useStuAc3()
 
 // 截图功能
 const showScreenshot = ref(false)

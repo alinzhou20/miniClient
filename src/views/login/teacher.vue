@@ -34,11 +34,11 @@
 import { ref } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { useStatus } from '@/store/status'
+import { useStuStatus } from '@/store/status'
 import { useSocket } from '@/store/socket'
 
 const router = useRouter()
-const status = useStatus()
+const status = useStuStatus()
 const {connect} = useSocket()
 
 const formRef = ref<FormInstance>()

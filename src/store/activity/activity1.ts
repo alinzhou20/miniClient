@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 // 学生活动1
-export const stuAc1 = defineStore('stuAc1', () => {
+export const useStuAc1 = defineStore('stuAc1', () => {
 
   // 照片数据
   const takePhoto1 = ref<string | null>(null)
@@ -23,7 +23,7 @@ export const stuAc1 = defineStore('stuAc1', () => {
 })
 
 // 状态管理
-export const teaAc1 = defineStore('teaAc1', () => {
+export const useTeaAc1 = defineStore('teaAc1', () => {
 
   // 学生照片数据 - 每个小组提交两张照片
   const stuPhoto = ref<Record<number, { photo1: string; photo2: string; submittedAt?: number }> | null>(null)

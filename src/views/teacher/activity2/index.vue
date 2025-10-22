@@ -27,9 +27,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { teaAc2 } from '@/store/activity/activity2'
+import { useTeaAc2 } from '@/store/activity/activity2'
 
-const ac2 = teaAc2()
+const ac2 = useTeaAc2()
 
 // 计算已提交截图的小组数量
 const submittedScreenshotsCount = computed(() => {
@@ -44,7 +44,7 @@ const submittedScreenshotsCount = computed(() => {
 <style scoped>
 .page {
   padding: 0;
-  width: 1240px;
+  max-width: 1480px;
   margin: 0 auto;
   background: #F5F5F0;
 }
@@ -139,7 +139,7 @@ const submittedScreenshotsCount = computed(() => {
 }
 
 /* 响应式设计 */
-@media (max-width: 1240px) {
+@media (max-width: 1480px) {
   .page {
     width: 100%;
     padding: 0 16px;

@@ -6,7 +6,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { studentRoutes } from './student'
 import { teacherRoutes } from './teacher'
-import { useStatus } from '@/store/status'
+import { useStuStatus } from '@/store/status'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -34,7 +34,7 @@ const router = createRouter({
 
 // 路由守卫：检查登录状态
 router.beforeEach((to, _, next) => {
-  const status = useStatus()
+  const status = useStuStatus()
   
   if (to.meta.auth === 'student' && status.user?.type !== 'student') {
     next('/login')

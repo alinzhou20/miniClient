@@ -90,8 +90,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useStatus } from '@/store/status'
-import { stuAc1 } from '@/store/activity/activity1'
+import { useStuStatus } from '@/store/status'
+import { useStuAc1 } from '@/store/activity/activity1'
 import { useSocket } from '@/store/socket'
 import { useCoze, WORKFLOW } from '@/utils/coze'
 import { ElMessage } from 'element-plus'
@@ -99,8 +99,8 @@ import { EventType } from '@/type/event'
 import StudentCamera from '../../components/camera.vue'
 import Evaluation from '../../components/evaluation.vue'
 
-const status = useStatus()
-const ac1 = stuAc1()
+const status = useStuStatus()
+const ac1 = useStuAc1()
 const socket = useSocket()
 const { uploadFile, runWorkflow } = useCoze()
 
@@ -127,9 +127,9 @@ const retakePhoto = (captureIndex: 1 | 2) => {
   }
   
   // 清空识别结果和评分
-  if (status.activity?.['activity1']?.rating) {
-    Object.values(status.activity['activity1'].rating).forEach(rating => {
-      rating.score = 0
+  if (status.activity1Score) {
+    Object.values(status.activity1Score).forEach(rating => {
+      rating = 0
     })
   }
   
@@ -181,10 +181,10 @@ const recognizePhotos = async () => {
     recognitionResult.value = resultData
     
     // 4. 更新评分状态
-    if (resultData.output1 && status.activity?.['activity1']?.rating) {
+    if (resultData.output1 && status.activity1Score) {
       // 识别成功，更新第一个评分标准
-      if (status.activity['activity1'].rating[1]) {
-        status.activity['activity1'].rating[1].score = 1
+      if (status.activity1Score[1]) {
+        status.activity1Score[1] = 1
       }
     }
     

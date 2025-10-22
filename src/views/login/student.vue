@@ -32,12 +32,12 @@
 import { ref } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { useStatus } from '@/store/status'
+import { useStuStatus } from '@/store/status'
 import { useSocket } from '@/store/socket'
 import StudentCamera from '@/views/components/camera.vue'
 
 const router = useRouter()
-const status = useStatus()
+const status = useStuStatus()
 const socketStore = useSocket()
 const { connect } = socketStore
 
@@ -51,7 +51,7 @@ const form = ref({
 const rules: FormRules = {
   groupNo: [
     { required: true, message: '请输入小组号', trigger: 'blur' },
-    { pattern: /^([1-9]|1\d|24)$/, message: '请输入1-24的数字', trigger: 'blur' }
+    { pattern: /^([1-9]|1[0-9]|2[0-4])$/, message: '请输入1-24的数字', trigger: 'blur' }
   ]
 }
 

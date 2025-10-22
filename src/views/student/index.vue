@@ -4,11 +4,44 @@
     <!-- 顶部标题横幅 + 活动按钮 -->
     <div class="banner">
       <div class="banner-inner">
-        <div class="banner-badge">第 5 课</div>
-        <h1 class="title">数据获取</h1>
+        <div class="banner-badge">人工智能实现</div>
+        <h1 class="title">数据的采集与处理</h1>
         
         <!-- 活动按钮区 -->
         <div class="activity-btns">
+          <button 
+            v-for="act in ACTIVITY_CONFIG" 
+            :key="act.name"
+            class="activity-btn"
+            :class="{ active: status.current === act.name }"
+            @click="selectActivity(act.name)"
+          >
+            <span class="btn-text">{{ act.title }}</span>
+            <span class="btn-stars">
+              <template v-for="i in act.max" :key="i">
+                <svg 
+                  class="star-icon" 
+                  :class="{ filled: i <= currentStar(act.name) }"
+                  viewBox="0 0 24 24" 
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <defs>
+                    <linearGradient :id="`star-gradient-${act.name}-${i}`" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+                      <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
+                    </linearGradient>
+                  </defs>
+                  <path 
+                    d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                    :fill="i <= currentStar(act.name) ? `url(#star-gradient-${act.name}-${i})` : 'none'"
+                    :stroke="i <= currentStar(act.name) ? '#FFA500' : 'currentColor'"
+                    stroke-width="1.5"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </template>
+            </span>
+          </button>
         </div>
         
         <div class="spacer"></div>
@@ -19,8 +52,8 @@
           <div class="connection-indicator" :class="{ connected: isConnected }">
             <div class="indicator-dot"></div>
           </div>
-          <span class="total-label">第 {{ status.user!.groupNo }} 组共获得</span>
-          <span class="total-count">todo / 8 </span>
+          <span class="total-label">第 {{ status.user?.groupNo ?? '-' }} 组共获得</span>
+          <span class="total-count">{{ totalStars.current }} / {{ totalStars.max }}</span>
         </div>
         
         <el-button @click="handleLogout" class="logout-btn">
@@ -40,52 +73,73 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useStatus, useSocket } from '@/store'
+import { useStuStatus, useSocket, useStuAc1, useStuAc2, useStuAc3, ACTIVITY_CONFIG } from '@/store'
 import { ElMessage } from 'element-plus'
 import { Fold } from '@element-plus/icons-vue'
 import Listener from './listener.vue'
 
 const router = useRouter()
 const socket = useSocket()
-const status = useStatus()
+const status = useStuStatus()
 
-// 当前活动 ID（根据路由判断）
-const currentActivityId = computed(() => {
-  const match = router.currentRoute.value.path.match(/activity(\d+)/)
-  return match ? parseInt(match[1]) : 1
-})
-
-const selectActivity = (id: number) => {
-  // 学生端只能跳转到 activity1-4
-  if (id >= 1 && id <= 4) {
-    router.push(`/student/activity${id}`)
-  }
-}
-
-// 获取每个活动的最大星数
-const getActivityMaxStars = (activityId: number): number => {
-  if (activityId === 1) return 1
-  if (activityId === 2) return 2 
-  if (activityId === 3) return 2 
-  if (activityId === 4) return 1
-  return 0
-}
-
-// 使用 socket store 中的响应式连接状态
+// Socket 连接状态
 const isConnected = computed(() => socket.connected)
 
+// 当前星数
+const currentStar = computed(() => {
+  return (name: string) => {
+    if (name === 'activity1') {
+      return Object.values(status.activity1Score).filter(s => s > 0).length
+    } else if (name === 'activity2') {
+      return Object.values(status.activity2Score).filter(s => s > 0).length
+    } else if (name === 'activity3') {
+      return Object.values(status.activity3Score).filter(s => s > 0).length
+    }
+    return 0
+  }
+})
+
+// 总得星数
+const totalStars = computed(() => {
+  // 计算最大星数
+  const max = Object.values(ACTIVITY_CONFIG).reduce((sum, config) => sum + config.max, 0)
+  
+  // 计算当前星数
+  const current = 
+    Object.values(status.activity1Score).filter(s => s > 0).length +
+    Object.values(status.activity2Score).filter(s => s > 0).length +
+    Object.values(status.activity3Score).filter(s => s > 0).length
+  
+  return { current, max }
+})
+
+// 选择活动
+const selectActivity = (name: string) => {
+  status.current = name
+  router.push(`/student/${name}`)
+}
+
+
+
+// 退出登录
 const handleLogout = () => {
   socket.disconnect()
-  status.reset()
-  router.push('/login')
-  ElMessage.success('已退出登录')
+  // 先跳转路由，避免重置状态后页面渲染报错
+  router.push('/login').then(() => {
+    status.reset()
+    useStuAc1().reset()
+    useStuAc2().reset()
+    useStuAc3().reset()
+    ElMessage.success('已退出登录')
+  })
 }
+
 </script>
 
 <style scoped>
 .page {
   padding: 10px;
-  max-width: 1280px;
+  max-width: 1480px;
   margin: 0 auto;
 }
 
@@ -310,25 +364,7 @@ const handleLogout = () => {
 /* 统一内容区 */
 .content-box {
   background: #F5F5F0;
-  width: 1240px;
-  max-width: 100%;
+  max-width: 1480px;
   margin: 0 auto;
-}
-
-@media (max-width: 768px) {
-  .banner-inner {
-    flex-wrap: wrap;
-  }
-  
-  .activity-btns {
-    order: 3;
-    width: 100%;
-    margin-top: 12px;
-    margin-left: 0;
-  }
-  
-  .spacer {
-    display: none;
-  }
 }
 </style>

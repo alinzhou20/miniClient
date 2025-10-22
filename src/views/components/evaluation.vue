@@ -3,12 +3,12 @@
     <h3>评价标准</h3>
     <div class="criteria-grid">
       <div 
-        v-for="(rating, key) in currentRatings" 
-        :key="key" 
+        v-for="criterion in currentCriteria" 
+        :key="criterion.id" 
         class="criterion-item"
-        :class="{ 'completed': rating.score > 0 }"
+        :class="{ 'completed': criterion.score > 0 }"
       >
-        <span class="criterion-text">{{ rating.criteria }}</span>
+        <span class="criterion-text">{{ criterion.text }}</span>
       </div>
     </div>
   </div>
@@ -16,18 +16,25 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useStatus } from '@/store/status'
+import { useStuStatus, ACTIVITY_CONFIG } from '@/store/status'
 
-const status = useStatus()
+const status = useStuStatus()
 
-// 根据 current 自动获取当前活动的评价标准
-const currentRatings = computed(() => {
-  if (!status.current || !status.activity) {
-    return {}
-  }
+// 根据 current 自动获取当前活动的评价标准，并关联评分数据
+const currentCriteria = computed(() => {
+  if (!status.current) return []
   
-  const currentActivity = status.activity[status.current]
-  return currentActivity?.rating || {}
+  const currentActivity = ACTIVITY_CONFIG.find(act => act.name === status.current)
+  if (!currentActivity) return []
+
+  // 获取当前活动的评分数据
+  const scoreMap = status[`${status.current}Score` as 'activity1Score' | 'activity2Score' | 'activity3Score']
+  
+  // 将评价标准与评分数据合并
+  return currentActivity.criteria.map(criterion => ({
+    ...criterion,
+    score: scoreMap?.[criterion.id as keyof typeof scoreMap] || 0
+  }))
 })
 </script>
 

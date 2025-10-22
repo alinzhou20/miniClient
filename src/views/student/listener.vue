@@ -4,11 +4,11 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { useStatus, useSocket } from '@/store'
+import { useStuStatus, useSocket } from '@/store'
 
 const router = useRouter()
 const socket = useSocket()
-const status = useStatus()
+const status = useStuStatus()
 
 // 监听教师切换活动
 function onChangeActivity(payload: any) {
