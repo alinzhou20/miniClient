@@ -57,10 +57,12 @@ function onActivity1PhotoSubmit(payload: any) {
     ac1.stuPhoto = {}
   }
   
-  // 存储格式：{ groupNo: { photo1: '...', photo2: '...' } }
+  // 存储格式：{ groupNo: { photo1: '...', photo2: '...', label1: '...', label2: '...' } }
   ac1.stuPhoto[groupNo] = {
     photo1: data.photo1,
     photo2: data.photo2,
+    label1: data.label1,
+    label2: data.label2,
     submittedAt: data.submittedAt
   }
 }
@@ -143,6 +145,9 @@ function handleSubmit(payload: any) {
       onRatingUpdate(payload)
       break
     case 'activity1_photo_submit':
+      onActivity1PhotoSubmit(payload)
+      break
+    case 'activity1_label_update':
       onActivity1PhotoSubmit(payload)
       break
     case 'activity2_1_submit':

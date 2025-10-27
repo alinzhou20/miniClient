@@ -54,14 +54,12 @@ const status = useStuStatus()
 const videoRef = ref<HTMLVideoElement>()
 const stream = ref<MediaStream | null>(null)
 
-// 计算视频样式（旋转-90度，宽高互换以填满容器）
+// 计算视频样式（正常横向显示）
 // 兼容 Chrome/Firefox/Edge
 const videoStyle = computed(() => {
   return {
-    width: '768px',
-    height: '432px',
-    transform: 'rotate(-90deg)',
-    transformOrigin: 'center center',
+    width: '100%',
+    height: '100%',
     objectFit: 'cover' as const,
     // 确保 Edge 浏览器的渲染优化
     backfaceVisibility: 'hidden' as const
@@ -122,14 +120,33 @@ const captureAndUpload = () => {
   if (!videoRef.value) return
   
   const canvas = document.createElement('canvas')
-  canvas.width = videoRef.value.videoWidth
-  canvas.height = videoRef.value.videoHeight
+  
+  // 限制最大分辨率为 1920x1080，减小数据量
+  const maxWidth = 1920
+  const maxHeight = 1080
+  let width = videoRef.value.videoWidth
+  let height = videoRef.value.videoHeight
+  
+  // 按比例缩放
+  if (width > maxWidth || height > maxHeight) {
+    const ratio = Math.min(maxWidth / width, maxHeight / height)
+    width = Math.floor(width * ratio)
+    height = Math.floor(height * ratio)
+  }
+  
+  canvas.width = width
+  canvas.height = height
   
   const ctx = canvas.getContext('2d')
   if (ctx) {
-    ctx.drawImage(videoRef.value, 0, 0)
-    // 转为无压缩的 jpg 格式（质量参数 1.0）
-    const photoData = canvas.toDataURL('image/jpeg', 1.0)
+    ctx.drawImage(videoRef.value, 0, 0, width, height)
+    
+    // 使用 0.7 质量压缩，大幅减小文件大小（从 1-2MB 降到 200-400KB）
+    const photoData = canvas.toDataURL('image/jpeg', 0.7)
+    
+    console.log(`[StudentCamera] 照片尺寸: ${width}x${height}`)
+    console.log(`[StudentCamera] 照片大小: ${(photoData.length / 1024).toFixed(2)}KB`)
+    
     status.photo = photoData
     
     // 立即上传
@@ -148,18 +165,66 @@ const handleExit = () => {
 
 const cleanup = () => {
   if (stream.value) {
-    stream.value.getTracks().forEach(track => track.stop())
-    stream.value = null
+    stream.value.getTracks().forEach(track => {
+      // 暂停轨道而不是完全停止，这样可以避免重新请求权限
+      track.enabled = false
+    })
   }
 }
 
-// 监听弹窗打开/关闭，自动启动/清理摄像头
+const resumeCamera = async () => {
+  if (!stream.value) {
+    console.error('[StudentCamera] 没有可用的视频流')
+    return
+  }
+  
+  // 等待 video 元素就绪（最多等待 500ms）
+  let retries = 5
+  while (!videoRef.value && retries > 0) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+    retries--
+  }
+  
+  if (!videoRef.value) {
+    console.error('[StudentCamera] video 元素未就绪')
+    return
+  }
+  
+  console.log('[StudentCamera] 恢复摄像头流')
+  
+  // 恢复轨道
+  stream.value.getTracks().forEach(track => {
+    track.enabled = true
+  })
+  
+  // 重新绑定流到新的 video 元素
+  videoRef.value.srcObject = stream.value
+  
+  // 等待 DOM 更新后播放
+  await nextTick()
+  try {
+    await videoRef.value.play()
+    console.log('[StudentCamera] 摄像头流恢复成功')
+  } catch (error) {
+    console.error('[StudentCamera] 恢复播放失败:', error)
+  }
+}
+
+// 监听弹窗打开/关闭，自动启动/暂停摄像头
 watch(visible, async (newVal) => {
   if (newVal) {
-    // 弹窗打开时自动启动摄像头
-    await initCamera()
+    // 等待 DOM 渲染完成（v-if 创建新元素）
+    await nextTick()
+    
+    if (!stream.value) {
+      // 首次打开时初始化摄像头
+      await initCamera()
+    } else {
+      // 后续打开时恢复摄像头
+      await resumeCamera()
+    }
   } else {
-    // 弹窗关闭时清理资源
+    // 弹窗关闭时暂停摄像头（不销毁流）
     cleanup()
     status.photo = null
   }
@@ -184,8 +249,8 @@ watch(visible, async (newVal) => {
 
 /* 相机卡片 */
 .camera-card {
-  width: 324px;
-  height: 576px;
+  width: 768px;
+  height: 432px;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   overflow: hidden;

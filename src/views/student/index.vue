@@ -89,11 +89,14 @@ const isConnected = computed(() => socket.connected)
 const currentStar = computed(() => {
   return (name: string) => {
     if (name === 'activity1') {
+      // 活动一：按完成项计数（每完成一项算1颗星）
       return Object.values(status.activity1Score).filter(s => s > 0).length
     } else if (name === 'activity2') {
-      return Object.values(status.activity2Score).filter(s => s > 0).length
+      // 活动二：按总分计算（满分5分=5颗星）
+      return Object.values(status.activity2Score).reduce((sum, score) => sum + score, 0)
     } else if (name === 'activity3') {
-      return Object.values(status.activity3Score).filter(s => s > 0).length
+      // 活动三：按总分计算（满分2分=2颗星）
+      return Object.values(status.activity3Score).reduce((sum, score) => sum + score, 0)
     }
     return 0
   }
@@ -107,8 +110,8 @@ const totalStars = computed(() => {
   // 计算当前星数
   const current = 
     Object.values(status.activity1Score).filter(s => s > 0).length +
-    Object.values(status.activity2Score).filter(s => s > 0).length +
-    Object.values(status.activity3Score).filter(s => s > 0).length
+    Object.values(status.activity2Score).reduce((sum, score) => sum + score, 0) +
+    Object.values(status.activity3Score).reduce((sum, score) => sum + score, 0)
   
   return { current, max }
 })

@@ -3,81 +3,120 @@
     <!-- 评价标准 -->
     <Evaluation />
 
-    <!-- 截图区域 -->
-    <div class="screenshot-area">
-      <div class="screenshot-title">屏幕截图</div>
-      <div class="screenshot-card" :class="{ 'has-screenshot': ac3.screenshot }">
-        <!-- 显示截图 -->
-        <div v-if="ac3.screenshot" class="screenshot-preview">
-          <img :src="ac3.screenshot" alt="屏幕截图" />
-          <el-button 
-            class="retake-button" 
-            size="small" 
-            @click="retakeScreenshot"
-          >
-            重新截图
-          </el-button>
-        </div>
-        <!-- 截图按钮 -->
-        <div v-else class="screenshot-content">
+    <!-- 主内容区 -->
+    <div class="content-layout">
+      <!-- 代码平台按钮 -->
+      <div class="platform-section">
+        <div class="section-card">
+          <div class="section-icon">🚀</div>
+          <h3 class="section-title">代码平台</h3>
+          <p class="section-desc">点击按钮进入代码平台完成活动三任务</p>
           <el-button 
             type="primary" 
-            size="large" 
-            @click="startScreenshot"
-            class="screenshot-button"
+            size="large"
+            @click="openCodePlatform"
+            class="platform-button"
           >
-            开始截图
+            🚀 进入代码平台
           </el-button>
         </div>
       </div>
+
+      <!-- 自我评分区域 -->
+      <div class="rating-section">
+        <div class="section-card">
+          <div class="section-icon">⭐</div>
+          <h3 class="section-title">自我评分</h3>
+          <p class="section-desc">完成任务后，根据完成情况为自己打分</p>
+          
+          <div class="rating-items">
+            <!-- 评分项1 -->
+            <div class="rating-item">
+              <div class="rating-label">
+                <span class="rating-number">5.</span>
+                <span class="rating-text">能运行代码，将图片数据集进行划分</span>
+              </div>
+              <div class="rating-stars">
+                <el-rate 
+                  v-model="status.activity3Score[1]"
+                  :max="1"
+                  size="large"
+                  @change="handleScoreChange"
+                  show-score
+                  :score-template="`{value}/1分`"
+                />
+              </div>
+            </div>
+
+            <!-- 评分项2 -->
+            <div class="rating-item">
+              <div class="rating-label">
+                <span class="rating-number">6.</span>
+                <span class="rating-text">观察划分后的变化，能说出数据集划分的规律</span>
+              </div>
+              <div class="rating-stars">
+                <el-rate 
+                  v-model="status.activity3Score[2]"
+                  :max="1"
+                  size="large"
+                  @change="handleScoreChange"
+                  show-score
+                  :score-template="`{value}/1分`"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-
-    <!-- 截图组件 -->
-    <StudentScreenshot 
-      v-model="showScreenshot" 
-      @upload="handleScreenshotUpload"
-    />
-
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useStuStatus } from '@/store/status'
-import { useStuAc3 } from '@/store/activity/activity3'
+import { useSocket } from '@/store/socket'
 import { ElMessage } from 'element-plus'
-import StudentScreenshot from '../../components/screenshot.vue'
+import { EventType } from '@/type/event'
 import Evaluation from '../../components/evaluation.vue'
 
 const status = useStuStatus()
-const ac3 = useStuAc3()
+const socket = useSocket()
 
-// 截图功能
-const showScreenshot = ref(false)
-
-// 启动截图
-const startScreenshot = () => {
-  showScreenshot.value = true
+// 打开代码平台
+const openCodePlatform = () => {
+  const url = 'https://www.openinnolab.org.cn/pjlab/project?id=68f62ac5b13c8c610064ddb9&backpath=/pjedu/userprofile?slideKey=project#public'
+  window.open(url, '_blank')
+  ElMessage.success('已在新标签页打开代码平台')
 }
 
-// 重新截图
-const retakeScreenshot = () => {
-  ac3.screenshot = null
-  startScreenshot()
+// 评分变化时自动提交
+const handleScoreChange = () => {
+  // 延迟提交，避免频繁发送
+  setTimeout(() => {
+    submitScoresToTeacher()
+  }, 300)
 }
 
-// 处理截图上传
-const handleScreenshotUpload = async () => {
-  showScreenshot.value = false
+// 提交评分到教师端
+const submitScoresToTeacher = () => {
+  if (!status.user?.studentNo) return
   
-  if (!status.photo) {
-    ElMessage.warning('截图未成功')
-    return
+  const activityScores = {
+    activity1: Object.values(status.activity1Score).reduce((sum, score) => sum + score, 0),
+    activity2: Object.values(status.activity2Score).reduce((sum, score) => sum + score, 0),
+    activity3: Object.values(status.activity3Score).reduce((sum, score) => sum + score, 0)
   }
-
-  // 保存截图
-  ac3.screenshot = status.photo
-  ElMessage.success('截图保存成功！')
+  
+  socket.emit('submit', {
+    eventType: EventType.SUBMIT,
+    messageType: 'activity-update',
+    from: { 
+      studentNo: status.user.studentNo!, 
+      groupNo: status.user.groupNo!, 
+      studentRole: status.user.studentRole! 
+    },
+    data: activityScores
+  })
 }
 </script>
 
@@ -85,99 +124,145 @@ const handleScreenshotUpload = async () => {
 .main-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
+  height: calc(100vh - 40px);
 }
 
-/* 截图区域 */
-.screenshot-area {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.content-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
 }
 
-.screenshot-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #374151;
-  text-align: center;
-  padding: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.screenshot-card {
+.section-card {
   background: white;
-  border: 2px solid #e5e7eb;
   border-radius: 16px;
-  padding: 40px 20px;
+  padding: 32px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  min-height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  transition: all 0.3s ease;
-}
-
-.screenshot-card.has-screenshot {
-  padding: 0;
-  overflow: hidden;
-}
-
-.screenshot-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 32px;
+  gap: 20px;
+  height: 100%;
 }
 
-.screenshot-button {
+.section-icon {
+  font-size: 64px;
+  opacity: 0.9;
+}
+
+.section-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.section-desc {
+  font-size: 14px;
+  color: #6b7280;
+  text-align: center;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* 代码平台按钮 */
+.platform-button {
+  width: 100%;
+  height: 56px;
   font-size: 18px;
-  padding: 16px 48px;
-  height: auto;
-  border-radius: 12px;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+  border-radius: 12px;
   transition: all 0.3s ease;
+  margin-top: 8px;
 }
 
-.screenshot-button:hover {
+.platform-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(64, 158, 255, 0.4);
 }
 
-.screenshot-preview {
+/* 评分区域 */
+.rating-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.rating-items {
   width: 100%;
-  height: 100%;
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 8px;
+  flex: 1;
+}
+
+.rating-item {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 16px 20px;
+  border: 2px solid #e5e7eb;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: #000;
-  min-height: 300px;
+  justify-content: space-between;
+  gap: 20px;
 }
 
-.screenshot-preview img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  display: block;
+.rating-item:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
 }
 
-.retake-button {
-  position: absolute;
-  bottom: 16px;
-  right: 16px;
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid #e5e7eb;
+.rating-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
 }
 
-.retake-button:hover {
-  background: white;
-  transform: scale(1.05);
+.rating-number {
+  font-size: 16px;
+  font-weight: 600;
+  color: #3b82f6;
+  flex-shrink: 0;
+}
+
+.rating-text {
+  font-size: 15px;
+  color: #374151;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.rating-stars {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.rating-stars :deep(.el-rate) {
+  height: auto;
+}
+
+.rating-stars :deep(.el-rate__icon) {
+  font-size: 28px;
+}
+
+.rating-stars :deep(.el-rate__text) {
+  font-size: 16px;
+  font-weight: 600;
+  color: #3b82f6;
+  margin-left: 8px;
+}
+
+/* 响应式 */
+@media (max-width: 1024px) {
+  .content-layout {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -2,10 +2,6 @@
   <div class="page">
     <!-- 结果展示区域 -->
     <div class="stats-section">
-      <!-- 活动标题 -->
-      <div class="activity-header">
-        <h2 class="activity-title">📊 问卷编辑，精研问题</h2>
-      </div>
 
       <!-- 截图展示区域 -->
       <div v-if="ac3.stuScreenshot && Object.keys(ac3.stuScreenshot).length > 0" class="photos-section">

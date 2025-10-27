@@ -3,9 +3,8 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
-import { User, EventType } from '@/type'
-import { useSocket } from './socket'
+import { ref } from 'vue'
+import type { User } from '@/type'
 
 // 活动配置（静态数据，不会改变）
 export const ACTIVITY_CONFIG = [
@@ -15,8 +14,8 @@ export const ACTIVITY_CONFIG = [
     title: '活动一',
     max: 2,
     criteria: [
-      { id: 1, text: '完成拍照并上传' , max: 1},
-      { id: 2, text: '放到指定文件夹中' , max: 1}
+      { id: 1, text: '1. 给生柿子、熟柿子各拍一张照片。' , max: 1},
+      { id: 2, text: '2. 能将生柿子、熟柿子照片进行裁剪放到指定文件夹中。' , max: 1}
     ]
   },
   {
@@ -25,8 +24,8 @@ export const ACTIVITY_CONFIG = [
     title: '活动二',
     max: 5,
     criteria: [
-      { id: 1, text: '修改代码绘制柿子的目标检测框' , max: 3},
-      { id: 2, text: '裁剪出框选出来的图片' , max: 2}
+      { id: 1, text: '3. 能利用代码得到图片中RGB通道数值。' , max: 3},
+      { id: 2, text: '4. 能理解“R”通道与“G”通道数值代表的含义。' , max: 2}
     ]
   },
   {
@@ -35,16 +34,17 @@ export const ACTIVITY_CONFIG = [
     title: '活动三',
     max: 3,
     criteria: [
-      { id: 1, text: '成功划分数据集', max: 3 }
+      { id: 1, text: '5. 能运行代码，将图片数据集进行划分。', max: 1 },
+      { id: 2, text: '6. 观察划分后的变化，能说出数据集划分的规律。', max: 1 },
     ]
   }
  ] as const
 
 // 评分初始化工厂函数
 const createActivityScores = () => ({
-  activity1: { 1: 0, 2: 0 },
-  activity2: { 1: 0, 2: 0 },
-  activity3: { 1: 0 }
+  activity1: { 1: 0, 2: 0 },  // 1:拍摄2张照片, 2:分类标注
+  activity2: { 1: 0, 2: 0 },  // 1:RGB通道数值(3分), 2:通道含义理解(2分)
+  activity3: { 1: 0, 2: 0 }   // 1:数据集划分(1分), 2:划分规律(1分)
 })
 
 // 状态管理
@@ -80,33 +80,10 @@ export const useStuStatus = defineStore('stuStatus', () => {
     current.value = "activity1"
   }
 
-  // 监听所有评分变化，自动发送 submit 消息
-  watch(
-    [() => activity1Score.value, () => activity2Score.value, () => activity3Score.value],
-    () => {
-      const socket = useSocket()
-      if (!socket.connected || !user.value?.studentNo) return
-
-      // 计算每个活动的总分
-      const activityScores = {
-        activity1: Object.values(activity1Score.value).reduce((sum, score) => sum + score, 0),
-        activity2: Object.values(activity2Score.value).reduce((sum, score) => sum + score, 0),
-        activity3: Object.values(activity3Score.value).reduce((sum, score) => sum + score, 0)
-      }
-
-      socket.emit('submit', {
-        eventType: EventType.SUBMIT,
-        messageType: 'activity-update',
-        from: {
-          studentNo: user.value.studentNo,
-          groupNo: user.value.groupNo,
-          studentRole: user.value.studentRole
-        },
-        data: activityScores
-      })
-    },
-    { deep: true }
-  )
+  // 注意：不再使用 watch 自动发送评分消息
+  // 原因：persist 插件会在 state 变化时同步写入 localStorage，
+  // 这会阻塞主线程导致 Socket 心跳包超时，从而断开连接
+  // 解决方案：在需要发送评分的地方直接调用 socket.emit
 
   return {
     user,

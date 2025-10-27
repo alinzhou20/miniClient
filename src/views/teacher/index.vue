@@ -43,11 +43,10 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { useTeaStatus, useSocket, ACTIVITY_CONFIG } from '@/store'
+import { useTeaStatus, ACTIVITY_CONFIG } from '@/store'
 import Listener from './listener.vue'
 
 const router = useRouter()
-const socket = useSocket()
 const teaStatus = useTeaStatus()
 
 // 选择活动
